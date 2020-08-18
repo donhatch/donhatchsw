@@ -1026,6 +1026,10 @@ public class MC4DLegacyControlPanel
             viewParams.nonShrunkStickerOutlineColor,
             viewParams.drawNonShrunkStickerOutlines,
             null); // no help string
+        addCheckboxRow(
+            "Draw shrunk sticker surfaces",
+            viewParams.drawShrunkStickerSurfaces,
+            null); // no help string
         addColorSwatchAndCheckboxRow(
             "Draw shrunk sticker outlines",
             viewParams.shrunkStickerOutlineColor,

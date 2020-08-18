@@ -148,6 +148,14 @@
     ===================
         - "5x5 2" and "4x5 2" strange flickering of some stickers during twists! and in some views (rotate things to center), some wildly inside out stickers showing.
         - topsort seems to succed but gives bogus order, in "{3,3,4} 2"  in fact, "{3,3,3} 2" !  (the latter includes the "I DON'T CARE BECAUSE SO WARPED" thing, but even if I comment that out, there is still some screwy inside-outedness there.  maybe that's the thing Roice fixed??"
+          In fact in "3,3,4 2" after a twist, I get bogus order even with 4dfaceshrink=1 4dstickershink=.5
+          In fact even with all shrinks 1!!  Ok that's definitely a bug, maybe in the thinking.
+          it may turn out that we need to z-assist the whole thing.
+          IDEA:  can I stress-test the painters sort 1 dimension down?  I.e. on a 3d puzzle, projected into 2d, with a 2d eye.  Try lots of cases and try to find good clear counterexamples that are easier to visualize.
+          GOT IT! "3,4 4",  flatten, twist center, view edge on.  screws up even with shrinks=1 !
+          also "3,4 3", screws up a bit when the interface poly is close to edge on.
+          "3,4 2": flatten, twist center, view edge on. screws up even with shrinks=1
+
         - CHECK fail on 3d puzzle when 1color sticker gonality isn't same as the facet gonality: puzzleDescription="(.25)4(2)3 3(1.4)": CHECK(cutWeight >= -1e-9 && cutWeight <= 1.) (cutWeight is -.75)
         - 5-dimensional puzzles get ArrayIndexOutOfBoundException when trying to view them (should just get rejected, I think)
         - can't fling on laptop (neither macboox nor glinux box)

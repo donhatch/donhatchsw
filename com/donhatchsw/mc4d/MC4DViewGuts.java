@@ -200,6 +200,7 @@ public class MC4DViewGuts
         public Listenable.Boolean drawNonShrunkFaceOutlines = new Listenable.Boolean(false);
         public Listenable.Boolean drawShrunkFaceOutlines = new Listenable.Boolean(false);
         public Listenable.Boolean drawNonShrunkStickerOutlines = new Listenable.Boolean(false);
+        public Listenable.Boolean drawShrunkStickerSurfaces = new Listenable.Boolean(true);
         public Listenable.Boolean drawShrunkStickerOutlines = new Listenable.Boolean(false);
         public Listenable.Boolean drawGround = new Listenable.Boolean(true);
 
@@ -1072,6 +1073,7 @@ public class MC4DViewGuts
                 viewParams.drawNonShrunkFaceOutlines.get() ? viewParams.nonShrunkFaceOutlineColor.get() : null,
                 viewParams.drawShrunkFaceOutlines.get() ? viewParams.shrunkFaceOutlineColor.get() : null,
                 viewParams.drawNonShrunkStickerOutlines.get() ? viewParams.nonShrunkStickerOutlineColor.get() : null,
+                viewParams.drawShrunkStickerSurfaces.get(),
                 viewParams.drawShrunkStickerOutlines.get() ? viewParams.shrunkStickerOutlineColor.get() : null,
                 g,
 

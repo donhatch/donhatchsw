@@ -740,6 +740,7 @@ public class GenericPipelineUtils
 
             int stickerSortOrder[] = new int[nStickers]; // XXX allocation
             int partialOrderAddress[][][] = (showPartialOrder ? new int[1][][] : null);
+            int XXXmoreInformationAddress[][][] = (showPartialOrder ? new int[1][][] : null);
             int nSortedStickers = VeryCleverPaintersSortingOfStickers.sortStickersBackToFront(
                     nStickersToSort,
                     puzzleDescription.getAdjacentStickerPairs(),
@@ -751,12 +752,17 @@ public class GenericPipelineUtils
                     sticker2Slice,
                     stickerSortOrder,
                     partialOrderAddress,
+                    XXXmoreInformationAddress,
                     stickerCentersZ,
                     polyCenters3d,
                     polyNormals3d);
 
-            if (showPartialOrder)
+            if (showPartialOrder) {
                 frame.partialOrder = partialOrderAddress[0];
+                if (true) {
+                    frame.partialOrder = (int[][])com.donhatchsw.util.Arrays.concat(frame.partialOrder, XXXmoreInformationAddress[0]);
+                }
+            }
 
             drawListSize = 0;
             for (int iSorted = 0; iSorted < nSortedStickers; ++iSorted)
@@ -1007,6 +1013,7 @@ public class GenericPipelineUtils
                                   Color nonShrunkFaceOutlineColor,
                                   Color shrunkFaceOutlineColor,
                                   Color nonShrunkStickerOutlineColor,
+                                  boolean drawShrunkStickerSurfaces,
                                   Color shrunkStickerOutlineColor,
                                   Graphics g,
                                   
@@ -1064,7 +1071,25 @@ public class GenericPipelineUtils
                 predecessors = new int[nNodes][0];
                 for (int i = 0; i < partialOrderSize; ++i)
                 {
-                    predecessors[frame.partialOrder[i][1]] = com.donhatchsw.util.Arrays.append(predecessors[frame.partialOrder[i][1]], frame.partialOrder[i][0]);
+                    int from = frame.partialOrder[i][0];
+                    int to = frame.partialOrder[i][1];
+
+                    if (from < 0 || to < 0) {
+                      // negative means the constraint was on the sticker's group (slice), not the sticker itself.
+                      if (true)
+                      {
+                        // TODO: should display them differently
+                        // show these the same as others
+                        if (from < 0) from = ~from;
+                        if (to < 0) to = ~to;
+                      }
+                      else
+                      {
+                        continue;  // ignore these
+                      }
+                    }
+                    // XXX very inefficient
+                    predecessors[to] = com.donhatchsw.util.Arrays.append(predecessors[to], from);
                 }
 
                 partialOrderNodeCenters2d = new float[nNodes][2]; // zeros
@@ -1209,24 +1234,26 @@ public class GenericPipelineUtils
                         ys[i] += jitterGenerator.nextInt(2*jitterRadius+1)-jitterRadius;
                     }
                 }
-                Color stickercolor = new Color(
-                    brightness*faceRGBThisSticker[0],
-                    brightness*faceRGBThisSticker[1],
-                    brightness*faceRGBThisSticker[2]);
-                boolean highlight = false;
-                //System.out.println("iGripUnderMouse = "+iGripUnderMouse);
-                if (highlightByCubie && sticker2cubie[iSticker]==iCubieUnderMouse)
-                    highlight = true;
-                else if (highlightByGrip && stickerPoly2Grip[iSticker][iPolyThisSticker]==iGripUnderMouse)
-                    highlight = true;
-                else if (highlightBySticker && iSticker==iStickerUnderMouse)
-                    highlight = true;
-                if(highlight)
-                    stickercolor = stickercolor.brighter().brighter();
+                if (drawShrunkStickerSurfaces) {
+                    Color stickercolor = new Color(
+                        brightness*faceRGBThisSticker[0],
+                        brightness*faceRGBThisSticker[1],
+                        brightness*faceRGBThisSticker[2]);
+                    boolean highlight = false;
+                    //System.out.println("iGripUnderMouse = "+iGripUnderMouse);
+                    if (highlightByCubie && sticker2cubie[iSticker]==iCubieUnderMouse)
+                        highlight = true;
+                    else if (highlightByGrip && stickerPoly2Grip[iSticker][iPolyThisSticker]==iGripUnderMouse)
+                        highlight = true;
+                    else if (highlightBySticker && iSticker==iStickerUnderMouse)
+                        highlight = true;
+                    if(highlight)
+                        stickercolor = stickercolor.brighter().brighter();
 
+                    g.setColor(isShadows ? shadowcolor : stickercolor);
+                    g.fillPolygon(xs, ys, poly.length);
+                }
 
-                g.setColor(isShadows ? shadowcolor : stickercolor);
-                g.fillPolygon(xs, ys, poly.length);
                 if(!isShadows && shrunkStickerOutlineColor != null) {
                     g.setColor(shrunkStickerOutlineColor);
                     // uncomment the following line for an alternate outlining idea -MG
@@ -1389,6 +1416,7 @@ public class GenericPipelineUtils
                 int sticker2Slice[/*>=nStickers*/],
                 int returnStickerSortOrder[/*>=nStickers*/],
                 int returnPartialOrderOptionalForDebugging[/*1*/][][/*2*/], // null if caller doesn't care, otherwise it's a singleton array that gets filled in with the int[][2] partial order
+                int XXXreturnMoreInformationForDebugging[/*1*/][][/*2*/], // null if caller doesn't care, otherwise it's a singleton array that gets filled in with more of the int[][2] partial order (-ish).  TODO: describe this better
                 final float stickerCentersZ[/*>=nStickers*/],
                 float polyCenters3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/],
                 float polyNormals3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/])
@@ -1398,6 +1426,11 @@ public class GenericPipelineUtils
             if (localVerboseLevel >= 3) {
                 if (localVerboseLevel >= 1) System.out.println("      adjacentStickerPairs = "+com.donhatchsw.util.Arrays.toStringCompact(adjacentStickerPairs));
             }
+
+            if (XXXreturnMoreInformationForDebugging != null) {
+                XXXreturnMoreInformationForDebugging[0] = new int[adjacentStickerPairs.length][];
+            }
+            int XXXmoreInformationSize = 0;
 
             int nSlices = cutOffsets.length + 1;
             int nCompressedSlices = nSlices; // XXX should combine adjacent slices that are moving together... but maybe it doesn't hurt to just pretend all the slices are twisting separately, it keeps things simple?  Not sure.
@@ -1639,6 +1672,9 @@ public class GenericPipelineUtils
                             partialOrder[partialOrderSize][1] = iSticker;
                             if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
+                            if (XXXreturnMoreInformationForDebugging != null) {
+                                XXXreturnMoreInformationForDebugging[0][XXXmoreInformationSize++] = new int[] {iSticker, ~jSticker};
+                            }
                         }
                         else
                         {
@@ -1647,6 +1683,9 @@ public class GenericPipelineUtils
                             partialOrder[partialOrderSize][0] = iSticker;
                             partialOrder[partialOrderSize][1] = jIndGroupStartToken;
                             if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                            if (XXXreturnMoreInformationForDebugging != null) {
+                                XXXreturnMoreInformationForDebugging[0][XXXmoreInformationSize++] = new int[] {~jSticker, iSticker};
+                            }
                             partialOrderSize++;
                         }
                     }
@@ -1665,6 +1704,9 @@ public class GenericPipelineUtils
                             partialOrder[partialOrderSize][1] = jSticker;
                             if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
+                            if (XXXreturnMoreInformationForDebugging != null) {
+                                XXXreturnMoreInformationForDebugging[0][XXXmoreInformationSize++] = new int[] {~iSticker, jSticker};
+                            }
                         }
                         else
                         {
@@ -1674,6 +1716,9 @@ public class GenericPipelineUtils
                             partialOrder[partialOrderSize][1] = iIndGroupStartToken;
                             if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
+                            if (XXXreturnMoreInformationForDebugging != null) {
+                                XXXreturnMoreInformationForDebugging[0][XXXmoreInformationSize++] = new int[] {jSticker, ~iSticker};
+                            }
                         }
                     }
                     else
@@ -1904,6 +1949,9 @@ public class GenericPipelineUtils
             if (returnPartialOrderOptionalForDebugging != null)
             {
                 returnPartialOrderOptionalForDebugging[0] = (int[][])com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize);
+            }
+            if (XXXreturnMoreInformationForDebugging != null) {
+                XXXreturnMoreInformationForDebugging[0] = (int[][])com.donhatchsw.util.Arrays.subarray(XXXreturnMoreInformationForDebugging[0], 0, XXXmoreInformationSize);
             }
 
             if (localVerboseLevel >= 1) System.out.println("    out sortStickersBackToFront, returning nCompressedSorted="+nCompressedSorted);
