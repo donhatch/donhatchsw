@@ -84,8 +84,7 @@ public class GenericPipelineUtils
         // without having to do any memory allocations.
         public int drawListBuffer[/*nStickers*/][/*nPolysThisSticker*/][/*2*/];
 
-        public int[][/*2*/] partialOrder; // optional, for debugging   XXX deprecated; get rid
-        public int[][/*2*/][/*3*/] partialOrderInfo; // optional, for debugging.  XXX describe what it means. currently described down in the sort, which generates it
+        public int[][/*2*/][/*3*/] partialOrderInfo; // optional, for debugging.  TODO: describe what it means here. currently it's described down in the sort, which generates it
 
         GenericPuzzleDescription puzzleDescription; // puzzle description used when filling it, to be used later for picking
     } // class Frame
@@ -788,8 +787,6 @@ public class GenericPipelineUtils
             }
 
             int stickerSortOrder[] = new int[nStickers]; // XXX allocation
-            int partialOrderAddress[][][] = (showPartialOrder ? new int[1][][] : null);
-            int XXXmoreInformationAddress[][][] = (showPartialOrder ? new int[1][][] : null);
             int partialOrderInfoAddress[][][][] = (showPartialOrder ? new int[1][][][] : null);
             int nSortedStickers = VeryCleverPaintersSortingOfStickers.sortStickersBackToFront(
                     nStickersToSort,
@@ -803,18 +800,12 @@ public class GenericPipelineUtils
                     sticker2Slice,
                     puzzleDescription.getSticker2Face(),
                     stickerSortOrder,
-                    partialOrderAddress,
-                    XXXmoreInformationAddress,
                     partialOrderInfoAddress,
                     stickerCentersZ,
                     polyCenters3d,
                     polyNormals3d);
 
             if (showPartialOrder) {
-                frame.partialOrder = partialOrderAddress[0];
-                if (false) {  // true: show the inter-slice edges.  false: don't.  XXX this is all going away anyway
-                    frame.partialOrder = (int[][])com.donhatchsw.util.Arrays.concat(frame.partialOrder, XXXmoreInformationAddress[0]);
-                }
                 frame.partialOrderInfo = partialOrderInfoAddress[0];
             }
 
@@ -1115,7 +1106,7 @@ public class GenericPipelineUtils
             // XXX possible to see the loop structure
             int predecessors[][] = null;
             float partialOrderNodeCenters2d[][] = null;
-            if (showPartialOrder && frame.partialOrder != null)
+            if (showPartialOrder && frame.partialOrderInfo != null)
             {
                 int nStickers = puzzleDescription.nStickers();
                 int nNodes = nStickers;
@@ -1198,7 +1189,7 @@ public class GenericPipelineUtils
                 int iSticker = drawList[iItem][0];
                 int iPolyThisSticker = drawList[iItem][1];
 
-                if (showPartialOrder && frame.partialOrder != null
+                if (showPartialOrder && frame.partialOrderInfo != null
                         && (iItem==0 || drawList[iItem][0] != drawList[iItem-1][0]))
                 {
                     int nStickers = puzzleDescription.nStickers();
