@@ -146,14 +146,25 @@
 
     BUGS / URGENT TODOS:
     ===================
-        - "5x5 2" and "4x5 2" strange flickering of some stickers during twists! and in some views (rotate things to center), some wildly inside out stickers showing.
+        - "5x5 2" and "4x5 2" strange flickering of some stickers during twists! and in some views (rotate things to center), some wildly inside out stickers showing.  (conjecture:  I didn't get the non-degerate-normalization correct on these further-cuts puzzles)
 
         - topsort seems to succed but gives bogus order, in "{3,3,4} 2"  in fact, "{3,3,3} 2" !  (the latter includes the "I DON'T CARE BECAUSE SO WARPED" thing, but even if I comment that out, there is still some screwy inside-outedness there.  maybe that's the thing Roice fixed??"
 
-        - topsort still fundamentally broken when 4dfaceshrink<1: demonstrate:
-          - example: "3,3,4 2" after a twist: red stickers in center appear in front of yellow stickers that are nearer
-          - example: "3,4 3",  initial position, set sticker shrink to 1 and face shrink to almost 1. some cracks appear.   clearer what's going on when flatten.
-          - example: "3,4 4",  same.
+        TOPSORT:
+          - I think I need a more robust way to tell whether (the in-front-of-eye-part of)
+            an unshrunk poly is backfacing even if part of it is behind eye?
+            Some math way that doesn't rely on the 2d polys?
+
+          - topsort still fundamentally broken when 4dfaceshrink<1: demonstrate:
+            - example: "3,3,4 2" after a twist: red stickers in center appear in front of yellow stickers that are nearer
+            - example: "3,4 3",  initial position, set sticker shrink to 1 and face shrink to almost 1. some cracks appear.   clearer what's going on when flatten.
+            - example: "3,4 4",  same.
+
+          - bold new topsort:
+            - fix exception on visualization
+            - implement visualization
+            - standard puzzle, no twists, default position. center face gets sorted wrong.  set sticker shrink to 1 to make it more obvious.
+              can even set faceshrink to 1, so it's not a question of using wrong shrunkeness arrays.
 
         - CHECK fail on 3d puzzle when 1color sticker gonality isn't same as the facet gonality: puzzleDescription="(.25)4(2)3 3(1.4)": CHECK(cutWeight >= -1e-9 && cutWeight <= 1.) (cutWeight is -.75)
         - 5-dimensional puzzles get ArrayIndexOutOfBoundException when trying to view them (should just get rejected, I think)
