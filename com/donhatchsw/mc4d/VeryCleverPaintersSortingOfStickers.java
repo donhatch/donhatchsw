@@ -180,6 +180,7 @@ public class VeryCleverPaintersSortingOfStickers
             final int sticker2face[/*>=nStickers*/],
             int returnStickerSortOrder[/*>=nStickers*/],
             final int returnPartialOrderInfoOptionalForDebugging[/*1*/][][/*2*/][/*3*/],  // null if caller doesn't care, otherwise it's a singleton array that gets filled in with the edges in the partial order.  each edge is of the form {{fromStickerIndex,fromStickerIndex0,fromStickerIndex1},{toStickerIndex,toStickerIndex0,toStickerIndex1}}.  These indices are into the returnStickerSortOrder array: fromStickerIndex,toStickerIndex refer to the two stickers that cause the constraint, and the constraint is that the range of output stickers at [fromStickerIndex0,fromStickerIndex1) come before those at [toStickerIndex0,toStickerIndex1).   fromStickerIndex0<=fromStickerIndex<fromStickerIndex1 and toStickerIndex0<=toStickerIndex<toStickerIndex1.
+            final String returnSummaryOptionalForDebugging[/*1*/],  // null if caller doesn't care
             final float stickerCentersZ[/*>=nStickers*/],
             float polyCenters3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/],
             float polyNormals3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/])
@@ -197,6 +198,8 @@ public class VeryCleverPaintersSortingOfStickers
         if (returnPartialOrderInfoOptionalForDebugging != null) {
             returnPartialOrderInfoOptionalForDebugging[0] = new int[adjacentStickerPairs.length][][];
         }
+        final int[] numZsortsDoneHolder = {0};
+
         final int[] returnPartialOrderInfoOptionalForDebuggingSizeHolder = (returnPartialOrderInfoOptionalForDebugging != null) ? new int[] {0} : null;
 
         final int nAllSlices = cutOffsets.length + 1;
@@ -464,6 +467,7 @@ public class VeryCleverPaintersSortingOfStickers
                                         }
                                     );
                                 }
+                                numZsortsDoneHolder[0]++;
                                 if (localVerboseLevel >= 2) System.out.println("              after: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, componentStarts[iComponent], componentSize)));
                             }
                         }
@@ -705,6 +709,7 @@ public class VeryCleverPaintersSortingOfStickers
                                         }
                                     );
                                 }
+                                numZsortsDoneHolder[0]++;
                                 if (localVerboseLevel >= 2) System.out.println("              after: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, componentStarts[iComponent], componentSize)));
                             }
                         }
@@ -908,6 +913,14 @@ public class VeryCleverPaintersSortingOfStickers
 
             if (returnPartialOrderInfoOptionalForDebugging != null) {
                 returnPartialOrderInfoOptionalForDebugging[0] = (int[][][])com.donhatchsw.util.Arrays.subarray(returnPartialOrderInfoOptionalForDebugging[0], 0, returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]);
+            }
+
+            if (returnSummaryOptionalForDebugging != null) {
+                if (numZsortsDoneHolder[0] == 0) {
+                    returnSummaryOptionalForDebugging[0] = "no cycles!";
+                } else {
+                    returnSummaryOptionalForDebugging[0] = ""+numZsortsDoneHolder[0]+" z-sort"+(numZsortsDoneHolder[0]==1?"":"s")+" needed to resolve cycles";
+                }
             }
 
             if (localVerboseLevel >= 1) System.out.println("      returnStickerSortOrder = "+$(com.donhatchsw.util.Arrays.subarray(returnStickerSortOrder, 0, nStickersEmitted)));
@@ -1291,6 +1304,7 @@ public class VeryCleverPaintersSortingOfStickers
                             }
                         );
                     }
+                    numZsortsDoneHolder[0]++;
                 }
             }
 

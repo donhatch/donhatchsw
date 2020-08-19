@@ -1083,18 +1083,24 @@ public class MC4DViewGuts
                 viewParams.drawLabels.get(),
                 viewParams.showPartialOrder.get());
 
+        com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, viewSize, 0,W,H,0);
+
         ++viewState.nPaintsDone;
         if (viewParams.showNumPaintsDone.get())
         {
             g.setColor(java.awt.Color.BLACK);
-            com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, viewSize, 0,W,H,0);
-            mg.drawString("("+viewState.nPaintsDone+" paint"+(viewState.nPaintsDone==1?"":"s")+")", W-2., 2., 1., -1.);
+            mg.drawString("("+viewState.nPaintsDone+" paint"+(viewState.nPaintsDone==1?"":"s")+")",
+                          W-2., 2., 1., -1.);  // upper right of window
         }
         if (viewParams.frozenForDebugging.get()) {
             g.setColor(java.awt.Color.RED);
-            com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, viewSize, 0,W,H,0);
-            mg.drawString("FROZEN FOR DEBUGGING", 0., 0., -1., -1.);
+            mg.drawString("FROZEN FOR DEBUGGING", 0., 0., -1., -1.);  // upper left of window
             mg.drawString("(ctrl-alt-space to unfreeze)", 0., g.getFontMetrics().getHeight(), -1., -1.);
+        }
+        if (frameToDrawInto.cyclesSummary != null) {
+            g.setColor(frameToDrawInto.cyclesSummary.contains("no cycles") ? java.awt.Color.GREEN : java.awt.Color.RED);
+            mg.drawString(frameToDrawInto.cyclesSummary,
+                          W, H, 1., 1.);  // lower right of window
         }
         if (viewParams.eventVerboseLevel.get() >= 3) System.out.println("            end painting on a "+view.getClass().getSuperclass().getName());
     } // paint

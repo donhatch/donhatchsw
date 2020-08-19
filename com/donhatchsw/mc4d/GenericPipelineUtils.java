@@ -85,6 +85,7 @@ public class GenericPipelineUtils
         public int drawListBuffer[/*nStickers*/][/*nPolysThisSticker*/][/*2*/];
 
         public int[][/*2*/][/*3*/] partialOrderInfo; // optional, for debugging.  TODO: describe what it means here. currently it's described down in the sort, which generates it
+        public String cyclesSummary;  // optional, for debugging.  contains "no cycles!" or a brief description of what happened.
 
         GenericPuzzleDescription puzzleDescription; // puzzle description used when filling it, to be used later for picking
     } // class Frame
@@ -787,8 +788,9 @@ public class GenericPipelineUtils
                 stickerCentersZ[iSticker] = sum / nVertsThisSticker;
             }
 
-            int stickerSortOrder[] = new int[nStickers]; // XXX allocation
-            int partialOrderInfoAddress[][][][] = (showPartialOrder ? new int[1][][][] : null);
+            int[] stickerSortOrder = new int[nStickers]; // XXX allocation
+            int[][][][] partialOrderInfoAddress = (showPartialOrder ? new int[1][][][] : null);
+            String[] cyclesSummaryAddress = new String[1];
             int nSortedStickers = VeryCleverPaintersSortingOfStickers.sortStickersBackToFront(
                     topsortUsesBoldNewWay,
                     nStickersToSort,
@@ -803,10 +805,12 @@ public class GenericPipelineUtils
                     puzzleDescription.getSticker2Face(),
                     stickerSortOrder,
                     partialOrderInfoAddress,
+                    cyclesSummaryAddress,
                     stickerCentersZ,
                     polyCenters3d,
                     polyNormals3d);
 
+            frame.cyclesSummary = cyclesSummaryAddress[0];  // even if not showPartialOrder
             if (showPartialOrder) {
                 frame.partialOrderInfo = partialOrderInfoAddress[0];
             }
@@ -1201,13 +1205,42 @@ public class GenericPipelineUtils
                 if (showPartialOrder && frame.partialOrderInfo != null
                         && (iItem==0 || drawList[iItem][0] != drawList[iItem-1][0]))
                 {
+                    java.awt.Color simplecolors[][] = {
+                        {
+                            ground.darker(), // lighter than the rest of the shadows
+                        },
+                        {
+                            java.awt.Color.black,
+                            java.awt.Color.white,
+                        }
+                    };
+                    java.awt.Color complexcolors[][] = {
+                        {
+                            ground.darker(), // lighter than the rest of the shadows
+                        },
+                        {
+                            new java.awt.Color(255,0,0),  // red
+                                new java.awt.Color(255,64,0),  // red orange
+                            new java.awt.Color(255,128,0),  // orange  (not java.awt.Color.orange; that's too light!
+                                new java.awt.Color(255,192,0),  // yellow orange
+                            new java.awt.Color(255,255,0),  // yellow
+                                new java.awt.Color(128,255,0),  // yellow green
+                            new java.awt.Color(0,255,0),  // green
+                            //java.awt.Color.cyan,
+                            //java.awt.Color.blue,
+                        }
+                    };
+
                     int nStickers = puzzleDescription.nStickers();
                     // Find any partial order items
                     // otherSticker < thisSticker,
                     // and draw them now.
                     int predecessorses[][][] = {simplepredecessors, complexpredecessors};
+                    java.awt.Color colorses[][][] = {simplecolors, complexcolors};
                     for (int iPredecessors = 0; iPredecessors < predecessorses.length; ++iPredecessors) {
                         int predecessors[][] = predecessorses[iPredecessors];
+                        java.awt.Color colors[][] = colorses[iPredecessors];
+
                         for (int iPred = 0; iPred < predecessors[iSticker].length; ++iPred)
                         {
                             int jSticker = predecessors[iSticker][iPred];
@@ -1234,31 +1267,6 @@ public class GenericPipelineUtils
                                     myStickerCenter[i] += jitterGenerator.nextInt(2*jitterRadius+1)-jitterRadius;
                                 }
                             }
-
-                            java.awt.Color simpleColors[][] = {
-                                {
-                                    ground.darker(), // lighter than the rest of the shadows
-                                },
-                                {
-                                    java.awt.Color.black,
-                                    java.awt.Color.white,
-                                }
-                            };
-                            java.awt.Color complexcolors[][] = {
-                                {
-                                    ground.darker(), // lighter than the rest of the shadows
-                                },
-                                {
-                                    java.awt.Color.red,
-                                    java.awt.Color.orange,
-                                    java.awt.Color.yellow,
-                                    java.awt.Color.green,
-                                    //java.awt.Color.cyan,
-                                    //java.awt.Color.blue,
-                                }
-                            };
-
-                            java.awt.Color colors[][] = (iPredecessors==0 ? simpleColors : complexcolors);
 
                             int nSegs = colors[iPass].length;
                             float points[][] = new float[nSegs+1][];
@@ -1356,5 +1364,19 @@ public class GenericPipelineUtils
         VecMath.vmv(2, tmpTWAf2, v2, v0);
         return VecMath.vxv2(tmpTWAf1, tmpTWAf2);
     }
+
+    // https://stackoverflow.com/questions/19398238/how-to-mix-two-int-colors-correctly#answer-54913292
+    public static Color mixColors(Color... colors) {
+	float ratio = 1f / ((float) colors.length);
+	int r = 0, g = 0, b = 0, a = 0;
+	for (Color color : colors) {
+	    r += color.getRed() * ratio;
+	    g += color.getGreen() * ratio;
+	    b += color.getBlue() * ratio;
+	    a += color.getAlpha() * ratio;
+	}
+	return new Color(r, g, b, a);
+    }
+
 
 } // class GenericPipelineUtils
