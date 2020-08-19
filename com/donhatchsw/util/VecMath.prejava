@@ -2997,7 +2997,6 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return true;
     } // equals
     /** Fuzzy vector comparison: return -1,0,1 according to whether a <,==,> b lexicographically.  Works even if tol==0. */
-
     public static int cmp(int n, double a[], double b[], double tol)
     {
         FORI (i, n)
