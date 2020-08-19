@@ -195,7 +195,7 @@ public class VeryCleverPaintersSortingOfStickers
         }
 
         if (returnPartialOrderInfoOptionalForDebugging != null) {
-            returnPartialOrderInfoOptionalForDebugging[0] = new int[adjacentStickerPairs.length][][];
+            returnPartialOrderInfoOptionalForDebugging[0] = new int[2*adjacentStickerPairs.length][][];  // XXX TODO: DEBUG THIS: why is the 2* needed???? it's needed for "4,3,3 2" and "4,3 2"
         }
         final int[] returnPartialOrderInfoOptionalForDebuggingSizeHolder = (returnPartialOrderInfoOptionalForDebugging != null) ? new int[] {0} : null;
 

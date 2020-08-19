@@ -1264,6 +1264,7 @@ public class GenericPipelineUtils
                             float points[][] = new float[nSegs+1][];
                             for (int iPoint = 0; iPoint < points.length; ++iPoint)
                                 points[iPoint] = VecMath.lerp(otherStickerCenter, myStickerCenter, (float)iPoint/(float)nSegs); // XXX move this division up
+                            //System.out.println("points = "+$(points));
                             for (int iSeg = 0; iSeg < nSegs; ++iSeg)
                             {
                                 g.setColor(colors[iPass][iSeg]);
