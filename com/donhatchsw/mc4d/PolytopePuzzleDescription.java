@@ -258,14 +258,10 @@
     TODO:
     =====
         TOPSORTING:
-            - "4,3,3 2" or "4,3 2" turn on vis: Exception in thread "AWT-EventQueue-0" java.lang.ArrayIndexOutOfBoundsException: Index 48 out of bounds for length 48
-                  at com.donhatchsw.mc4d.VeryCleverPaintersSortingOfStickers$1SliceFaceNode.traverse(VeryCleverPaintersSortingOfStickers.java:406)
-              I'm working around it with a fudge factor, but search for "XXX TODO: DEBUG THIS" and find out why.
-
             - "4,3 3", flatten, turn on topsort viz, do twists... sometimes spazzes out and draws lines to the upper-left of window, wtf?
             - make a suble red/green indicator saying whether something went wrong
             - get confidence in new algorithm, maybe retire old?
-            - most egregious inefficiencies have been fixed, but should try to get rid of all per-frame memory allocations
+            - most egregious inefficiencies have been fixed, but would be good to get rid of all per-frame memory allocations
             - viz would look a lot nicer (and wouldn't jump around) if lines were drawn from the poly center rather than otherwise. would need to store that in the array I guess
 
         JOIN:

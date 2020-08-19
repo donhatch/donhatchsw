@@ -191,11 +191,11 @@ public class VeryCleverPaintersSortingOfStickers
         if (localVerboseLevel >= 1) System.out.println("      cutOffsets = "+$(cutOffsets));
         if (localVerboseLevel >= 3) {
             System.out.println("      sticker2Slice = "+$(sticker2Slice));
-            System.out.println("      adjacentStickerPairs = "+$(adjacentStickerPairs));
+            System.out.println("      "+adjacentStickerPairs.length+" adjacentStickerPairs = "+$(adjacentStickerPairs));
         }
 
         if (returnPartialOrderInfoOptionalForDebugging != null) {
-            returnPartialOrderInfoOptionalForDebugging[0] = new int[2*adjacentStickerPairs.length][][];  // XXX TODO: DEBUG THIS: why is the 2* needed???? it's needed for "4,3,3 2" and "4,3 2"
+            returnPartialOrderInfoOptionalForDebugging[0] = new int[adjacentStickerPairs.length][][];
         }
         final int[] returnPartialOrderInfoOptionalForDebuggingSizeHolder = (returnPartialOrderInfoOptionalForDebugging != null) ? new int[] {0} : null;
 
@@ -368,7 +368,7 @@ public class VeryCleverPaintersSortingOfStickers
                 }
                 @Override public int totalSize() { return visibleStickers.length; }
                 @Override public int traverse(int answer[], int answerSizeSoFar, int recursionLevel) {
-                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"    in SliceFaceNode(iSlice="+iSlice+" iFace="+iFace+").traverse, answerSizeSoFar="+answerSizeSoFar);
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            in SliceFaceNode(iSlice="+iSlice+" iFace="+iFace+").traverse, answerSizeSoFar="+answerSizeSoFar);
                     for (int i = 0; i < visibleStickers.length; ++i)
                     {
                         CHECK(sticker2localIndex[visibleStickers[i]] == -1);
@@ -378,6 +378,7 @@ public class VeryCleverPaintersSortingOfStickers
                     // and emit them in order.
                     int partialOrderSize = 0;
                     int nRelevant = this.relevantAdjacentStickerPairs.size();
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              "+nRelevant+" relevant pairs");
                     for (int iRelevant = 0; iRelevant < nRelevant; ++iRelevant) {
                         int iPair = this.relevantAdjacentStickerPairs.get(iRelevant).intValue();
 
@@ -403,6 +404,14 @@ public class VeryCleverPaintersSortingOfStickers
                             partialOrder[partialOrderSize][1] = sticker2localIndex[iSticker];
                             partialOrderSize++;
                             if (returnPartialOrderInfoOptionalForDebugging != null) {
+
+                                // XXX debugging
+                                if (returnPartialOrderInfoOptionalForDebuggingSizeHolder[0] == returnPartialOrderInfoOptionalForDebugging[0].length) {
+                                    System.out.println("XXX UH OH! trying to add new item "+$(new int[][] { {jSticker, jSticker, jSticker+1}, {iSticker, iSticker, iSticker+1}, }));
+                                    System.out.println("XXX partial order info was "+$(returnPartialOrderInfoOptionalForDebugging[0]));
+
+                                }
+
                                 returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
                                     {jSticker, jSticker, jSticker+1},
                                     {iSticker, iSticker, iSticker+1},
@@ -423,9 +432,11 @@ public class VeryCleverPaintersSortingOfStickers
                             // this really shouldn't happen, I don't think
                         }
                     }
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort "+this.visibleStickers.length+" visible stickers with partial order "+$(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
                     int nComponents = topsorter.topsort(this.visibleStickers.length, nodeSortOrder,
                                                         partialOrderSize, partialOrder,
                                                         componentStarts);
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort returned "+nComponents+"/"+this.visibleStickers.length+" components: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.visibleStickers.length)));
                     if (nComponents < this.visibleStickers.length) {
                         if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging!=null) System.out.println("      LOCAL TOPSORT OF "+this.visibleStickers.length+" STICKERS WITHIN FACE "+iFace+"/"+nFaces+" WITHIN SLICE "+iSlice+"/"+nCompressedSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF STICKERS");
                         for (int iComponent = 0; iComponent < nComponents; ++iComponent)
@@ -469,7 +480,7 @@ public class VeryCleverPaintersSortingOfStickers
                         CHECK(sticker2localIndex[visibleStickers[i]] == i);
                         sticker2localIndex[visibleStickers[i]] = -1;
                     }
-                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"    out SliceFaceNode(iSlice="+iSlice+" iFace="+iFace+").traverse, returning answerSizeSoFar="+answerSizeSoFar);
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            out SliceFaceNode(iSlice="+iSlice+" iFace="+iFace+").traverse, returning answerSizeSoFar="+answerSizeSoFar);
                     return answerSizeSoFar;
                 }
             }  // class SliceFaceNode
@@ -508,7 +519,7 @@ public class VeryCleverPaintersSortingOfStickers
                     return answer;
                 }
                 @Override public int traverse(int answer[], int answerSizeSoFar, int recursionLevel) {
-                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"    in SliceNode(iSlice="+iSlice+").traverse, answerSizeSoFar="+answerSizeSoFar);
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            in SliceNode(iSlice="+iSlice+").traverse, answerSizeSoFar="+answerSizeSoFar);
                     for (int i = 0; i < children.length; ++i) {
                         if (children[i] instanceof SliceNode) {
                             CHECK(slice2localIndex[((SliceNode)children[i]).iSlice] == -1);
@@ -521,6 +532,7 @@ public class VeryCleverPaintersSortingOfStickers
 
                     int partialOrderSize = 0;
                     int nRelevant = this.relevantAdjacentStickerPairs.size();
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              "+nRelevant+" relevant pairs");
                     for (int iRelevant = 0; iRelevant < nRelevant; ++iRelevant) {
                         int iPair = this.relevantAdjacentStickerPairs.get(iRelevant).intValue();
 
@@ -659,11 +671,11 @@ public class VeryCleverPaintersSortingOfStickers
 
                     // topsort the children of this slice (other slices, and slicefaces)
                     // and emit them in order.
-                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"      topsort "+this.children.length+" items with partial order "+$(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort "+this.children.length+" items with partial order "+$(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
                     int nComponents = topsorter.topsort(this.children.length, nodeSortOrder,
                                                         partialOrderSize, partialOrder,
                                                         componentStarts);
-                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"      topsort returned "+nComponents+"/"+this.children.length+" components: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.children.length)));
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort returned "+nComponents+"/"+this.children.length+" components: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.children.length)));
 
                     if (nComponents < this.children.length) {
                         // Canonical case of this:
@@ -709,7 +721,7 @@ public class VeryCleverPaintersSortingOfStickers
                     }
 
 
-                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"    out SliceNode(iSlice="+iSlice+").traverse, returning answerSizeSoFar="+answerSizeSoFar);
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            out SliceNode(iSlice="+iSlice+").traverse, returning answerSizeSoFar="+answerSizeSoFar);
                     return answerSizeSoFar;
                 }  // traverse
             }  // class SliceNode
@@ -876,9 +888,13 @@ public class VeryCleverPaintersSortingOfStickers
                         if (iVisible && jVisible) {
                             sliceFaceNodes[iSlice][iFace].relevantAdjacentStickerPairs.add(iPair);
                         }
+                    } else if (iSlice == jSlice) {
+                        // intra-node within same slice
+                        // CBB: don't need to do this for some combinations of invisibility I think?
+                        sliceNodes[iSlice].relevantAdjacentStickerPairs.add(iPair);
                     } else {
-                        // intra-node
-                        // CBB: don't need to do this for some combinations of invisibility I think
+                        // intra-node within different slices
+                        // CBB: don't need to do this for some combinations of invisibility I think?
                         sliceNodes[iSlice].relevantAdjacentStickerPairs.add(iPair);
                         sliceNodes[jSlice].relevantAdjacentStickerPairs.add(iPair);
                     }
