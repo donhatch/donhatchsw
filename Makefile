@@ -126,11 +126,17 @@
 #JAR=/usr/bin/jar
 #JAVADOC=/usr/bin/javadoc
 
-# ubuntu
+# ubuntu, oldest at the moment.  -Xlint:-options suppresses warning about old version (and also about bootpath. argh! I DO want to see that!)
 JAVACPPFLAGS=-DOVERRIDE=@Override
-JAVAC=/usr/bin/javac -source 1.6 -target 1.6 -deprecation -Xlint:unchecked -Xlint:all
+JAVAC=/usr/bin/javac -source 6 -target 6 -deprecation -Xlint:all -Xlint:-options
 JAR=/usr/bin/jar
 JAVADOC=/usr/bin/javadoc
+
+# ubuntu, newest at the moment
+#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVAC=/usr/bin/javac -source 11 -target 11 -deprecation -Xlint:all
+#JAR=/usr/bin/jar
+#JAVADOC=/usr/bin/javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling as modern as possible, whatever that means
 #JAVACPPFLAGS=-DOVERRIDE=@Override
@@ -229,6 +235,7 @@ donhatchsw.jar: \
     com/donhatchsw/mc4d/GenericPuzzleDescription.class \
     com/donhatchsw/mc4d/GenericPuzzleFactory.class \
     com/donhatchsw/mc4d/PolytopePuzzleDescription.class \
+    com/donhatchsw/mc4d/VeryCleverPaintersSortingOfStickers.class \
     com/donhatchsw/mc4d/GenericPipelineUtils.class \
     com/donhatchsw/mc4d/MC4DModel.class \
     com/donhatchsw/mc4d/GenericGlue.class \

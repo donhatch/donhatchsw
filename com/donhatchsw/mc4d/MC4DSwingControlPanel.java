@@ -1248,6 +1248,19 @@ public class MC4DSwingControlPanel
                 nRows++;
             }
         }
+
+        if (true) {
+            addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(java.awt.Color.black);}}); // Totally lame separator
+            addSingleLabelRow(new BigBoldJLabel("Experimental"));
+            addCheckboxRow(
+                "Use experimental new depth sort",
+                viewParams.topsortUsesBoldNewWay,
+                new String[] {
+                    "If this option is checked,",
+                    "the depth sorting willl use an experimental new bleeding edge algorithm.",
+                });
+        }
+
         addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(java.awt.Color.black);}}); // Totally lame separator
         addSingleButtonRow(new ResetButton(
             "Reset All To Defaults",

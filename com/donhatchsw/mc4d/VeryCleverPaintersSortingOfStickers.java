@@ -167,6 +167,7 @@ public class VeryCleverPaintersSortingOfStickers
 
     // Function return value is number of stickers to draw
     public static int sortStickersBackToFront(
+            boolean boldNewWay,  // whether to use experimental new algorithm.  it's better, but kinks haven't been worked out yet.
             final int nStickers, // can be less than actual number, for debugging
             final int adjacentStickerPairs[][/*2*/][/*2: iSticker,iPolyThisSticker*/],
             final boolean stickerVisibilities[/*>=nStickers*/],
@@ -244,7 +245,6 @@ public class VeryCleverPaintersSortingOfStickers
         }
         if (localVerboseLevel >= 1) System.out.println("      eyeSlice = "+eyeSlice);
 
-        boolean boldNewWay = false;  // TODO: put this somewhere more configurable?
         if (boldNewWay) {
             // BOLD NEW WORK IN PROGRESS: new way of doing things, let's see if it pans out.
 

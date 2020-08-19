@@ -217,12 +217,13 @@ public class MC4DViewGuts
         // Most of these are settable using secret ctrl-alt key combinations.
         //
         public Listenable.Boolean useTopsort = new Listenable.Boolean(true);
+        public Listenable.Boolean topsortUsesBoldNewWay = new Listenable.Boolean(true);
         public Listenable.Boolean showNumPaintsDone = new Listenable.Boolean(true);
         public Listenable.Int jitterRadius = new Listenable.Int(0,9,0);
         public Listenable.Boolean drawLabels = new Listenable.Boolean(false);
         public Listenable.Boolean showPartialOrder = new Listenable.Boolean(false);
         public Listenable.Boolean frozenForDebugging = new Listenable.Boolean(false); // XXX is this state rather than params?  never want to save it out, do we? but we do set it using the ctrl-alt keys... hmm
-            public int frozenPartialOrderForDebugging[][] = null; // XXX this is state you dingbat
+            public int frozenPartialOrderForDebugging[][][] = null; // XXX this is state you dingbat.  was there not supposed to be any?
 
         // String representation includes all current values of
         // all fields that are Listenables
@@ -1027,6 +1028,7 @@ public class MC4DViewGuts
             groundOffset,
             
             viewParams.useTopsort.get(),
+            viewParams.topsortUsesBoldNewWay.get(),
             viewParams.showPartialOrder.get());
 
         if (true)  // TODO: make this a mode; it's useful either way
@@ -1035,9 +1037,9 @@ public class MC4DViewGuts
             if (viewParams.frozenForDebugging.get())
             {
                 if (viewParams.frozenPartialOrderForDebugging != null)
-                    frameToDrawInto.partialOrder = viewParams.frozenPartialOrderForDebugging;
+                    frameToDrawInto.partialOrderInfo = viewParams.frozenPartialOrderForDebugging;
                 else
-                    viewParams.frozenPartialOrderForDebugging = frameToDrawInto.partialOrder;
+                    viewParams.frozenPartialOrderForDebugging = frameToDrawInto.partialOrderInfo;
             }
         }
 
