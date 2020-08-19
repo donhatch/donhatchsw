@@ -258,7 +258,7 @@
     TODO:
     =====
         TOPSORTING:
-            - bold new algorithm is VERY inefficient!
+            - "4,3 3", flatten, turn on topsort viz, do twists... sometimes spazzes out and draws lines to the upper-left of window, wtf?
             - make a suble red/green indicator saying whether something went wrong
             - get confidence in new algorithm, maybe retire old?
             - the failing of groups totally sucks-- really need a robust solution to that!
@@ -266,6 +266,7 @@
               (e.g. standard puzzle, ctrl-rotate vert to center so it always fails and falls back to zsort,
                then move faceshrink towards 1 to see egregious failurs.  it looks much worse when there has been a twist!
                it's super bad in any case though :-()
+            - most egregious inefficiencies have been fixed, but should try to get rid of all per-frame memory allocations
 
         JOIN:
             - TODONE (mostly: would be nice to be able to express Johnson solids.  Currently can't even express a square pyramid, I don't think? (could allow pyramid to be expressed? maybe join operator, see https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol) Maybe allow general intersections of half-spaces?

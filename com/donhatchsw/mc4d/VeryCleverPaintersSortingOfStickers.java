@@ -199,8 +199,8 @@ public class VeryCleverPaintersSortingOfStickers
         }
         final int[] returnPartialOrderInfoOptionalForDebuggingSizeHolder = (returnPartialOrderInfoOptionalForDebugging != null) ? new int[] {0} : null;
 
-        final int nSlices = cutOffsets.length + 1;
-        int nCompressedSlices = nSlices; // XXX should combine adjacent slices that are moving together... but maybe it doesn't hurt to just pretend all the slices are twisting separately, it keeps things simple?  Not sure.
+        final int nAllSlices = cutOffsets.length + 1;
+        final int nCompressedSlices = nAllSlices; // XXX should combine adjacent slices that are moving together... but maybe it doesn't hurt to just pretend all the slices are twisting separately, it keeps things simple?  Not sure.
         int nNodes = nStickers + 2*nCompressedSlices;
         int parents[] = new int[nNodes];
         int depths[] = new int[nNodes]; // XXX this array is not really necessary, but it simplifies the code
@@ -293,7 +293,7 @@ public class VeryCleverPaintersSortingOfStickers
             // figure out nFaces (or rather an upper bound on what we're interested in)
             final int nFaces = sticker2face.length==0 ? 0 : VecMath.max(sticker2face)+1;
             final int[] face2localIndex = VecMath.fillvec(nFaces, -1);
-            final int[] slice2localIndex = VecMath.fillvec(nSlices, -1);
+            final int[] slice2localIndex = VecMath.fillvec(nCompressedSlices, -1);
             final int[] sticker2localIndex = VecMath.fillvec(nStickers, -1);
 
             abstract class Node {
@@ -337,6 +337,9 @@ public class VeryCleverPaintersSortingOfStickers
                     CHECK(this.cachedAverageZstuffValid);
                     return cachedAverageZdenominator;
                 }
+
+                // CBB: Not sure this is the best data structure for this, but...
+                public java.util.ArrayList<Integer> relevantAdjacentStickerPairs = new java.util.ArrayList<Integer>();
             }  // abstract class Node
             class SliceFaceNode extends Node {
                 public SliceFaceNode(int iSlice, int iFace) {
@@ -345,7 +348,7 @@ public class VeryCleverPaintersSortingOfStickers
                 }
                 public int iSlice;
                 public int iFace;
-                public int visibleStickers[];
+                public int[] visibleStickers;
 
                 @Override protected double computeAverageZnumerator()
                 {
@@ -361,7 +364,7 @@ public class VeryCleverPaintersSortingOfStickers
                 }
 
                 @Override public String toString() {
-                    return "SliceFaceNode(visibleStickers="+$(visibleStickers)+")";
+                    return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+$(visibleStickers)+")";
                 }
                 @Override public int totalSize() { return visibleStickers.length; }
                 @Override public int traverse(int answer[], int answerSizeSoFar, int recursionLevel) {
@@ -373,56 +376,58 @@ public class VeryCleverPaintersSortingOfStickers
                     }
                     // topsort the visibleStickers within this sliceface, by immediate adjacencies,
                     // and emit them in order.
-                    // TODO: totally inefficient to make another full pass for each SliceFace like this!
                     int partialOrderSize = 0;
-                    for (int iPair = 0; iPair < adjacentStickerPairs.length; ++iPair) {
+                    int nRelevant = this.relevantAdjacentStickerPairs.size();
+                    for (int iRelevant = 0; iRelevant < nRelevant; ++iRelevant) {
+                        int iPair = this.relevantAdjacentStickerPairs.get(iRelevant).intValue();
+
                         int pair[][] = adjacentStickerPairs[iPair];
                         int iSticker =         pair[0][0];
                         int iPolyThisSticker = pair[0][1];
                         int jSticker =         pair[1][0];
                         int jPolyThisSticker = pair[1][1];
 
+                        // double-check that relevance was decided correctly...
+                        CHECK(sticker2Slice[iSticker] == this.iSlice);
+                        CHECK(sticker2Slice[jSticker] == this.iSlice);
+                        CHECK(sticker2face[iSticker] == this.iFace);
+                        CHECK(sticker2face[jSticker] == this.iFace);
+                        CHECK(stickerVisibilities[iSticker]);
+                        CHECK(stickerVisibilities[jSticker]);
 
-                        if (sticker2Slice[iSticker] == iSlice
-                         && sticker2face[iSticker] == iFace
-                         && sticker2Slice[jSticker] == iSlice
-                         && sticker2face[jSticker] == iFace) {
-                            // we care only if both stickers visible.
-                            if (!stickerVisibilities[iSticker] || !stickerVisibilities[jSticker]) continue;
-                            boolean iStickerHasPolyBackfacing = partiallyShrunkStickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
-                            boolean jStickerHasPolyBackfacing = partiallyShrunkStickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
-                            if (iStickerHasPolyBackfacing) {
-                                //add "jSticker < iSticker"
-                                partialOrder[partialOrderSize][0] = sticker2localIndex[jSticker];
-                                partialOrder[partialOrderSize][1] = sticker2localIndex[iSticker];
-                                partialOrderSize++;
-                                if (returnPartialOrderInfoOptionalForDebugging != null) {
-                                    returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
-                                        {jSticker, jSticker, jSticker+1},
-                                        {iSticker, iSticker, iSticker+1},
-                                    };
-                                }
-                            } else if (jStickerHasPolyBackfacing) {
-                                //add "iSticker < jSticker"
-                                partialOrder[partialOrderSize][0] = sticker2localIndex[iSticker];
-                                partialOrder[partialOrderSize][1] = sticker2localIndex[jSticker];
-                                partialOrderSize++;
-                                if (returnPartialOrderInfoOptionalForDebugging != null) {
-                                    returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
-                                        {iSticker, iSticker, iSticker+1},
-                                        {jSticker, jSticker, jSticker+1},
-                                    };
-                                }
-                            } else {
-                                // this really shouldn't happen, I don't think
+                        boolean iStickerHasPolyBackfacing = partiallyShrunkStickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
+                        boolean jStickerHasPolyBackfacing = partiallyShrunkStickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
+                        if (iStickerHasPolyBackfacing) {
+                            //add "jSticker < iSticker"
+                            partialOrder[partialOrderSize][0] = sticker2localIndex[jSticker];
+                            partialOrder[partialOrderSize][1] = sticker2localIndex[iSticker];
+                            partialOrderSize++;
+                            if (returnPartialOrderInfoOptionalForDebugging != null) {
+                                returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
+                                    {jSticker, jSticker, jSticker+1},
+                                    {iSticker, iSticker, iSticker+1},
+                                };
                             }
+                        } else if (jStickerHasPolyBackfacing) {
+                            //add "iSticker < jSticker"
+                            partialOrder[partialOrderSize][0] = sticker2localIndex[iSticker];
+                            partialOrder[partialOrderSize][1] = sticker2localIndex[jSticker];
+                            partialOrderSize++;
+                            if (returnPartialOrderInfoOptionalForDebugging != null) {
+                                returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
+                                    {iSticker, iSticker, iSticker+1},
+                                    {jSticker, jSticker, jSticker+1},
+                                };
+                            }
+                        } else {
+                            // this really shouldn't happen, I don't think
                         }
                     }
                     int nComponents = topsorter.topsort(this.visibleStickers.length, nodeSortOrder,
                                                         partialOrderSize, partialOrder,
                                                         componentStarts);
                     if (nComponents < this.visibleStickers.length) {
-                        if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging!=null) System.out.println("      LOCAL TOPSORT OF "+this.visibleStickers.length+" STICKERS WITHIN FACE "+iFace+"/"+nFaces+" WITHIN SLICE "+iSlice+"/"+nSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF STICKERS");
+                        if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging!=null) System.out.println("      LOCAL TOPSORT OF "+this.visibleStickers.length+" STICKERS WITHIN FACE "+iFace+"/"+nFaces+" WITHIN SLICE "+iSlice+"/"+nCompressedSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF STICKERS");
                         for (int iComponent = 0; iComponent < nComponents; ++iComponent)
                         {
                             int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
@@ -473,7 +478,7 @@ public class VeryCleverPaintersSortingOfStickers
                     this.iSlice = iSlice;
                 }
                 public int iSlice;
-                public Node children[];
+                public Node[] children;
 
                 @Override protected double computeAverageZnumerator()
                 {
@@ -493,7 +498,7 @@ public class VeryCleverPaintersSortingOfStickers
                 }
 
                 @Override public String toString() {
-                    return "SliceNode(children="+$(children)+")";
+                    return "SliceNode("+iSlice+",children="+$(children)+")";
                 }
                 @Override public int totalSize() {
                     int answer = 0;
@@ -515,25 +520,22 @@ public class VeryCleverPaintersSortingOfStickers
                     }
 
                     int partialOrderSize = 0;
-                    // TODO: totally inefficient to make another full pass for each SliceFace like this!
-                    for (int iPair = 0; iPair < adjacentStickerPairs.length; ++iPair) {
+                    int nRelevant = this.relevantAdjacentStickerPairs.size();
+                    for (int iRelevant = 0; iRelevant < nRelevant; ++iRelevant) {
+                        int iPair = this.relevantAdjacentStickerPairs.get(iRelevant).intValue();
+
                         int pair[][] = adjacentStickerPairs[iPair];
                         int iSticker =         pair[0][0];
                         int iPolyThisSticker = pair[0][1];
                         int jSticker =         pair[1][0];
                         int jPolyThisSticker = pair[1][1];
 
-
-
-                        // cases we care about here:
-                        //   - constraint between two different slicefaces of this slice
-                        //   - constraint between a sliceface and a slice that's a child of this one
-                        if (sticker2Slice[iSticker] != iSlice && sticker2Slice[jSticker] != iSlice) {
-                            continue;  // not relevant to this slice at all
-                        }
+                        // The following should be true since we decided this pair was "relevant"...
+                        CHECK(sticker2Slice[iSticker] == iSlice || sticker2Slice[jSticker] == iSlice);
                         if (sticker2Slice[iSticker] == iSlice && sticker2Slice[jSticker] == iSlice) {
                             if (sticker2face[iSticker] == sticker2face[jSticker]) {
-                                continue;  // all within a stickerface; that constraint is handled within that child
+                                CHECK(false);
+                                continue;  // all within a stickerface; that constraint is handled within that child   XXX could filter these out
                             }
                             // So iSticker,jSticker are both in this slice,
                             // but in two different faces.
@@ -667,7 +669,7 @@ public class VeryCleverPaintersSortingOfStickers
                         // Canonical case of this:
                         // standard puzzle, ctrl-middle frontmost vertex on middle face to center.
                         // (There may be some analysis we can do to break such a cycle, but I'm not sure what it is.)
-                        if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging!=null) System.out.println("      LOCAL TOPSORT OF "+this.children.length+" GROUPS (FACES AND CHILD SLICES) WITHIN SLICE "+iSlice+"/"+nSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF GROUPS");
+                        if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging!=null) System.out.println("      LOCAL TOPSORT OF "+this.children.length+" GROUPS (FACES AND CHILD SLICES) WITHIN SLICE "+iSlice+"/"+nCompressedSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF GROUPS");
                         for (int iComponent = 0; iComponent < nComponents; ++iComponent)
                         {
                             int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
@@ -711,13 +713,14 @@ public class VeryCleverPaintersSortingOfStickers
                     return answerSizeSoFar;
                 }  // traverse
             }  // class SliceNode
+
+
             SliceNode sliceNodes[] = new SliceNode[nCompressedSlices];
             for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice)
             {
                 sliceNodes[iSlice] = new SliceNode(iSlice);
+                sliceNodes[iSlice].children = new Node[0];
             }
-
-            int iiSticker0 = 0;
             for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice)
             {
                 if (localVerboseLevel >= 3) System.out.println("          iSlice = "+iSlice);
@@ -725,71 +728,36 @@ public class VeryCleverPaintersSortingOfStickers
                 boolean hasRightChild = iSlice >= eyeSlice && iSlice != nCompressedSlices-1;
                 int nSliceChildren = (hasLeftChild?1:0) + (hasRightChild?1:0);
                 if (localVerboseLevel >= 3) System.out.println("              nSliceChildren = "+nSliceChildren);
-
-                // How many slicefaces on this slice?
-                // iiSticker0 is now the beginning...
-                int nSliceFacesThisSlice = 0;
-                int iiSticker1 = iiSticker0;
-                while (iiSticker1 < nVisibleStickers
-                    && sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker1]] ==
-                       sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker0]]) {
-                    if (iiSticker1 == iiSticker0 || sticker2face[visibleStickersSortedBySliceAndFace[iiSticker1]] !=
-                                                    sticker2face[visibleStickersSortedBySliceAndFace[iiSticker1-1]]) {
-                        nSliceFacesThisSlice++;
-                    }
-                    iiSticker1++;
-                }
-                if (localVerboseLevel >= 3) System.out.println("              nSliceFacesThisSlice = "+nSliceFacesThisSlice);
-
-                int nChildren = nSliceChildren + nSliceFacesThisSlice;
-                sliceNodes[iSlice].children = new Node[nChildren];
-
-                int iChild = 0;
-                if (hasLeftChild) sliceNodes[iSlice].children[iChild++] = sliceNodes[iSlice-1];
-                if (hasRightChild) sliceNodes[iSlice].children[iChild++] = sliceNodes[iSlice+1];
-
-
-                int firstStickerThisSliceFace = iiSticker0;
-                // For each sticker in this slice...
-                for (int iiSticker = iiSticker0; iiSticker < iiSticker1; ++iiSticker) {
-                    int iSticker = visibleStickersSortedBySliceAndFace[iiSticker];
-                    CHECK(sticker2Slice[iSticker] == iSlice);
-                    int iFace = sticker2face[iSticker];
-                    if (iiSticker == iiSticker0
-                     || iFace != sticker2face[visibleStickersSortedBySliceAndFace[iiSticker-1]]) {
-                        // This is the first sticker in a new sliceface
-                        int nStickersThisSliceFace = 1;
-                        while (firstStickerThisSliceFace+nStickersThisSliceFace < iiSticker1
-                            && sticker2face[visibleStickersSortedBySliceAndFace[firstStickerThisSliceFace+nStickersThisSliceFace]] ==
-                               sticker2face[visibleStickersSortedBySliceAndFace[firstStickerThisSliceFace]]) {
-                            nStickersThisSliceFace++;
-                        }
-                        SliceFaceNode sliceFaceNode = new SliceFaceNode(iSlice, iFace);
-
-                        sliceFaceNode.visibleStickers = (int[])com.donhatchsw.util.Arrays.subarray(
-                            visibleStickersSortedBySliceAndFace,
-                            firstStickerThisSliceFace,
-                            nStickersThisSliceFace);
-
-                        sliceNodes[iSlice].children[iChild++] = sliceFaceNode;
-                        firstStickerThisSliceFace += nStickersThisSliceFace;
-                    }
-                }
-                CHECK(firstStickerThisSliceFace == iiSticker1);
-                CHECK(iChild == nChildren);
-
-                // Advance iiSticker0 to beginning of next slice
-                iiSticker0 = iiSticker1;
+                if (hasLeftChild) sliceNodes[iSlice].children = (Node[])com.donhatchsw.util.Arrays.append(sliceNodes[iSlice].children, sliceNodes[iSlice-1]);
+                if (hasRightChild) sliceNodes[iSlice].children = (Node[])com.donhatchsw.util.Arrays.append(sliceNodes[iSlice].children, sliceNodes[iSlice+1]);
             }
-            CHECK(iiSticker0 == nVisibleStickers);
+
+            // Allocate a sparse array so we can easily find a given SliceFaceNode from iSlice,iFace.
+            // This may seem alarming, but it really isn't that huge
+            // (number of entries is commensurate with nStickers).
+            SliceFaceNode sliceFaceNodes[][] = new SliceFaceNode[nCompressedSlices][nFaces];  // nulls
+
+            for (int iiSticker = 0; iiSticker < nVisibleStickers; ++iiSticker) {
+                int iSticker = visibleStickersSortedBySliceAndFace[iiSticker];
+                int iSlice = sticker2Slice[iSticker];
+                int iFace = sticker2face[iSticker];
+                if (sliceFaceNodes[iSlice][iFace] == null)
+                {
+                    sliceFaceNodes[iSlice][iFace] = new SliceFaceNode(iSlice, iFace);
+                    sliceFaceNodes[iSlice][iFace].visibleStickers = new int[0];
+                    sliceNodes[iSlice].children = (Node[])com.donhatchsw.util.Arrays.append(sliceNodes[iSlice].children, sliceFaceNodes[iSlice][iFace]);
+                }
+                // TODO: get rid of this quadratic growing, and just store a begin and end index into visibleStickersSortedBySliceAndFace
+                sliceFaceNodes[iSlice][iFace].visibleStickers = com.donhatchsw.util.Arrays.append(sliceFaceNodes[iSlice][iFace].visibleStickers, iSticker);
+            }
 
             Node root = sliceNodes[eyeSlice];
             if (localVerboseLevel >= 3) System.out.println("          root = sliceNodes[eyeSlice="+eyeSlice+"] = "+root+" totalSize="+root.totalSize());
 
-            // Sanity check that we built the tree correctly
+            // Sanity check that we built the tree correctly.
             {
                 int iiSticker = 0;
-                for (int iSlice = 0; iSlice < nSlices; ++iSlice) {
+                for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice) {
                     // check we're at a new slice
                     CHECK(iiSticker == 0
                        || sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker-1]] < sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker]]);
@@ -817,6 +785,28 @@ public class VeryCleverPaintersSortingOfStickers
                     }
                 }
                 CHECK(iiSticker == nVisibleStickers);
+            }
+
+            for (int iPair = 0; iPair < adjacentStickerPairs.length; ++iPair) {
+                int iSticker = adjacentStickerPairs[iPair][0][0];
+                int jSticker = adjacentStickerPairs[iPair][1][0];
+                boolean iVisible = stickerVisibilities[iSticker];
+                boolean jVisible = stickerVisibilities[jSticker];
+                int iSlice = sticker2Slice[iSticker];
+                int jSlice = sticker2Slice[jSticker];
+                int iFace = sticker2face[iSticker];
+                int jFace = sticker2face[jSticker];
+                if (iSlice == jSlice && iFace == jFace) {
+                    // inter-node
+                    if (iVisible && jVisible) {
+                        sliceFaceNodes[iSlice][iFace].relevantAdjacentStickerPairs.add(iPair);
+                    }
+                } else {
+                    // intra-node
+                    // CBB: don't need to do this for some combinations of invisibilityh I think
+                    sliceNodes[iSlice].relevantAdjacentStickerPairs.add(iPair);
+                    sliceNodes[jSlice].relevantAdjacentStickerPairs.add(iPair);
+                }
             }
 
             int nStickersEmitted = root.traverse(returnStickerSortOrder, 0, /*recursionLevel=*/0);
@@ -1151,7 +1141,7 @@ public class VeryCleverPaintersSortingOfStickers
                                      : topsorter.topsort(nNodes, nodeSortOrder,
                                                          partialOrderSize, partialOrder,
                                                          componentStarts);
-        int cycleVerboseLevel = 0;
+        int cycleVerboseLevel = 0;  // CBB: this concept is rotting, but I think I'll be retiring this code path soon anyway
         if (nComponents == nNodes)
         {
             if (cycleVerboseLevel >= 2) System.out.println("  no cycles!");
@@ -1220,7 +1210,7 @@ public class VeryCleverPaintersSortingOfStickers
             {
                 int origToSorted[] = VecMath.invertperm(nodeSortOrder, nNodes);
                 int successors[][] = new int[nNodes][0];
-                for (int iPair = 0; iPair < partialOrder.length; ++iPair)
+                for (int iPair = 0; iPair < partialOrderSize; ++iPair)
                 {
                     int i = partialOrder[iPair][0];
                     int j = partialOrder[iPair][1];
