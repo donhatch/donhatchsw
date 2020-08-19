@@ -422,7 +422,7 @@ public class VeryCleverPaintersSortingOfStickers
                                                         partialOrderSize, partialOrder,
                                                         componentStarts);
                     if (nComponents < this.visibleStickers.length) {
-                        System.out.println("      LOCAL TOPSORT OF "+this.visibleStickers.length+" STICKERS WITHIN FACE "+iFace+"/"+nFaces+" WITHIN SLICE "+iSlice+"/"+nSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF STICKERS");
+                        if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging!=null) System.out.println("      LOCAL TOPSORT OF "+this.visibleStickers.length+" STICKERS WITHIN FACE "+iFace+"/"+nFaces+" WITHIN SLICE "+iSlice+"/"+nSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF STICKERS");
                         for (int iComponent = 0; iComponent < nComponents; ++iComponent)
                         {
                             int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
@@ -667,7 +667,7 @@ public class VeryCleverPaintersSortingOfStickers
                         // Canonical case of this:
                         // standard puzzle, ctrl-middle frontmost vertex on middle face to center.
                         // (There may be some analysis we can do to break such a cycle, but I'm not sure what it is.)
-                        System.out.println("      LOCAL TOPSORT OF "+this.children.length+" GROUPS (FACES AND CHILD SLICES) WITHIN SLICE "+iSlice+"/"+nSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF GROUPS");
+                        if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging!=null) System.out.println("      LOCAL TOPSORT OF "+this.children.length+" GROUPS (FACES AND CHILD SLICES) WITHIN SLICE "+iSlice+"/"+nSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF GROUPS");
                         for (int iComponent = 0; iComponent < nComponents; ++iComponent)
                         {
                             int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];

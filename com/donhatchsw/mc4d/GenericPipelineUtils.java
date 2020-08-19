@@ -1106,14 +1106,16 @@ public class GenericPipelineUtils
 
             // XXX holy shit get this showPartialOrder crap out of here so it's
             // XXX possible to see the loop structure
-            int predecessors[][] = null;
+            int simplepredecessors[][] = null;
+            int complexpredecessors[][] = null;
             float partialOrderNodeCenters2d[][] = null;
             if (showPartialOrder && frame.partialOrderInfo != null)
             {
                 int nStickers = puzzleDescription.nStickers();
                 int nNodes = nStickers;
                 int partialOrderSize = frame.partialOrderInfo.length;
-                predecessors = new int[nNodes][0];
+                simplepredecessors = new int[nNodes][0];
+                complexpredecessors = new int[nNodes][0];
                 for (int i = 0; i < partialOrderSize; ++i) {
                     int from = frame.partialOrderInfo[i][0][0];
                     int to = frame.partialOrderInfo[i][1][0];
@@ -1122,10 +1124,15 @@ public class GenericPipelineUtils
                     //System.out.println("          fromGroupSize = "+fromGroupSize);
                     //System.out.println("          toGroupSize = "+toGroupSize);
                     boolean isSimple = (fromGroupSize==1 && toGroupSize==1);
-                    //if (isSimple)   // can switch this to show one or the other or both.  TODO: show both differently
+                    if (isSimple)
                     {
-                        // XXX very inefficient, although expected number of predecessors per sticker isn't large.
-                        predecessors[to] = com.donhatchsw.util.Arrays.append(predecessors[to], from);
+                        // inefficient, although expected number of predecessors per sticker isn't large.
+                        simplepredecessors[to] = com.donhatchsw.util.Arrays.append(simplepredecessors[to], from);
+                    }
+                    else
+                    {
+                        // inefficient, although expected number of predecessors per sticker isn't large.
+                        complexpredecessors[to] = com.donhatchsw.util.Arrays.append(complexpredecessors[to], from);
                     }
                 }
 
@@ -1149,18 +1156,18 @@ public class GenericPipelineUtils
                         VecMath.vxs(partialOrderNodeCenters2d[iSticker], partialOrderNodeCenters2d[iSticker], 1.f/nContributorsThisNode[iSticker]);
                 }
 
+                // I THINK THE FOLLOWING IS DEFUNCT-- the current code above didn't make any nodes for non-stickers, that was the old algorithm and vis
                 // Okay, now we've figured out 2d centers
                 // for all nodes that are stickers...
                 // Now figure out some centers for nodes that
                 // represent groups.
                 // We'll draw those at the average sticker center
                 // of each of their component stickers.
-                // TODO: resurrect this, maybe?  the current code above didn't make any nodes for non-stickers.
                 for (int iNode = nStickers; iNode < nNodes; ++iNode)
                 {
-                    for (int iPred = 0; iPred < predecessors[iNode].length; ++iPred)
+                    for (int iPred = 0; iPred < simplepredecessors[iNode].length; ++iPred)
                     {
-                        int jSticker = predecessors[iNode][iPred];
+                        int jSticker = simplepredecessors[iNode][iPred];
                         CHECK(jSticker < nStickers);
                         if (VecMath.normsqrd(partialOrderNodeCenters2d[jSticker]) != 0.)
                         {
@@ -1198,55 +1205,71 @@ public class GenericPipelineUtils
                     // Find any partial order items
                     // otherSticker < thisSticker,
                     // and draw them now.
-                    for (int iPred = 0; iPred < predecessors[iSticker].length; ++iPred)
-                    {
-                        int jSticker = predecessors[iSticker][iPred];
-
-                        if (true)
-                            if (jSticker >= nStickers
-                             && (jSticker-nStickers)%2 != 1)
-                                continue; // draw only to other-group end tokens
-
-                        if (true)
-                            if (jSticker >= nStickers
-                             && (jSticker-nStickers)%2 != 0)
-                                continue; // draw only to this-group start tokens
-
-                        float otherStickerCenter[] = partialOrderNodeCenters2d[jSticker];
-                        float myStickerCenter[] = partialOrderNodeCenters2d[iSticker];
-                        if (jitterRadius > 0)
+                    int predecessorses[][][] = {simplepredecessors, complexpredecessors};
+                    for (int iPredecessors = 0; iPredecessors < predecessorses.length; ++iPredecessors) {
+                        int predecessors[][] = predecessorses[iPredecessors];
+                        for (int iPred = 0; iPred < predecessors[iSticker].length; ++iPred)
                         {
-                            otherStickerCenter = VecMath.copyvec(otherStickerCenter);
-                            myStickerCenter = VecMath.copyvec(myStickerCenter);
-                            for (int i = 0; i < 2; ++i)
-                            {
-                                otherStickerCenter[i] += jitterGenerator.nextInt(2*jitterRadius+1)-jitterRadius;
-                                myStickerCenter[i] += jitterGenerator.nextInt(2*jitterRadius+1)-jitterRadius;
-                            }
-                        }
+                            int jSticker = predecessors[iSticker][iPred];
 
-                        java.awt.Color colors[][] = {
+                            if (true)
+                                if (jSticker >= nStickers
+                                 && (jSticker-nStickers)%2 != 1)
+                                    continue; // draw only to other-group end tokens
+
+                            if (true)
+                                if (jSticker >= nStickers
+                                 && (jSticker-nStickers)%2 != 0)
+                                    continue; // draw only to this-group start tokens
+
+                            float otherStickerCenter[] = partialOrderNodeCenters2d[jSticker];
+                            float myStickerCenter[] = partialOrderNodeCenters2d[iSticker];
+                            if (jitterRadius > 0)
                             {
-                                ground.darker(), // lighter than the rest of the shadows
-                            },
-                            {
-                                java.awt.Color.red,
-                                java.awt.Color.orange,
-                                java.awt.Color.yellow,
-                                java.awt.Color.green,
-                                //java.awt.Color.cyan,
-                                //java.awt.Color.blue,
+                                otherStickerCenter = VecMath.copyvec(otherStickerCenter);
+                                myStickerCenter = VecMath.copyvec(myStickerCenter);
+                                for (int i = 0; i < 2; ++i)
+                                {
+                                    otherStickerCenter[i] += jitterGenerator.nextInt(2*jitterRadius+1)-jitterRadius;
+                                    myStickerCenter[i] += jitterGenerator.nextInt(2*jitterRadius+1)-jitterRadius;
+                                }
                             }
-                        };
-                        int nSegs = colors[iPass].length;
-                        float points[][] = new float[nSegs+1][];
-                        for (int iPoint = 0; iPoint < points.length; ++iPoint)
-                            points[iPoint] = VecMath.lerp(otherStickerCenter, myStickerCenter, (float)iPoint/(float)nSegs); // XXX move this division up
-                        for (int iSeg = 0; iSeg < nSegs; ++iSeg)
-                        {
-                            g.setColor(colors[iPass][iSeg]);
-                            g.drawLine((int)points[iSeg][0], (int)points[iSeg][1],
-                                       (int)points[iSeg+1][0], (int)points[iSeg+1][1]);
+
+                            java.awt.Color simpleColors[][] = {
+                                {
+                                    ground.darker(), // lighter than the rest of the shadows
+                                },
+                                {
+                                    java.awt.Color.black,
+                                    java.awt.Color.white,
+                                }
+                            };
+                            java.awt.Color complexcolors[][] = {
+                                {
+                                    ground.darker(), // lighter than the rest of the shadows
+                                },
+                                {
+                                    java.awt.Color.red,
+                                    java.awt.Color.orange,
+                                    java.awt.Color.yellow,
+                                    java.awt.Color.green,
+                                    //java.awt.Color.cyan,
+                                    //java.awt.Color.blue,
+                                }
+                            };
+
+                            java.awt.Color colors[][] = (iPredecessors==0 ? simpleColors : complexcolors);
+
+                            int nSegs = colors[iPass].length;
+                            float points[][] = new float[nSegs+1][];
+                            for (int iPoint = 0; iPoint < points.length; ++iPoint)
+                                points[iPoint] = VecMath.lerp(otherStickerCenter, myStickerCenter, (float)iPoint/(float)nSegs); // XXX move this division up
+                            for (int iSeg = 0; iSeg < nSegs; ++iSeg)
+                            {
+                                g.setColor(colors[iPass][iSeg]);
+                                g.drawLine((int)points[iSeg][0], (int)points[iSeg][1],
+                                           (int)points[iSeg+1][0], (int)points[iSeg+1][1]);
+                            }
                         }
                     }
                 }

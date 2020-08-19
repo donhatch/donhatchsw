@@ -1253,7 +1253,7 @@ public class MC4DSwingControlPanel
             addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(java.awt.Color.black);}}); // Totally lame separator
             addSingleLabelRow(new BigBoldJLabel("Experimental"));
             addCheckboxRow(
-                "Use experimental new depth sort",
+                "Use experimental new depth sort (ctrl-alt-P to toggle viz)",
                 viewParams.topsortUsesBoldNewWay,
                 new String[] {
                     "If this option is checked,",

@@ -148,8 +148,6 @@
     ===================
         - "5x5 2" and "4x5 2" strange flickering of some stickers during twists! and in some views (rotate things to center), some wildly inside out stickers showing.  (conjecture:  I didn't get the non-degerate-normalization correct on these further-cuts puzzles)
 
-        - topsort seems to succed but gives bogus order, in "{3,3,4} 2"  in fact, "{3,3,3} 2" !  (the latter includes the "I DON'T CARE BECAUSE SO WARPED" thing, but even if I comment that out, there is still some screwy inside-outedness there.  maybe that's the thing Roice fixed??"
-
         - CHECK fail on 3d puzzle when 1color sticker gonality isn't same as the facet gonality: puzzleDescription="(.25)4(2)3 3(1.4)": CHECK(cutWeight >= -1e-9 && cutWeight <= 1.) (cutWeight is -.75)
         - 5-dimensional puzzles get ArrayIndexOutOfBoundException when trying to view them (should just get rejected, I think)
         - can't fling on laptop (neither macboox nor glinux box)
@@ -259,6 +257,11 @@
 
     TODO:
     =====
+        TOPSORTING:
+            - make a suble red/green indicator saying whether something went wrong
+            - get confidence in new algorithm, maybe retire old?
+            - the failing of groups totally sucks-- really need a robust solution to that!
+
         JOIN:
             - TODONE (mostly: would be nice to be able to express Johnson solids.  Currently can't even express a square pyramid, I don't think? (could allow pyramid to be expressed? maybe join operator, see https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol) Maybe allow general intersections of half-spaces?
             - succeeds:
