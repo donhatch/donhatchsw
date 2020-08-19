@@ -319,6 +319,8 @@ public final class Arrays
      * Index into the given array, which is treated as one-dimensional.
      * inds should be a multidimensional array of int (or a single Int).
      * The returned array will have the same dimension and size as inds.
+     * See also: sub()
+     *
      * <p>
      * XXX should make a version that takes the result as an argument rather than allocating a new one
      * XXX should make an enhanced version that lets array
@@ -361,6 +363,13 @@ public final class Arrays
     } // getMany
 
     /**
+     * sub() is an alias for getMany().
+     */
+    public static Object sub(Object array, Object indices) {
+        return getMany(array, indices);
+    }
+
+    /**
      * Here is part of what I wanted, above...
      * just need to combine the two.
      */
@@ -377,6 +386,7 @@ public final class Arrays
     // XXX needs to be differentiated from the more common version
     // XXX (familiar to matlab users I think) getMany,
     // XXX since the prototype is the same
+    // YYY (Not sure what I was talking about, now)
     public static Object getManyOnes(Object array, Object indices)
     {
         if (getDim(indices) == 1)
@@ -389,7 +399,7 @@ public final class Arrays
                           getManyOnes(array,
                                       java.lang.reflect.Array.get(indices,i)));
         return result;
-    } // getMany
+    } // getManyOnes
 
     /**
      * remove consecutive duplicate items,
