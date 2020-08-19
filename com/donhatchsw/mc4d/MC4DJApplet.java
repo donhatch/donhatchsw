@@ -40,7 +40,7 @@ public class MC4DJApplet
         {"doDoubleBuffer", "boolean", "whether to double buffer"},
         {"futtIfPossible", "boolean", "whether to try to futt (i.e. allow topologically valid twists that may require morphing)"},
         {"forceFuttableXXX", "boolean", "whether to force puzzle to think it's futtable.  for development."},
-        {"nControlPanelsAtStartup", "integer", "number of control panels to open at startup.  they should all stay in sync.  even numbered are legacy; odd numbered are swing."},
+        {"nControlPanelsAtStartup", "integer", "number of control panels to open at startup.  they should all stay in sync.  even numbered are swing; odd numbered are legacy."},
         {"modelStateString", "string", "full description of puzzle / state / history, as previously dumped by \"Test to/from string\""},
     };
     public String[][] getParameterInfo()  // XXX TODO: no one ever uses this??
@@ -948,13 +948,13 @@ public class MC4DJApplet
                 // not openOrMake!
                 if (i % 2 == 0)
                 {
-                    makeNewLegacyControlPanelWindow(mainViewGuts,
-                                                    allPuzzlesAndWindows);
+                    makeNewSwingControlPanelWindow(mainViewGuts,
+                                                   allPuzzlesAndWindows);
                 }
                 else
                 {
-                    makeNewSwingControlPanelWindow(mainViewGuts,
-                                                   allPuzzlesAndWindows);
+                    makeNewLegacyControlPanelWindow(mainViewGuts,
+                                                    allPuzzlesAndWindows);
                 }
             }
         }
@@ -1039,7 +1039,6 @@ public class MC4DJApplet
 
             allPuzzlesAndWindows.addControlPanel(controlPanel); // needs the frame before doing this, so it can set window titles
 
-            frame.setLocation(675,0);
             System.out.println("Packing the window...");
             frame.pack();
             System.out.println("Showing the window...");
@@ -1074,6 +1073,7 @@ public class MC4DJApplet
 
             allPuzzlesAndWindows.addControlPanel(controlPanel); // needs the frame before doing this, so it can set window titles
 
+            controlPanelFrame.setLocation(675,0);
             System.out.println("Packing the window...");
             controlPanelFrame.pack();
             if (true)
