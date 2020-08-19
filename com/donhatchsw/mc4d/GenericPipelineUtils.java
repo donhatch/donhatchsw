@@ -2607,6 +2607,37 @@ public class GenericPipelineUtils
             if (localVerboseLevel >= 1) System.out.println("    out sortStickersBackToFront, returning nCompressedSorted="+nCompressedSorted);
             return nCompressedSorted;
         } // sortStickersBackToFront
+
+        // general utility; could go elsewhere
+        private static int sortAndCompressPartialOrder(int partialOrderSize, int[][/*2*/] partialOrder)
+        {
+            com.donhatchsw.util.SortStuff.sort(partialOrder, 0, partialOrderSize,
+                new com.donhatchsw.util.SortStuff.Comparator() { // XXX ALLOCATION! (need to make sort smarter)
+                    @Override public int compare(Object aObj, Object bObj)
+                    {
+                        int[] a = (int[])aObj;
+                        int[] b = (int[])bObj;
+                        CHECK(a.length == b.length);
+                        for (int i = 0; i < a.length; ++i) {
+                           if (a[i] < b[i]) return -1;
+                           if (a[i] > b[i]) return 1;
+                        }
+                        return 0;
+                    }
+                }
+            );
+            {
+                int nOut = 0;
+                for (int i = 0; i < partialOrderSize; ++i) {
+                    if (i == 0 || !VecMath.equals(partialOrder[i], partialOrder[i-1])) {
+                        partialOrder[nOut++] = partialOrder[i];
+                    }
+                }
+                partialOrderSize = nOut;
+            }
+            return partialOrderSize;
+        }  // sortAndCompressPartialOrder
+
     } // class VeryCleverPaintersSortingOfStickers
 
 
@@ -2618,35 +2649,5 @@ public class GenericPipelineUtils
         VecMath.vmv(2, tmpTWAf2, v2, v0);
         return VecMath.vxv2(tmpTWAf1, tmpTWAf2);
     }
-
-    // general utility; could go elsewhere
-    private static int sortAndCompressPartialOrder(int partialOrderSize, int[][/*2*/] partialOrder)
-    {
-        com.donhatchsw.util.SortStuff.sort(partialOrder, 0, partialOrderSize,
-            new com.donhatchsw.util.SortStuff.Comparator() { // XXX ALLOCATION! (need to make sort smarter)
-                @Override public int compare(Object aObj, Object bObj)
-                {
-                    int[] a = (int[])aObj;
-                    int[] b = (int[])bObj;
-                    CHECK(a.length == b.length);
-                    for (int i = 0; i < a.length; ++i) {
-                       if (a[i] < b[i]) return -1;
-                       if (a[i] > b[i]) return 1;
-                    }
-                    return 0;
-                }
-            }
-        );
-        {
-            int nOut = 0;
-            for (int i = 0; i < partialOrderSize; ++i) {
-                if (i == 0 || !VecMath.equals(partialOrder[i], partialOrder[i-1])) {
-                    partialOrder[nOut++] = partialOrder[i];
-                }
-            }
-            partialOrderSize = nOut;
-        }
-        return partialOrderSize;
-    }  // sortAndCompressPartialOrder
 
 } // class GenericPipelineUtils
