@@ -84,12 +84,14 @@ public class GenericPipelineUtils
         // without having to do any memory allocations.
         public int drawListBuffer[/*nStickers*/][/*nPolysThisSticker*/][/*2*/];
 
-        public int[][/*2*/] partialOrder; // optional, for debugging
+        public int[][/*2*/] partialOrder; // optional, for debugging   XXX deprecated; get rid
+        public int[][/*2*/][/*3*/] partialOrderInfo; // optional, for debugging.  XXX describe what it means. currently described down in the sort, which generates it
 
         GenericPuzzleDescription puzzleDescription; // puzzle description used when filling it, to be used later for picking
     } // class Frame
 
     private static void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
+    private static String $(Object obj) { return com.donhatchsw.util.Arrays.toStringCompact(obj); }  // convenience
 
     public interface Callback { public void call(); }
 
@@ -788,6 +790,7 @@ public class GenericPipelineUtils
             int stickerSortOrder[] = new int[nStickers]; // XXX allocation
             int partialOrderAddress[][][] = (showPartialOrder ? new int[1][][] : null);
             int XXXmoreInformationAddress[][][] = (showPartialOrder ? new int[1][][] : null);
+            int partialOrderInfoAddress[][][][] = (showPartialOrder ? new int[1][][][] : null);
             int nSortedStickers = VeryCleverPaintersSortingOfStickers.sortStickersBackToFront(
                     nStickersToSort,
                     puzzleDescription.getAdjacentStickerPairs(),
@@ -802,15 +805,17 @@ public class GenericPipelineUtils
                     stickerSortOrder,
                     partialOrderAddress,
                     XXXmoreInformationAddress,
+                    partialOrderInfoAddress,
                     stickerCentersZ,
                     polyCenters3d,
                     polyNormals3d);
 
             if (showPartialOrder) {
                 frame.partialOrder = partialOrderAddress[0];
-                if (true) {
+                if (false) {  // true: show the inter-slice edges.  false: don't.  XXX this is all going away anyway
                     frame.partialOrder = (int[][])com.donhatchsw.util.Arrays.concat(frame.partialOrder, XXXmoreInformationAddress[0]);
                 }
+                frame.partialOrderInfo = partialOrderInfoAddress[0];
             }
 
             drawListSize = 0;
@@ -1112,33 +1117,23 @@ public class GenericPipelineUtils
             float partialOrderNodeCenters2d[][] = null;
             if (showPartialOrder && frame.partialOrder != null)
             {
-                int partialOrderSize = frame.partialOrder.length;
                 int nStickers = puzzleDescription.nStickers();
-                int nNodes = VecMath.max((int[])com.donhatchsw.util.Arrays.flatten(frame.partialOrder, 0, 2))+1;
-                nNodes = Math.max(nNodes,puzzleDescription.nStickers());
-
+                int nNodes = nStickers;
+                int partialOrderSize = frame.partialOrderInfo.length;
                 predecessors = new int[nNodes][0];
-                for (int i = 0; i < partialOrderSize; ++i)
-                {
-                    int from = frame.partialOrder[i][0];
-                    int to = frame.partialOrder[i][1];
-
-                    if (from < 0 || to < 0) {
-                      // negative means the constraint was on the sticker's group (slice), not the sticker itself.
-                      if (true)
-                      {
-                        // TODO: should display them differently
-                        // show these the same as others
-                        if (from < 0) from = ~from;
-                        if (to < 0) to = ~to;
-                      }
-                      else
-                      {
-                        continue;  // ignore these
-                      }
+                for (int i = 0; i < partialOrderSize; ++i) {
+                    int from = frame.partialOrderInfo[i][0][0];
+                    int to = frame.partialOrderInfo[i][1][0];
+                    int fromGroupSize = frame.partialOrderInfo[i][0][2] - frame.partialOrderInfo[i][0][1];
+                    int toGroupSize = frame.partialOrderInfo[i][1][2] - frame.partialOrderInfo[i][1][1];
+                    //System.out.println("          fromGroupSize = "+fromGroupSize);
+                    //System.out.println("          toGroupSize = "+toGroupSize);
+                    boolean isSimple = (fromGroupSize==1 && toGroupSize==1);
+                    //if (isSimple)   // can switch this to show one or the other or both.  TODO: show both differently
+                    {
+                        // XXX very inefficient, although expected number of predecessors per sticker isn't large.
+                        predecessors[to] = com.donhatchsw.util.Arrays.append(predecessors[to], from);
                     }
-                    // XXX very inefficient
-                    predecessors[to] = com.donhatchsw.util.Arrays.append(predecessors[to], from);
                 }
 
                 partialOrderNodeCenters2d = new float[nNodes][2]; // zeros
@@ -1167,6 +1162,7 @@ public class GenericPipelineUtils
                 // represent groups.
                 // We'll draw those at the average sticker center
                 // of each of their component stickers.
+                // TODO: resurrect this, maybe?  the current code above didn't make any nodes for non-stickers.
                 for (int iNode = nStickers; iNode < nNodes; ++iNode)
                 {
                     for (int iPred = 0; iPred < predecessors[iNode].length; ++iPred)

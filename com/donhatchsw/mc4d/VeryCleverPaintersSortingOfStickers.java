@@ -180,6 +180,9 @@ public class VeryCleverPaintersSortingOfStickers
             int returnStickerSortOrder[/*>=nStickers*/],
             int returnPartialOrderOptionalForDebugging[/*1*/][][/*2*/], // null if caller doesn't care, otherwise it's a singleton array that gets filled in with the int[][2] partial order
             int XXXreturnMoreInformationForDebugging[/*1*/][][/*2*/], // null if caller doesn't care, otherwise it's a singleton array that gets filled in with more of the int[][2] partial order (-ish).  TODO: describe this better
+
+            int returnPartialOrderOptionalForDebuggingNew[/*1*/][][/*2*/][/*3*/],  // null if caller doesn't care, otherwise it's a singleton array that gets filled in with the edges in the partial order.  each edge is of the form {{fromStickerIndex,fromStickerIndex0,fromStickerIndex1},{toStickerIndex,toStickerIndex0,toStickerIndex1}}.  These indices are into the returnStickerSortOrder array: fromStickerIndex,toStickerIndex refer to the two stickers that cause the constraint, and the constraint is that the range of output stickers at [fromStickerIndex0,fromStickerIndex1) come before those at [toStickerIndex0,toStickerIndex1).   fromStickerIndex0<=fromStickerIndex<fromStickerIndex1 and toStickerIndex0<=toStickerIndex<toStickerIndex1.
+
             final float stickerCentersZ[/*>=nStickers*/],
             float polyCenters3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/],
             float polyNormals3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/])
@@ -198,6 +201,10 @@ public class VeryCleverPaintersSortingOfStickers
             XXXreturnMoreInformationForDebugging[0] = new int[adjacentStickerPairs.length][];
         }
         int XXXmoreInformationSize = 0;
+        if (returnPartialOrderOptionalForDebuggingNew != null) {
+            returnPartialOrderOptionalForDebuggingNew[0] = new int[adjacentStickerPairs.length][][];
+        }
+        int returnPartialOrderOptionalForDebuggingNewSize = 0;
 
         final int nSlices = cutOffsets.length + 1;
         int nCompressedSlices = nSlices; // XXX should combine adjacent slices that are moving together... but maybe it doesn't hurt to just pretend all the slices are twisting separately, it keeps things simple?  Not sure.
@@ -961,6 +968,12 @@ public class VeryCleverPaintersSortingOfStickers
                         //add "jSticker < iSticker"
                         partialOrder[partialOrderSize][0] = jSticker;
                         partialOrder[partialOrderSize][1] = iSticker;
+                        if (returnPartialOrderOptionalForDebuggingNew != null) {
+                            returnPartialOrderOptionalForDebuggingNew[0][returnPartialOrderOptionalForDebuggingNewSize++] = new int[][] {
+                                {jSticker, jSticker, jSticker+1},
+                                {iSticker, iSticker, iSticker+1},
+                            };
+                        }
                         partialOrderSize++;
                     }
                     else if (jStickerHasPolyBackfacing)
@@ -968,6 +981,12 @@ public class VeryCleverPaintersSortingOfStickers
                         //add "iSticker < jSticker"
                         partialOrder[partialOrderSize][0] = iSticker;
                         partialOrder[partialOrderSize][1] = jSticker;
+                        if (returnPartialOrderOptionalForDebuggingNew != null) {
+                            returnPartialOrderOptionalForDebuggingNew[0][returnPartialOrderOptionalForDebuggingNewSize++] = new int[][] {
+                                {iSticker, iSticker, iSticker+1},
+                                {jSticker, jSticker, jSticker+1},
+                            };
+                        }
                         partialOrderSize++;
                     }
                 }
@@ -994,6 +1013,13 @@ public class VeryCleverPaintersSortingOfStickers
                         partialOrder[partialOrderSize][0] = jIndGroupEndToken;
                         partialOrder[partialOrderSize][1] = iSticker;
                         if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+
+                        if (returnPartialOrderOptionalForDebuggingNew != null) {
+                            returnPartialOrderOptionalForDebuggingNew[0][returnPartialOrderOptionalForDebuggingNewSize++] = new int[][] {
+                                {iSticker, iSticker, iSticker+1},
+                                {jSticker, jSticker, jSticker},  // XXX TODO: fix range, maybe.  make it empty for now, just to distinguish from singleton
+                            };
+                        }
                         partialOrderSize++;
                         if (XXXreturnMoreInformationForDebugging != null) {
                             XXXreturnMoreInformationForDebugging[0][XXXmoreInformationSize++] = new int[] {iSticker, ~jSticker};
@@ -1006,10 +1032,16 @@ public class VeryCleverPaintersSortingOfStickers
                         partialOrder[partialOrderSize][0] = iSticker;
                         partialOrder[partialOrderSize][1] = jIndGroupStartToken;
                         if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                        if (returnPartialOrderOptionalForDebuggingNew != null) {
+                            returnPartialOrderOptionalForDebuggingNew[0][returnPartialOrderOptionalForDebuggingNewSize++] = new int[][] {
+                                {jSticker, jSticker, jSticker},  // XXX TODO: fix range, maybe.  make it empty for now, just to distinguish from singleton
+                                {iSticker, iSticker, iSticker+1},
+                            };
+                        }
+                        partialOrderSize++;
                         if (XXXreturnMoreInformationForDebugging != null) {
                             XXXreturnMoreInformationForDebugging[0][XXXmoreInformationSize++] = new int[] {~jSticker, iSticker};
                         }
-                        partialOrderSize++;
                     }
                 }
                 else if (jGroup == jSticker) // && iGroup != iSticker
@@ -1026,6 +1058,12 @@ public class VeryCleverPaintersSortingOfStickers
                         partialOrder[partialOrderSize][0] = iIndGroupEndToken;
                         partialOrder[partialOrderSize][1] = jSticker;
                         if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                        if (returnPartialOrderOptionalForDebuggingNew != null) {
+                            returnPartialOrderOptionalForDebuggingNew[0][returnPartialOrderOptionalForDebuggingNewSize++] = new int[][] {
+                                {iSticker, iSticker, iSticker},  // XXX TODO: fix range, maybe.  make it empty for now, just to distinguish from singleton
+                                {jSticker, jSticker, jSticker+1},
+                            };
+                        }
                         partialOrderSize++;
                         if (XXXreturnMoreInformationForDebugging != null) {
                             XXXreturnMoreInformationForDebugging[0][XXXmoreInformationSize++] = new int[] {~iSticker, jSticker};
@@ -1038,6 +1076,12 @@ public class VeryCleverPaintersSortingOfStickers
                         partialOrder[partialOrderSize][0] = jSticker;
                         partialOrder[partialOrderSize][1] = iIndGroupStartToken;
                         if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                        if (returnPartialOrderOptionalForDebuggingNew != null) {
+                            returnPartialOrderOptionalForDebuggingNew[0][returnPartialOrderOptionalForDebuggingNewSize++] = new int[][] {
+                                {jSticker, jSticker, jSticker+1},
+                                {iSticker, iSticker, iSticker},  // XXX TODO: fix range, maybe.  make it empty for now, just to distinguish from singleton
+                            };
+                        }
                         partialOrderSize++;
                         if (XXXreturnMoreInformationForDebugging != null) {
                             XXXreturnMoreInformationForDebugging[0][XXXmoreInformationSize++] = new int[] {jSticker, ~iSticker};
@@ -1247,15 +1291,16 @@ public class VeryCleverPaintersSortingOfStickers
                     }
                     System.out.println("================================");
                 }
-
-                returnPartialOrderOptionalForDebugging[0] = (int[][])com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize);
             }
         }
         if (returnPartialOrderOptionalForDebugging != null && returnPartialOrderOptionalForDebugging[0] == null) {
-            returnPartialOrderOptionalForDebugging[0] = new int[0][2];
+            returnPartialOrderOptionalForDebugging[0] = (int[][])com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize);
         }
         if (XXXreturnMoreInformationForDebugging != null) {
             XXXreturnMoreInformationForDebugging[0] = (int[][])com.donhatchsw.util.Arrays.subarray(XXXreturnMoreInformationForDebugging[0], 0, XXXmoreInformationSize);
+        }
+        if (returnPartialOrderOptionalForDebuggingNew != null) {
+            returnPartialOrderOptionalForDebuggingNew[0] = (int[][][])com.donhatchsw.util.Arrays.subarray(returnPartialOrderOptionalForDebuggingNew[0], 0, returnPartialOrderOptionalForDebuggingNewSize);
         }
 
         //
