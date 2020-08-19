@@ -787,25 +787,104 @@ public class VeryCleverPaintersSortingOfStickers
                 CHECK(iiSticker == nVisibleStickers);
             }
 
-            for (int iPair = 0; iPair < adjacentStickerPairs.length; ++iPair) {
-                int iSticker = adjacentStickerPairs[iPair][0][0];
-                int jSticker = adjacentStickerPairs[iPair][1][0];
-                boolean iVisible = stickerVisibilities[iSticker];
-                boolean jVisible = stickerVisibilities[jSticker];
-                int iSlice = sticker2Slice[iSticker];
-                int jSlice = sticker2Slice[jSticker];
-                int iFace = sticker2face[iSticker];
-                int jFace = sticker2face[jSticker];
-                if (iSlice == jSlice && iFace == jFace) {
-                    // inter-node
+            {
+                float jPolyCenterMinusIPolyCenter[] = new float[3]; // scratch
+                boolean printedSomethingAboutWarped = false;
+                int numIgnored = 0;
+                for (int iPair = 0; iPair < adjacentStickerPairs.length; ++iPair) {
+                    int iSticker = adjacentStickerPairs[iPair][0][0];
+                    int jSticker = adjacentStickerPairs[iPair][1][0];
+                    int iPolyThisSticker = adjacentStickerPairs[iPair][0][1];
+                    int jPolyThisSticker = adjacentStickerPairs[iPair][1][1];
+                    boolean iVisible = stickerVisibilities[iSticker];
+                    boolean jVisible = stickerVisibilities[jSticker];
+
+                    if (!iVisible && !jVisible) continue;
+
                     if (iVisible && jVisible) {
-                        sliceFaceNodes[iSlice][iFace].relevantAdjacentStickerPairs.add(iPair);
+                        //
+                        // See whether things are visible and so inside out
+                        // that the polygons are facing away from each other...
+                        // If so, then this polygon should not restrict anything.
+                        // This can be observed to happen, e.g.:
+                        //     - on 4,3,3 in default position, with frontmost vertex ctrl-rotated to center
+                        //     - on 5,3,3 in default position, with 4d eye distance increased until nothing behind the 4d eye.
+                        // TODO: think about whether an ignoring should also be done in the case when
+                        VecMath.vmv(jPolyCenterMinusIPolyCenter,
+                                    polyCenters3d[jSticker][jPolyThisSticker],
+                                    polyCenters3d[iSticker][iPolyThisSticker]);
+                        // we add a tiny bit of slop to make sure we consider
+                        // the adjacency valid if the faces are coincident
+                        if (VecMath.dot(polyNormals3d[iSticker][iPolyThisSticker], jPolyCenterMinusIPolyCenter) < -1e-3
+                         || VecMath.dot(polyNormals3d[jSticker][jPolyThisSticker], jPolyCenterMinusIPolyCenter) > 1e-3)
+                        {
+                            if (localVerboseLevel >= 1)
+                            {
+                                System.out.println("      HA!  I don't CARE because this adjacency is SO WARPED! stickers "+iSticker+"("+iPolyThisSticker+") "+jSticker+"("+jPolyThisSticker+")");
+                            }
+                            numIgnored++;
+                            continue;
+                        }
                     }
-                } else {
-                    // intra-node
-                    // CBB: don't need to do this for some combinations of invisibilityh I think
-                    sliceNodes[iSlice].relevantAdjacentStickerPairs.add(iPair);
-                    sliceNodes[jSlice].relevantAdjacentStickerPairs.add(iPair);
+
+                    int iSlice = sticker2Slice[iSticker];
+                    int jSlice = sticker2Slice[jSticker];
+                    int iFace = sticker2face[iSticker];
+                    int jFace = sticker2face[jSticker];
+
+                    if (iSlice == jSlice) // i.e. same xform
+                    {
+                        boolean stickerPolyIsStrictlyBackfacing[][] = (iFace==jFace ? partiallyShrunkStickerPolyIsStrictlyBackfacing : unshrunkStickerPolyIsStrictlyBackfacing);
+                        boolean iStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
+                        boolean jStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
+                        if (iStickerHasPolyBackfacing && jStickerHasPolyBackfacing)
+                        {
+                            // Note that this cannot happen any more unless
+                            // we are viewing the polygon essentially edge-on
+                            // and the math got degenerate, since the backfacing flags
+                            // were computed preshrunk, which means the two polys
+                            // should exactly match.
+
+                            // For posterity, here's a picture of why "either draw order is ok"
+                            // is alarming and not ok in general, and why we need to use the unshrunk polys:
+                            // A doesn't realize there's anything in front of it,
+                            // because it seems like there isn't anything *immediately* in front of it.
+                            // That is, we have only B<D C<D.
+                            // We also need either A<B or A<C, too, otherwise A might be drawn after D!
+                            /*
+                                        *
+                                       / \
+                                      *   *
+                                     / \ / \
+                                  _ *   *   * _
+                                *    \ / \ /    *
+                                 \  _ * A * _  /
+                                  *B / \ / \ C*
+                                 /_ *   *   * _\
+                                *               *
+                                      _ * _
+                                    * _ D _ *
+                                        *
+                            */
+                            if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging != null) System.out.println("      WARNING: sticker "+iSticker+"("+iPolyThisSticker+") and "+jSticker+"("+jPolyThisSticker+") both have poly backfacing!! Ignoring.  This should be very rare (but evidently happens if stuff behind the eye?)");
+                            continue;
+                        }
+                    }
+
+                    if (iSlice == jSlice && iFace == jFace) {
+                        // inter-node
+                        if (iVisible && jVisible) {
+                            sliceFaceNodes[iSlice][iFace].relevantAdjacentStickerPairs.add(iPair);
+                        }
+                    } else {
+                        // intra-node
+                        // CBB: don't need to do this for some combinations of invisibility I think
+                        sliceNodes[iSlice].relevantAdjacentStickerPairs.add(iPair);
+                        sliceNodes[jSlice].relevantAdjacentStickerPairs.add(iPair);
+                    }
+                }
+                if (numIgnored > 0) {
+                    if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging != null) System.out.println("      hierarchical painters sort ignored "+numIgnored+" sticker pairs because too warped");
                 }
             }
 
@@ -910,11 +989,6 @@ public class VeryCleverPaintersSortingOfStickers
                 // that the polygons are facing away from each other...
                 // If so, then this polygon should not restrict anything.
                 // This can be observed to happen, e.g. on 5,3,3 in default position, with 4d eye distance increased until nothing behind the 4d eye.
-                //
-                // TODO: this protection may be no longer necessary since we are now computing backfaces
-                //       based on unshrunk; not sure!  And, in fact, it may be screwing
-                //       some things up (that is, the only thing keeping a particular
-                ///      sticker properly behind others are these warped adjacencies).  Revisit.  How?
                 if (true)
                 {
                     if (iStickerIsVisible && jStickerIsVisible
@@ -931,12 +1005,12 @@ public class VeryCleverPaintersSortingOfStickers
                         {
                             if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging != null)
                             {
-                                System.out.println("HA!  I don't CARE because it's SO WARPED! stickers "+iSticker+"("+iPolyThisSticker+") "+jSticker+"("+jPolyThisSticker+")");
-                                System.out.println("    inormal = "+com.donhatchsw.util.Arrays.toStringCompact(polyNormals3d[iSticker][iPolyThisSticker]));
-                                System.out.println("    jnormal = "+com.donhatchsw.util.Arrays.toStringCompact(polyNormals3d[jSticker][jPolyThisSticker]));
-                                System.out.println("    j-i = "+com.donhatchsw.util.Arrays.toStringCompact(jPolyCenterMinusIPolyCenter));
-                                System.out.println("    inormal dot j-i = "+VecMath.dot(polyNormals3d[iSticker][iPolyThisSticker], jPolyCenterMinusIPolyCenter));
-                                System.out.println("    jnormal dot j-i = "+VecMath.dot(polyNormals3d[jSticker][jPolyThisSticker], jPolyCenterMinusIPolyCenter));
+                                System.out.println("      HA!  I don't CARE because it's SO WARPED! stickers "+iSticker+"("+iPolyThisSticker+") "+jSticker+"("+jPolyThisSticker+")");
+                                System.out.println("          inormal = "+com.donhatchsw.util.Arrays.toStringCompact(polyNormals3d[iSticker][iPolyThisSticker]));
+                                System.out.println("          jnormal = "+com.donhatchsw.util.Arrays.toStringCompact(polyNormals3d[jSticker][jPolyThisSticker]));
+                                System.out.println("          j-i = "+com.donhatchsw.util.Arrays.toStringCompact(jPolyCenterMinusIPolyCenter));
+                                System.out.println("          inormal dot j-i = "+VecMath.dot(polyNormals3d[iSticker][iPolyThisSticker], jPolyCenterMinusIPolyCenter));
+                                System.out.println("          jnormal dot j-i = "+VecMath.dot(polyNormals3d[jSticker][jPolyThisSticker], jPolyCenterMinusIPolyCenter));
                             }
 
                             continue;
