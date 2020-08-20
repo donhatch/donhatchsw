@@ -1239,8 +1239,6 @@ public class GenericPipelineUtils
                             new java.awt.Color(255,255,0),  // yellow
                                 new java.awt.Color(128,255,0),  // yellow green
                             new java.awt.Color(0,255,0),  // green
-                            //java.awt.Color.cyan,
-                            //java.awt.Color.blue,
                         }
                     };
 

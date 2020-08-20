@@ -42,6 +42,7 @@ with respect to the following picture.
           +    / 0m/ / 1g/ /     2g    \ \ 3g\    +
               +---+ +---+ +-------------+ +---+
 
+
 If we consider unshrunk faces and stickers, it looks like this:
 
                +---+---+-----------+---+
@@ -99,7 +100,8 @@ stickers, with respect to the 3d eye in the real puzzle
 (or, in this picture, with respect to a 2d eye; imagine the 2d eye
 is anywhere around the perimeter of the above picture).
 
-The rendering order is determined by a tree traversal starting at the root:
+The rendering order is determined by a recursive tree traversal,
+starting at the root:
     RENDER(node) {
         if node is a leaf (sticker):
             render the sticker
@@ -185,6 +187,32 @@ This is for two reasons:
             b c a  d f e
             b c a  f d e
      All of which are good, from the given Eye point.
+
+A trace of the full hierarchical traversal order
+of the above example, back to front, might look like this:
+  Slice(2) {
+      SliceFace(2, back face)  {2a 2b}
+      Slice(3) {
+        SliceFace(3, back face)  {3a 3b}
+        SliceFace(3, right face)  {3k 3l 3h 3i 3m 3j}
+        SliceFace(3, center face)  {3c 3d 3e}
+        SliceFace(3, front face)  {3f 3g}
+      }
+      SliceFace(2,center face) {2c 2d 2e}
+      Slice(1) {
+        SliceFace(1,back face)  {1a 1b}
+        Slice(0) {
+            SliceFace(0,back face)  {0g 0h}
+            SliceFace(0,left face)  {0a 0d 0b 0e 0c 0f}
+            SliceFace(0,center face) {0i 0j 0k}
+            SliceFace(0,front face) {0l 0m}
+        }
+        SliceFace(1,center face)  {1c 1d 1e}
+        SliceFace(1,front face)  {1f 1g}
+      }
+      SliceFace(2,front) {2f 2g}  {2f 2g}
+  }
+
 */
 
 package com.donhatchsw.mc4d;
@@ -198,6 +226,7 @@ public class VeryCleverPaintersSortingOfStickers
 
     private static void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
     private static String $(Object obj) { return com.donhatchsw.util.Arrays.toStringCompact(obj); }  // convenience
+    private static String $(Object obj,int i0, int n) { return $(com.donhatchsw.util.Arrays.subarray(obj,i0,n)); }  // convenience
     private static String repeat(String s, int n) { StringBuffer sb = new StringBuffer(); for (int i = 0; i < n; ++i) sb.append(s); return sb.toString(); }
 
     // Function return value is number of stickers to draw
@@ -220,7 +249,7 @@ public class VeryCleverPaintersSortingOfStickers
             float polyCenters3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/],
             float polyNormals3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/])
     {
-        final int localVerboseLevel = 0;  // hard-code to something higher to debug. 0: nothing, 1: in/out and constant time, 2: more verbose on cycles, 3: fine details
+        final int localVerboseLevel = 0;  // hard-code to something higher to debug. 0: nothing, 1: in/out and constant time, and some important arrays, 2: more verbose on cycles, 3: fine details
         if (localVerboseLevel >= 1) System.out.println("    in sortStickersBackToFront");
         if (localVerboseLevel >= 1) System.out.println("      nStickers = "+$(nStickers));
         if (localVerboseLevel >= 1) System.out.println("      cutNormal = "+$(cutNormal));
@@ -336,7 +365,8 @@ public class VeryCleverPaintersSortingOfStickers
             final int[] sticker2localIndex = VecMath.fillvec(nStickers, -1);
 
             abstract class Node {
-                public abstract int traverse(int answer[], int answerSizeSoFar, int recursionLevel);
+                public abstract int traverse(int answer[], int answerSizeSoFar, StringBuffer tracebuffer, int recursionLevel);
+                protected abstract String shortLabel();
                 public abstract int totalSize();  // for debugging
 
                 public float getAverageZ() {
@@ -399,15 +429,19 @@ public class VeryCleverPaintersSortingOfStickers
                 }
                 @Override protected double computeAverageZdenominator()
                 {
-                    return visibleStickers.length;
+                    return (double)visibleStickers.length;
                 }
 
                 @Override public String toString() {
                     return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+$(visibleStickers)+")";
                 }
+                @Override public String shortLabel() {
+                    return "SF("+iSlice+","+iFace+")";
+                }
                 @Override public int totalSize() { return visibleStickers.length; }
-                @Override public int traverse(int answer[], int answerSizeSoFar, int recursionLevel) {
+                @Override public int traverse(int answer[], int answerSizeSoFar, StringBuffer tracebuffer, int recursionLevel) {
                     if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            in SliceFaceNode(iSlice="+iSlice+" iFace="+iFace+").traverse, answerSizeSoFar="+answerSizeSoFar);
+
                     for (int i = 0; i < visibleStickers.length; ++i)
                     {
                         CHECK(sticker2localIndex[visibleStickers[i]] == -1);
@@ -472,6 +506,13 @@ public class VeryCleverPaintersSortingOfStickers
                         }
                     }
 
+                    // restore -1's
+                    for (int i = 0; i < visibleStickers.length; ++i)
+                    {
+                        CHECK(sticker2localIndex[visibleStickers[i]] == i);
+                        sticker2localIndex[visibleStickers[i]] = -1;
+                    }
+
                     if (true) {
                         // There will be up to 4 dups of each constraint, here, in 2x case
                         // (in which case each sticker poly is carved up into 4 pieces); de-dup.
@@ -492,7 +533,7 @@ public class VeryCleverPaintersSortingOfStickers
                             if (componentSize >= 2)
                             {
                                 if (localVerboseLevel >= 1) System.out.println("    sorting a strongly connected component (i.e. snakepit of cycles) of length "+componentSize+"");
-                                if (localVerboseLevel >= 2) System.out.println("              after: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, componentStarts[iComponent], componentSize)));
+                                if (localVerboseLevel >= 2) System.out.println("              before: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, componentStarts[iComponent], componentSize)));
                                 if (true)
                                 {
                                     com.donhatchsw.util.SortStuff.sort(nodeSortOrder, componentStarts[iComponent], componentSize,
@@ -515,19 +556,91 @@ public class VeryCleverPaintersSortingOfStickers
                                 if (localVerboseLevel >= 2) System.out.println("              after: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, componentStarts[iComponent], componentSize)));
                             }
                         }
-                    } else {
-                        for (int i = 0; i < visibleStickers.length; ++i) {
-                            int iSticker = visibleStickers[nodeSortOrder[i]];
-                            answer[answerSizeSoFar++] = iSticker;
-                        }
+                    }
+                    for (int i = 0; i < visibleStickers.length; ++i) {
+                        int iSticker = visibleStickers[nodeSortOrder[i]];
+                        answer[answerSizeSoFar++] = iSticker;
                     }
 
-                    // restore -1's
-                    for (int i = 0; i < visibleStickers.length; ++i)
-                    {
-                        CHECK(sticker2localIndex[visibleStickers[i]] == i);
-                        sticker2localIndex[visibleStickers[i]] = -1;
+                    if (tracebuffer != null) {
+                        tracebuffer.append(repeat("    ",recursionLevel)+"SliceFace("+this.iSlice+","+this.iFace+")");
+
+                        // Note that all this fancy printing is much ado about nothing,
+                        // for SliceFaces, since the topsort never fails at this level
+                        // (i.e. a cycle within a face), I don't think.
+
+                        if (false) {
+                            // The nodes in final order.
+                            // E.g. "{16 18 17 19 20 21 22 23}"
+                            tracebuffer.append(" {");
+                            for (int i = 0; i < visibleStickers.length; ++i)
+                            {
+                                if (i > 0) tracebuffer.append(" ");
+                                int iSticker = answer[answerSizeSoFar-visibleStickers.length+i];
+                                tracebuffer.append(iSticker);
+                            }
+                            tracebuffer.append("}");
+                        }
+
+                        if (true) {
+                            // The nodes in final order, with strongly connected components highlighted.
+                            // E.g. "{(16,18,17,19) 20 21 (22,23)}"
+                            tracebuffer.append(" {");
+                            for (int iComponent = 0; iComponent < nComponents; ++iComponent)
+                            {
+                                if (iComponent > 0) tracebuffer.append(" ");
+                                int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
+                                if (componentSize > 1) tracebuffer.append("(");
+                                for (int i = componentStarts[iComponent]; i < componentStarts[iComponent+1]; ++i) {
+                                    if (i > componentStarts[iComponent]) tracebuffer.append(",");
+                                    int iSticker = answer[answerSizeSoFar-visibleStickers.length+i];
+                                    CHECK(iSticker == visibleStickers[nodeSortOrder[i]]);
+                                    tracebuffer.append(iSticker);
+                                }
+                                if (componentSize > 1) tracebuffer.append(")");
+                            }
+                            tracebuffer.append("}");
+                        }
+
+                        if (true) {
+                            // Experimental: the nodes in final order, with predecessors and succesors of each
+                            // E.g. "{[19]->16->[17 18 20] [16]->18->[19 22] [16]->17->[19 21] [17 18]->19->[16 23] [16]->20->[21 22] [17 20]->21->[23] [18 20 23]->22->[23] [19 21 22]->23->[22]}";
+                            tracebuffer.append(" {");
+                            for (int i = 0; i < visibleStickers.length; ++i)
+                            {
+                                if (i > 0) tracebuffer.append(" ");
+                                int iSticker = answer[answerSizeSoFar-visibleStickers.length+i];
+
+                                // CBB: move out of loop.  whatever
+                                java.util.ArrayList<Integer> preds = new java.util.ArrayList<Integer>();
+                                java.util.ArrayList<Integer> succs = new java.util.ArrayList<Integer>();
+                                for (int j = 0; j < partialOrderSize; ++j) {
+                                    if (visibleStickers[partialOrder[j][1]] == iSticker) preds.add(visibleStickers[partialOrder[j][0]]);
+                                    if (visibleStickers[partialOrder[j][0]] == iSticker) succs.add(visibleStickers[partialOrder[j][1]]);
+                                }
+
+                                if (preds.size() > 0) tracebuffer.append(com.donhatchsw.util.Arrays.toString(preds,"["," ","]")+"->");
+                                tracebuffer.append(iSticker);
+                                if (succs.size() > 0) tracebuffer.append("->"+com.donhatchsw.util.Arrays.toString(succs,"["," ","]"));
+                            }
+                            tracebuffer.append("}");
+                        }
+
+                        if (false) {
+                            // The partial order as pairs
+                            tracebuffer.append(" {");
+                            for (int i = 0; i < partialOrderSize; ++i) {
+                                if (i > 0) tracebuffer.append(" ");
+                                tracebuffer.append(visibleStickers[partialOrder[i][0]]);
+                                tracebuffer.append("->");
+                                tracebuffer.append(visibleStickers[partialOrder[i][1]]);
+                            }
+                            tracebuffer.append("}");
+                        }
+
+                        tracebuffer.append("\n");
                     }
+
                     if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            out SliceFaceNode(iSlice="+iSlice+" iFace="+iFace+").traverse, returning answerSizeSoFar="+answerSizeSoFar);
                     return answerSizeSoFar;
                 }
@@ -559,6 +672,9 @@ public class VeryCleverPaintersSortingOfStickers
                 @Override public String toString() {
                     return "SliceNode("+iSlice+",children="+$(children)+")";
                 }
+                @Override public String shortLabel() {
+                    return "S("+iSlice+")";
+                }
                 @Override public int totalSize() {
                     int answer = 0;
                     for (int i = 0; i < children.length; ++i) {
@@ -566,7 +682,7 @@ public class VeryCleverPaintersSortingOfStickers
                     }
                     return answer;
                 }
-                @Override public int traverse(int answer[], int answerSizeSoFar, int recursionLevel) {
+                @Override public int traverse(int answer[], int answerSizeSoFar, StringBuffer tracebuffer, int recursionLevel) {
                     if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            in SliceNode(iSlice="+iSlice+").traverse, answerSizeSoFar="+answerSizeSoFar);
                     for (int i = 0; i < children.length; ++i) {
                         if (children[i] instanceof SliceNode) {
@@ -758,17 +874,40 @@ public class VeryCleverPaintersSortingOfStickers
                             }
                         }
                     }
-                    //else // XXX
+
+                    StringBuffer tracebufferAux = null;
+                    if (tracebuffer != null) {
+                        // Compose information about the partial order into a local aux tracebuffer, before we recurse and destroy the partial order buffer
+                        if (true) {
+                            tracebufferAux = new StringBuffer();
+                            // The partial order as pairs.
+                            // CBB: could make some nicer presentation of pred/succ lists, like we do for FaceBufferNode.
+                            tracebufferAux.append("THE LOCAL PARTIAL ORDER WAS: {");
+                            for (int i = 0; i < partialOrderSize; ++i) {
+                                if (i > 0) tracebufferAux.append(" ");
+                                tracebufferAux.append(children[partialOrder[i][0]].shortLabel());
+                                tracebufferAux.append("->");
+                                tracebufferAux.append(children[partialOrder[i][1]].shortLabel());
+                            }
+                            tracebufferAux.append("}\n");
+                        }
+
+                        tracebuffer.append(repeat("    ",recursionLevel)+"Slice("+this.iSlice+") {\n");
+                    }
+
                     {
                         // subtle: need to save nodeSortOrder to avoid colliding with sub calls!
-                        int[] nodeSortOrderSnapshot = (int[])com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.children.length);  // XXX allocation. Idea: maybe permute the children instead?
+                        int[] nodeSortOrderSnapshot = (int[])com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.children.length);  // XXX allocation. Idea: maybe permute the children instead? hmm.
 
                         for (int i = 0; i < children.length; ++i) {
                             Node child = children[nodeSortOrderSnapshot[i]];
-                            answerSizeSoFar = child.traverse(answer, answerSizeSoFar, recursionLevel+1);
+                            answerSizeSoFar = child.traverse(answer, answerSizeSoFar, tracebuffer, recursionLevel+1);
                         }
                     }
 
+                    if (tracebuffer != null) {
+                        tracebuffer.append(repeat("    ",recursionLevel+1) + tracebufferAux + "\n");
+                    }
 
                     if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            out SliceNode(iSlice="+iSlice+").traverse, returning answerSizeSoFar="+answerSizeSoFar);
                     return answerSizeSoFar;
@@ -850,7 +989,6 @@ public class VeryCleverPaintersSortingOfStickers
 
             {
                 float jPolyCenterMinusIPolyCenter[] = new float[3]; // scratch
-                boolean printedSomethingAboutWarped = false;
                 int numIgnored = 0;
                 for (int iPair = 0; iPair < adjacentStickerPairs.length; ++iPair) {
                     int iSticker = adjacentStickerPairs[iPair][0][0];
@@ -862,7 +1000,9 @@ public class VeryCleverPaintersSortingOfStickers
 
                     if (!iVisible && !jVisible) continue;
 
-                    if (iVisible && jVisible) {
+                    if (iVisible && jVisible
+                     && sticker2face[iSticker] != sticker2face[jSticker]  // argh, this might make it worse, but in a good way.  oh! it fixes the problem with canonical puzzle, vert in center, twist front!  I don't quite understand.  VOODOO
+                    ) {
                         //
                         // See whether things are visible and so inside out
                         // that the polygons are facing away from each other...
@@ -953,7 +1093,8 @@ public class VeryCleverPaintersSortingOfStickers
                 }
             }
 
-            int nStickersEmitted = root.traverse(returnStickerSortOrder, 0, /*recursionLevel=*/0);
+            StringBuffer tracebuffer = localVerboseLevel >= 1 ? new StringBuffer() : null;
+            int nStickersEmitted = root.traverse(returnStickerSortOrder, 0, tracebuffer, /*recursionLevel=*/0);
 
             if (returnPartialOrderInfoOptionalForDebugging != null) {
                 returnPartialOrderInfoOptionalForDebugging[0] = (int[][][])com.donhatchsw.util.Arrays.subarray(returnPartialOrderInfoOptionalForDebugging[0], 0, returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]);
@@ -969,9 +1110,12 @@ public class VeryCleverPaintersSortingOfStickers
 
             if (localVerboseLevel >= 1 && returnPartialOrderInfoOptionalForDebugging != null) System.out.println("      partial order info = "+$(returnPartialOrderInfoOptionalForDebugging[0]));
             if (localVerboseLevel >= 1) System.out.println("      returnStickerSortOrder = "+$(com.donhatchsw.util.Arrays.subarray(returnStickerSortOrder, 0, nStickersEmitted)));
+            if (localVerboseLevel >= 1) System.out.println("      tracebuffer = \n"+tracebuffer);
             if (localVerboseLevel >= 1) System.out.println("    out sortStickersBackToFront (bold new way), returning nStickersEmitted="+nStickersEmitted);
             return nStickersEmitted;
         }  // end bold new work in progress
+
+        int numIgnored = 0;
 
         // Initialize parents and depths...
         {
@@ -1086,7 +1230,7 @@ public class VeryCleverPaintersSortingOfStickers
                                 System.out.println("          inormal dot j-i = "+VecMath.dot(polyNormals3d[iSticker][iPolyThisSticker], jPolyCenterMinusIPolyCenter));
                                 System.out.println("          jnormal dot j-i = "+VecMath.dot(polyNormals3d[jSticker][jPolyThisSticker], jPolyCenterMinusIPolyCenter));
                             }
-
+                            numIgnored++;
                             continue;
                         }
                     }
@@ -1477,11 +1621,21 @@ public class VeryCleverPaintersSortingOfStickers
             if (iNode < nStickers)
             {
                 int iSticker = iNode;
-                if (stickerVisibilities[iSticker]) // XXX hmm, this is checked in the caller too... maybe we don't need to check it here and in fact we don't need to return a count
+                if (stickerVisibilities[iSticker])
+                {
                     returnStickerSortOrder[nCompressedSorted++] = iSticker;
+                }
+                else
+                {
+                    // wait what? why are non-visible nodes in this graph at all?  I guess they just don't have edges.  ok fine.
+                }
+
             }
         }
 
+        if (numIgnored > 0) {
+            if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging != null) System.out.println("      hierarchical painters sort ignored "+numIgnored+" sticker pairs because too warped");
+        }
         if (localVerboseLevel >= 1) System.out.println("    out sortStickersBackToFront (NOT bold new way), returning nCompressedSorted="+nCompressedSorted);
         return nCompressedSorted;
     } // sortStickersBackToFront

@@ -259,7 +259,7 @@
     =====
         TOPSORTING:
             - standard puzzle, ctrl-rotate front vert to center, twist it: sorting messes up during approx first half of the animation.
-              - conjecture:  "which slice the eye is in" isn't the right criterion?
+              - currently fixed with "VOODOO" (search for that in VeryCleverPaintersSortingOfStickers.java).  need to understand better!
 
             - "4,3 3", flatten, turn on topsort viz, do twists... sometimes spazzes out and draws lines to the upper-left of window, wtf?
             - make a suble red/green indicator saying whether something went wrong
