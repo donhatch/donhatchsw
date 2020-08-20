@@ -1489,6 +1489,9 @@ public class VeryCleverPaintersSortingOfStickers
     // general utility; could go elsewhere
     private static int sortAndCompressPartialOrder(int partialOrderSize, int[][/*2 or 3*/] partialOrder)
     {
+        //System.out.println("in sortAndCompressPartialOrder");
+        //System.out.println("  before: "+$(partialOrder,0,partialOrderSize));
+
         com.donhatchsw.util.SortStuff.sort(partialOrder, 0, partialOrderSize,
             new com.donhatchsw.util.SortStuff.Comparator() { // XXX ALLOCATION! (need to make sort smarter)
                 @Override public int compare(Object aObj, Object bObj)
@@ -1507,13 +1510,15 @@ public class VeryCleverPaintersSortingOfStickers
         {
             int nOut = 0;
             for (int i = 0; i < partialOrderSize; ++i) {
-                if (i == 0 || !VecMath.equals(partialOrder[i], partialOrder[i-1])) {
+                if (i == 0 || !VecMath.equals(partialOrder[i], partialOrder[nOut-1])) {
                     //partialOrder[nOut++] = partialOrder[i];  // no! have to swap, not set, so we don't wreck the reusable array
                     com.donhatchsw.util.Arrays.swap(partialOrder, nOut++, partialOrder, i);
                 }
             }
             partialOrderSize = nOut;
         }
+        //System.out.println("  after: "+$(partialOrder,0,partialOrderSize));
+        //System.out.println("out sortAndCompressPartialOrder");
         return partialOrderSize;
     }  // sortAndCompressPartialOrder
 
