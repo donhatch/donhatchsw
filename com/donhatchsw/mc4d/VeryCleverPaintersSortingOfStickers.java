@@ -91,7 +91,8 @@ So the tree structure in this case is as follows:
 Note that (imagining nothing is twisted, for the moment),
 the choice of root and tree structure
 guarantees that each subtree is a convex region of the picture (!),
-so the tree is a recursive partitioning of space into convex regions and sub-regions.
+so the tree is a recursive partitioning of space into convex regions and
+sub-regions.
 
 The goal is to produce a reasonable "back-to-front" ordering of all the
 stickers, with respect to the 3d eye in the real puzzle
@@ -116,18 +117,18 @@ shared by child0 and child1, in the non-shrunk projected puzzle,
 is frontfacing on child0, and backfacing on child1.
 In the case that children are on two different slices that have been
 twisted differently, it may be that both are frontfacing or both backfacing;
-in this case, we base the decision on the polygon's current orientation on the more
-rootmost of the two children.
+in this case, we base the decision on the polygon's current orientation on the
+more rootmost of the two children.
 
 So, in more detail, there are 3 cases:
 - child0 is a sticker, child1 is a sticker (both in the same slice).
   E.g. 2a vs. 2b.
-  In this case both stickers have been twisted by the same twist matrix;
-  we use that orientation of their shared polygon to determine which is in front.
+  In this case both stickers have been twisted by the same twist matrix; we use
+  that orientation of their shared polygon to determine which is in front.
 - child0 is a sticker, child1 is a slice.  E.g. 2b vs. Slice 3.
   In this case they may be twisted by two different twist matrices.
-  We use the current orientation of the polygon on child0 (the sticker)
-  rather than looking at anything currently on child1 (the differently twisted slice).
+  We use the current orientation of the polygon on child0 (the sticker) rather
+  than looking at anything currently on child1 (the differently twisted slice).
 - child1 is a slice, child0 is a sticker
   This is just the previous case, with the two children reversed.
 - (The case where child0 and child1 both slices can't happen:
@@ -140,8 +141,9 @@ each slice face is the intersection of the slice with a face.
 This is for two reasons:
   1. better-isolated failure (cycle) detection and fallback.
 
-  2. In the case of faceshrink < 1, just topsorting by sticker adjacency isn't enough,
-     but apparently that can be fixed in (almost?) all cases by grouping stickers by face.
+  2. In the case of faceshrink < 1, just topsorting by sticker adjacency isn't
+     enough, but apparently that can be fixed in (almost?) all cases,
+     by further grouping stickers by face.
      Canonical example:
               +---+
              /a\b/c\  Face 0 (shrunk) with 3 stickers a,b,c
@@ -151,8 +153,8 @@ This is for two reasons:
              \d/e\f/  Face 1 (shrunk) with 3 stickers d,e,f
               +---+
 
-           +
-          Eye
+              +
+             Eye
 
      The naive dag in this case is on only the stickers
      (with no cognizance of face grouping),
@@ -160,22 +162,29 @@ This is for two reasons:
             b->a->d->e
             b->c->f->e
 
-     Note that this naive dag does not capture the fact that c is actually
-     behind d, with respect to the current Eye, and therefore must be rendered first!
-     So the naive topsort can produce any of the following orderings:
+     Note that this naive dag does not capture the fact that (part of) c is
+     actually behind (part of) d, with respect to the current Eye,
+     and therefore c must be rendered before d!
+
+     In more detail, naively topsorting that dag
+     can produce any of the following six orderings:
             b a d c f e  BAD!
             b a c d f e
+            b a c f d e
             b c a d f e
+            b c a f d e
             b c f a d e
 
      Now consider what happens if we further hierarchicalize first:
      that is, require all of Face 0 to come out consecutively,
      and all of Face 1 to come out consecutively.
-     That rules out two of the 4 possible orderings, leaving
-     the following two:
+     That rules out two of the 6 possible orderings, leaving
+     the following four:
             b a c  d f e
+            b a c  f d e
             b c a  d f e
-     Either of which are good, from the given Eye point.
+            b c a  f d e
+     All of which are good, from the given Eye point.
 */
 
 package com.donhatchsw.mc4d;
