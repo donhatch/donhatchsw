@@ -625,7 +625,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     *
     * Other uniform polyhedra and polychora are also supported;
     * for details on the notation, see the doc for CSG.makeRegularStarPolytopeProductFromString();
-    * however, note that, when used here, the schlafli product part can't contain any spaces.
+    * however, note that, when used here, the schlafli product part must not contain any spaces.
+    * (Using '*' instead of 'x' can help here, in some cases.)
+    *
+    * TODO: that doc is extensive but not complete.
     */
     public PolytopePuzzleDescription(String prescription, java.io.PrintWriter progressWriter)
     {
@@ -967,7 +970,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         if (progressWriter != null)
         {
-            progressWriter.println(" done ("+originalPolytope.p.facets.length+" facets).");
+            progressWriter.println(" done ("+originalPolytope.p.facets.length+" facet"+(originalPolytope.p.facets.length==1?"":"s")+".");
             progressWriter.flush();
         }
 
@@ -1311,7 +1314,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         // the square of the apparent fraction of items done.
                         if ((nTotalCuts-iTotalCut)%10 == 0)
                         {
-                            progressWriter.print("("+String.format("%.2g", (double)100*iTotalCut*iTotalCut/nTotalCuts/nTotalCuts)+"%)");
+                            if (iTotalCut == nTotalCuts)
+                                progressWriter.print("(100%)");  // special case to avoid "1e+02"
+                            else
+                                progressWriter.print("("+String.format("%.2g", (double)100*iTotalCut*iTotalCut/nTotalCuts/nTotalCuts)+"%)");
                         }
 
                         progressWriter.flush();
@@ -2321,22 +2327,22 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     {
         String nl = System.getProperty("line.separator");
         CSG.Polytope[][] allElements = slicedPolytope.p.getAllElements();
-        String answer = "{sliced polytope counts per dim = "
-                      +com.donhatchsw.util.Arrays.toStringCompact(
-                       CSG.counts(slicedPolytope.p))
-                      +", "+nl+"  nDims = "+nDims()
-                      +", "+nl+"  nFacets = "+nFaces()
-                      +", "+nl+"  nStickers = "+nStickers()
-                      +", "+nl+"  nGrips = "+nGrips()
-                      +", "+nl+"  nVisibleCubies = "+nCubies()
-                      +", "+nl+"  nStickerVerts = "+nVerts();
+        String answer = "{"
+                      +"original polytope counts per dim = "+com.donhatchsw.util.Arrays.toStringCompact(CSG.counts(originalPolytope.p))
+            +", "+nl+"  sliced polytope counts per dim = "+com.donhatchsw.util.Arrays.toStringCompact(CSG.counts(slicedPolytope.p))
+            +", "+nl+"  nDims = "+nDims()
+            +", "+nl+"  nFacets = "+nFaces()
+            +", "+nl+"  nStickers = "+nStickers()
+            +", "+nl+"  nGrips = "+nGrips()
+            +", "+nl+"  nVisibleCubies = "+nCubies()
+            +", "+nl+"  nStickerVerts = "+nVerts();
         if (verbose)
         {
             answer +=
-                      ", "+nl+"  slicedPolytope = "+slicedPolytope.toString(true)
-
-                      +", "+nl+"  stickerInds = "+com.donhatchsw.util.Arrays.toStringNonCompact(stickerInds, "    ", "    ")
-                      +", "+nl+"  sticker2face = "+com.donhatchsw.util.Arrays.toStringNonCompact(sticker2face, "    ", "    ");
+                ", "+nl+"  originalPolytope = "+originalPolytope.toString(true)
+                //+", "+nl+"  slicedPolytope = "+slicedPolytope.toString(true)
+                +", "+nl+"  stickerInds = "+com.donhatchsw.util.Arrays.toStringNonCompact(stickerInds, "    ", "    ")
+                +", "+nl+"  sticker2face = "+com.donhatchsw.util.Arrays.toStringNonCompact(sticker2face, "    ", "    ");
         }
         answer += "}";
         return answer;
@@ -3761,7 +3767,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         String puzzleDescriptionString = args[0];
         GenericPuzzleDescription descr = new PolytopePuzzleDescription(puzzleDescriptionString,
                                                                        progressWriter);
-        System.out.println("description = "+descr.toString());
+        System.out.println("short description (prescription) = "+descr.toString());
+        System.out.println("verbose-ish description = "+((PolytopePuzzleDescription)descr).toString(false));
+        //System.out.println("verbose description = "+((PolytopePuzzleDescription)descr).toString(true));
 
         System.out.println("out main");
     } // main

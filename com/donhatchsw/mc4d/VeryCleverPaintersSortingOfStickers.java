@@ -18,7 +18,7 @@ In the most general scenario, each of the slices is being twisted
 independently, so imagine each slice having a slightly different twist,
 with respect to the following picture.
 
-              ----+ +---+ +-------------+ +---+
+              +---+ +---+ +-------------+ +---+
           +    \ 0g\ \ 1a\ \     2a    / / 3a/    +
           |\    +---+ +---+ +---------+ +---+    /|
           |0+    +---+ +---+ +-------+ +---+    +3|
@@ -41,6 +41,27 @@ with respect to the following picture.
           |/    +---+ +---+ +---------+ +---+    \|
           +    / 0m/ / 1g/ /     2g    \ \ 3g\    +
               +---+ +---+ +-------------+ +---+
+
+If we consider unshrunk faces and stickers, it looks like this:
+
+               +---+---+-----------+---+
+               |\ 0g\ 1a\    2a   / 3a/|
+               |0+---+---+-------+---+3|
+               +a|\ 0h\ 1b\  2b / 3b/|k+
+               |\|0+---+---+---+---+3|/|
+               | +d| 0i| 1c| 2c| 3c|h+ |
+               | |\|   |   |   |   |/| |
+               | | +---+---+---+---+ | |
+               |0|0| 0j| 1d| 2d| 3d|3|3|
+               |b|e|   |   |   |   |i|l|
+               | | +---+---+---+---+ | |
+               | |/| 0k| 1e| 2e| 3e|\| |
+               | +0|   |   |   |   |3+ |
+               |/|f+---+---+---+---+j|\|
+               +0|/ 0l/ 1f/  2f \ 3f\|3+
+               |c+---+--+--------+---+m|
+               |/0m/ 1g/     2g   \ 3g\|
+               +--+---+------------+---+
 
 We arrange the slices and stickers into a tree,
 whose leaves are the stickers,
@@ -67,6 +88,11 @@ So the tree structure in this case is as follows:
        |  |  |
        0a 0b...
 
+Note that (imagining nothing is twisted, for the moment),
+the choice of root and tree structure
+guarantees that each subtree is a convex region of the picture (!),
+so the tree is a recursive partitioning of space into convex regions and sub-regions.
+
 The goal is to produce a reasonable "back-to-front" ordering of all the
 stickers, with respect to the 3d eye in the real puzzle
 (or, in this picture, with respect to a 2d eye; imagine the 2d eye
@@ -89,7 +115,8 @@ and child0 is *behind* child1 (i.e. the polygon
 shared by child0 and child1, in the non-shrunk projected puzzle,
 is frontfacing on child0, and backfacing on child1.
 In the case that children are on two different slices that have been
-twisted differently, we use the polygon's current orientation on the more
+twisted differently, it may be that both are frontfacing or both backfacing;
+in this case, we base the decision on the polygon's current orientation on the more
 rootmost of the two children.
 
 So, in more detail, there are 3 cases:
@@ -111,15 +138,17 @@ Further detail: we actually further hierarchicalize by grouping
 the sticker children of each slice into convex groups called "slice faces";
 each slice face is the intersection of the slice with a face.
 This is for two reasons:
-  1. In the case of faceshrink < 1, just topsorting by sticker adjacency isn't enough,
+  1. better-isolated failure (cycle) detection and fallback.
+
+  2. In the case of faceshrink < 1, just topsorting by sticker adjacency isn't enough,
      but apparently that can be fixed in (almost?) all cases by grouping stickers by face.
      Canonical example:
               +---+
-             /a\b/c\  Face 0 (shrunk)
+             /a\b/c\  Face 0 (shrunk) with 3 stickers a,b,c
             +---+---+
 
             +---+---+
-             \d/e\f/  Face 1 (shrunk)
+             \d/e\f/  Face 1 (shrunk) with 3 stickers d,e,f
               +---+
 
            +
@@ -131,15 +160,15 @@ This is for two reasons:
             b->a->d->e
             b->c->f->e
 
-     Note that this naive dag does not capture the fact that c is behind d
-     and therefore must be rendered first!
-     So topsort can produce any of the following orderings:
+     Note that this naive dag does not capture the fact that c is actually
+     behind d, with respect to the current Eye, and therefore must be rendered first!
+     So the naive topsort can produce any of the following orderings:
             b a d c f e  BAD!
             b a c d f e
             b c a d f e
             b c f a d e
 
-     Now consider what happens if we further hierarchicalize:
+     Now consider what happens if we further hierarchicalize first:
      that is, require all of Face 0 to come out consecutively,
      and all of Face 1 to come out consecutively.
      That rules out two of the 4 possible orderings, leaving
@@ -147,9 +176,6 @@ This is for two reasons:
             b a c  d f e
             b c a  d f e
      Either of which are good, from the given Eye point.
-
-  2. better-isolated failure (cycle) detection and fallback.
-
 */
 
 package com.donhatchsw.mc4d;
@@ -191,8 +217,9 @@ public class VeryCleverPaintersSortingOfStickers
         if (localVerboseLevel >= 1) System.out.println("      cutNormal = "+$(cutNormal));
         if (localVerboseLevel >= 1) System.out.println("      cutOffsets = "+$(cutOffsets));
         if (localVerboseLevel >= 3) {
-            System.out.println("      sticker2Slice = "+$(sticker2Slice));
-            System.out.println("      "+adjacentStickerPairs.length+" adjacentStickerPairs = "+$(adjacentStickerPairs));
+          System.out.println("      sticker2Slice = "+$(sticker2Slice));
+          System.out.println("      "+stickerVisibilities.length+" stickerVisibilities = "+$(stickerVisibilities));
+          System.out.println("      "+adjacentStickerPairs.length+" adjacentStickerPairs = "+$(adjacentStickerPairs));
         }
 
         if (returnPartialOrderInfoOptionalForDebugging != null) {

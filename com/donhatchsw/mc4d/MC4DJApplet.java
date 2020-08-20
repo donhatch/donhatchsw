@@ -1243,7 +1243,6 @@ public class MC4DJApplet
         appletViewerArgs[0] = "com.donhatchsw.mc4d.MC4DJApplet";
         for (int i = 0; i < args.length; ++i)
             appletViewerArgs[i+1] = args[i];
-        //com.donhatchsw.applet.AppletViewer.main(appletViewerArgs);
         com.donhatchsw.shims_for_deprecated.com_donhatchsw_applet_AppletViewer.main(appletViewerArgs);
     } // main
 
