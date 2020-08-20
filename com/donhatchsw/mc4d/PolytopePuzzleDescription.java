@@ -260,11 +260,6 @@
         TOPSORTING:
             - standard puzzle, ctrl-rotate front vert to center, twist it: sorting messes up during approx first half of the animation.
               - conjecture:  "which slice the eye is in" isn't the right criterion?
-              - also "3,3,3 2" in standard position. do one twist, now it's messed up
-              - WAIT a minute, where the hell is the center sticker of each face in "3,3,3 2"?? should be an octahedron, I think??
-                I guess those missing octahedra are stickers of the central (non-moving) cubie, in this case?? wtf? who removed them?
-                I guess someone thought they were inaccessible or something? maybe?
-                OTOH it says "there seem to be 6 acessible cubie(s) at the start, which is correct.  hmm.
 
             - "4,3 3", flatten, turn on topsort viz, do twists... sometimes spazzes out and draws lines to the upper-left of window, wtf?
             - make a suble red/green indicator saying whether something went wrong
@@ -2397,6 +2392,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // certainly move to the face boundary.
         // Should try to come up with an even better scheme.
         //
+        // CBB: it also totally falls down for the octahedral center sticker
+        // of a tetrahedron of edge length 2.  In that case the code below
+        // completely fails (total weight 0) so we make a special case for that
+        // and just make the alt-center the same as the center.
+        //
         private static float[][] computeStickerAltCentersF(
                 CSG.SPolytope slicedPolytope,
                 int facet2OppositeFacet[],
@@ -2404,6 +2404,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 double doubleLengths[],
                 int whichLengthToUseForFacet[])
         {
+            int verboseLevel = 0;  // 0: nothing; 1: in/out and constant; 2: and output array; 3: and per-item detail
+            if (verboseLevel >= 1) System.out.println("        in computeStickerAltCentersF");
             int nDims = slicedPolytope.p.dim;
             CHECK(nDims == slicedPolytope.p.fullDim);
 
@@ -2433,23 +2435,29 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
+                if (verboseLevel >= 2) System.out.println("          iSticker = "+iSticker+"/"+nStickers);
                 // Figure out avg cut depth of this sticker
                 // with respect to each of the facets whose planes
-                // contribute to it
+                // contribute to it.
+                // Note that "ridge" for a 4d puzzle means polygon; for a 3d puzzle it means edge.
                 int[] ridgesThisSticker = allSlicedIncidences[nDims-1][iSticker][nDims-2];
+                if (verboseLevel >= 1) System.out.println("              first pass over ridges ("+(nDims-2)+" dimensional elements");
                 for (int iRidgeThisSticker = 0; iRidgeThisSticker < ridgesThisSticker.length; ++iRidgeThisSticker)
                 {
+                    if (verboseLevel >= 2) System.out.println("                  iRidgeThisSticker = "+iRidgeThisSticker+"/"+ridgesThisSticker.length);
                     int iRidge = ridgesThisSticker[iRidgeThisSticker];
                     CSG.Polytope ridge = ridges[iRidge];
                     int iFacet, iCutThisFacet;
                     if (ridge.getAux() instanceof CutInfo)
                     {
+                        if (verboseLevel >= 1) System.out.println("                      it's from a cut");
                         CutInfo cutInfo = (CutInfo)ridge.getAux();
                         iFacet = cutInfo.iFacet;
                         iCutThisFacet = cutInfo.iCutThisFacet+1;
                     }
                     else // it's not from a cut, it's from an original face
                     {
+                        if (verboseLevel >= 1) System.out.println("                      it's not from a cut; it's from an original face");
                         // DUP CODE ALERT (lots of times in this file)
                         // Which original facet?
                         // well, this ridge is on two stickers: iSticker
@@ -2493,19 +2501,23 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // sticker just get weight 1.
                 // As we go, multiply in these cut weights
                 // into the sticker weights.
+                if (verboseLevel >= 2) System.out.println("              second pass over ridges ("+(nDims-2)+" dimensional elements");
                 for (int iRidgeThisSticker = 0; iRidgeThisSticker < ridgesThisSticker.length; ++iRidgeThisSticker)
                 {
+                    if (verboseLevel >= 2) System.out.println("                  iRidgeThisSticker = "+iRidgeThisSticker+"/"+ridgesThisSticker.length);
                     int iRidge = ridgesThisSticker[iRidgeThisSticker];
                     CSG.Polytope ridge = ridges[iRidge];
                     int iFacet, iCutThisFacet;
                     if (ridge.getAux() instanceof CutInfo)
                     {
+                        if (verboseLevel >= 1) System.out.println("                      it's from a cut");
                         CutInfo cutInfo = (CutInfo)ridge.getAux();
                         iFacet = cutInfo.iFacet;
                         iCutThisFacet = cutInfo.iCutThisFacet+1;
                     }
                     else // it's not from a cut, it's from an original face
                     {
+                        if (verboseLevel >= 1) System.out.println("                      it's not from a cut; it's from an original face");
                         // DUP CODE ALERT (lots of times in this file)
                         // Which original facet?
                         // well, this ridge is on two stickers: iSticker
@@ -2533,6 +2545,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             cutDepth < avgStickerDepth ? 1. - cutDepth / (1. - stickerSize)
                                                        : (cutDepth-stickerSize) / (1. - stickerSize);
                     }
+                    if (verboseLevel >= 2) System.out.println("                      cutWeight = "+cutWeight);
                     if (!(cutWeight >= -1e-9 && cutWeight <= 1.))
                         System.out.println("uh oh, cutWeight = "+cutWeight);  // fails on "(.25)4(2)3 3(1.4)" : cutWeight is -.75  . note that it's in 3d, and
                     CHECK(cutWeight >= -1e-9 && cutWeight <= 1.); // I've seen 1e-16 on "{4,3} 7" due to floating point roundoff error
@@ -2553,11 +2566,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 VecMath.zerovec(stickerAltCenterD);
                 double totalWeight = 0.;
-                for (int iVertThisSticker = 0; iVertThisSticker < allSlicedIncidences[nDims-1][iSticker][0].length; ++iVertThisSticker)
+                int nVertsThisSticker = allSlicedIncidences[nDims-1][iSticker][0].length;
+                if (verboseLevel >= 2) System.out.println("              num verts this sticker = "+nVertsThisSticker);
+                for (int iVertThisSticker = 0; iVertThisSticker < nVertsThisSticker; ++iVertThisSticker)
                 {
                     int iVert = allSlicedIncidences[nDims-1][iSticker][0][iVertThisSticker];
                     CSG.Polytope vert = verts[iVert];
                     double vertexWeight = vertexWeights[iVert];
+                    if (verboseLevel >= 2) System.out.println("                  iVertThisSticker="+iVertThisSticker+"/"+nVertsThisSticker+": vertexWeight="+vertexWeight);
                     CHECK(vertexWeight >= 0. && vertexWeight <= 1.);
                     totalWeight += vertexWeight;
                     // stickerAltCenterD += vertexWeight * vertexPosition
@@ -2566,7 +2582,21 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                   vertexWeight, vert.getCoords());
                     vertexWeights[iVert] = 1.; // clear for next time
                 }
-                VecMath.vxs(stickerAltCenterD, stickerAltCenterD, 1./totalWeight);
+                if (verboseLevel >= 2) System.out.println("              totalWeight = "+totalWeight);
+                if (totalWeight == 0.)
+                {
+                    // This happens for the center octahedron sticker of each face
+                    // in a "{3,3,3} 2" or "{3,3}x{} 2" etc.
+                    // I can't say that I completely recall what we're doing here, but it seems
+                    // the only sensible thing to do is set the alt center point to the sticker center.
+                    CSG.cgOfVerts(stickerAltCenterD, stickers[iSticker]);
+                }
+                else
+                {
+                    VecMath.vxs(stickerAltCenterD, stickerAltCenterD, 1./totalWeight);
+                }
+
+                if (verboseLevel >= 2) System.out.println("              stickerAltCenterD = "+$(stickerAltCenterD));
                 stickerAltCentersF[iSticker] = VecMath.doubleToFloat(stickerAltCenterD);
 
                 // Clear the parts of avgDepthOfThisStickerBelowFacet
@@ -2622,6 +2652,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iVert = 0; iVert < nVerts; ++iVert)
                 CHECK(vertexWeights[iVert] == 1.);
 
+            if (verboseLevel >= 2) System.out.println("          stickerAltCentersF = "+$(stickerAltCentersF));
+            if (verboseLevel >= 1) System.out.println("        out computeStickerAltCentersF");
             return stickerAltCentersF;
         } // computeStickerAltCentersF
 
@@ -2792,33 +2824,41 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 float outStickerShrinkToPointsOnFaceBoundaries[/*nStickers*/][/*nDisplayDims*/],
                 float outPerStickerFaceCenters[/*nStickers*/][/*nDisplayDims*/])
         {
+            int verboseLevel = 0;
+            if (verboseLevel >= 1) System.out.println("        in PolytopePuzzleDescription.computeVertsAndShrinkToPointsAtRest");
+            if (verboseLevel >= 1) System.out.println("          this.stickerAltCentersF = "+$(this.stickerAltCentersF));
             if (outVerts != null)
             {
-                CHECK(outVerts.length == vertsF.length);
-                for (int iVert = 0; iVert < vertsF.length; ++iVert)
-                    VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
+                CHECK(outVerts.length == this.vertsF.length);
+                for (int iVert = 0; iVert < this.vertsF.length; ++iVert)
+                    VecMath.copyvec(outVerts[iVert], this.vertsF[iVert]);
             }
             if (outStickerCenters != null)
             {
                 CHECK(outStickerCenters.length == stickerCentersF.length);
-                for (int iSticker = 0; iSticker < stickerCentersF.length; ++iSticker)
+                for (int iSticker = 0; iSticker < this.stickerCentersF.length; ++iSticker)
                     VecMath.copyvec(outStickerCenters[iSticker],
-                                    stickerCentersF[iSticker]);
+                                    this.stickerCentersF[iSticker]);
             }
             if (outStickerShrinkToPointsOnFaceBoundaries != null)
             {
-                CHECK(outStickerShrinkToPointsOnFaceBoundaries.length == stickerCentersF.length);
-                for (int iSticker = 0; iSticker < stickerCentersF.length; ++iSticker)
+                CHECK(outStickerShrinkToPointsOnFaceBoundaries.length == this.stickerCentersF.length);
+                for (int iSticker = 0; iSticker < this.stickerCentersF.length; ++iSticker)
                     VecMath.copyvec(outStickerShrinkToPointsOnFaceBoundaries[iSticker],
-                                    stickerAltCentersF[iSticker]);
+                                    this.stickerAltCentersF[iSticker]);
             }
             if (outPerStickerFaceCenters != null)
             {
-                CHECK(outPerStickerFaceCenters.length == stickerCentersF.length);
-                for (int iSticker = 0; iSticker < stickerCentersF.length; ++iSticker)
+                CHECK(outPerStickerFaceCenters.length == this.stickerCentersF.length);
+                for (int iSticker = 0; iSticker < this.stickerCentersF.length; ++iSticker)
                     VecMath.copyvec(outPerStickerFaceCenters[iSticker],
-                                    facetCentersF[sticker2face[iSticker]]);
+                                    this.facetCentersF[sticker2face[iSticker]]);
             }
+            if (verboseLevel >= 1) System.out.println("          outVerts = "+$(outVerts));
+            if (verboseLevel >= 1) System.out.println("          outStickerCenters = "+$(outStickerCenters));
+            if (verboseLevel >= 1) System.out.println("          outStickerShrinkToPointsOnFaceBoundaries = "+$(outStickerShrinkToPointsOnFaceBoundaries));
+            if (verboseLevel >= 1) System.out.println("          outPerStickerFaceCenters = "+$(outPerStickerFaceCenters));
+            if (verboseLevel >= 1) System.out.println("        out PolytopePuzzleDescription.computeVertsAndShrinkToPointsAtRest");
         } // computeVertsAndShrinkToPointsAtRest
 
         // Attempt to get it with the given symmetryOrder.

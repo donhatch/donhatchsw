@@ -234,8 +234,14 @@ public class GenericPipelineUtils
                 fracIntoTwist);
         }
 
+        if (verboseLevel >= 4) System.out.println("      stickerCenters = "+$(stickerCenters));
+        if (verboseLevel >= 4) System.out.println("      stickerAltCenters = "+$(stickerAltCenters));
+        if (verboseLevel >= 4) System.out.println("      perStickerFaceCenters = "+$(perStickerFaceCenters));
+
         float[][] verts_totally_unshrunk = VecMath.copymat(verts);  // XXX MEMORY ALLOCATION
         float[][] verts_yesfaceshrink_nostickershrink = VecMath.copymat(verts);  // XXX MEMORY ALLOCATION
+
+        if (verboseLevel >= 4) System.out.println("      pristine: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Shrink the vertices towards the shrink-to points in 4d.
@@ -250,6 +256,8 @@ public class GenericPipelineUtils
                 VecMath.lerp(stickerShrinkPoints[iSticker],
                              stickerCenters[iSticker], stickerAltCenters[iSticker], stickersShrinkTowardsFaceBoundaries); // BEFORE shrinking towards face center
             }
+            if (verboseLevel >= 4) System.out.println("      stickerShrinkPoints = "+$(stickerShrinkPoints));
+
 
             for (int iVert = 0; iVert < verts.length; ++iVert)
             {
@@ -262,6 +270,8 @@ public class GenericPipelineUtils
                              perStickerFaceCenters[iSticker], verts_yesfaceshrink_nostickershrink[iVert], faceShrink4d);
             }
         }
+
+        if (verboseLevel >= 4) System.out.println("      after 4d shrink: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         // The five arrays we need to rotate and project...
         float arrays[][][] = {
@@ -294,7 +304,7 @@ public class GenericPipelineUtils
                 }
             }
         }
-        if (verboseLevel >= 4) System.out.println("        after 4d rotscale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 4) System.out.println("      after 4d rotscale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Clip to the 4d eye's front clipping plane
@@ -322,12 +332,15 @@ public class GenericPipelineUtils
                 }
             }
         }
-        if (verboseLevel >= 4) System.out.println("        after 4d->3d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 4) System.out.println("      after 4d->3d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         boolean stickerVisibilities[] = new boolean[nStickers]; // XXX memory allocation!
 
         //
-        // Front-cell cull
+        // Front-cell cull.
+        // Note that all stickers on a given face *should* give the same answer
+        // (unless stuff is behind the eye in which case this all goes off the rails,
+        // and we should have clipped it away).
         //
         boolean doFrontCellCull = true;
         if (false) // XXX it's interesting to set this to true! think about it
@@ -362,7 +375,7 @@ public class GenericPipelineUtils
             drawListSize = nBackfacing;
             shadowDrawListSize = groundNormal != null ? nBackfacing : 0;
         }
-        if (verboseLevel >= 4) System.out.println("        after front-cell cull: drawList = "+com.donhatchsw.util.Arrays.toStringCompact(com.donhatchsw.util.Arrays.subarray(drawList,0,drawListSize)));
+        if (verboseLevel >= 4) System.out.println("      after front-cell cull: drawList = "+com.donhatchsw.util.Arrays.toStringCompact(com.donhatchsw.util.Arrays.subarray(drawList,0,drawListSize)));
 
         //
         // 3d face shrink and sticker shrink
@@ -412,7 +425,7 @@ public class GenericPipelineUtils
                     verts[iVert][i] = tempOut[i];
             }
         }
-        if (verboseLevel >= 4) System.out.println("        after 3d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 4) System.out.println("      after 3d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // If doing shadows,
@@ -444,9 +457,9 @@ public class GenericPipelineUtils
                     shadowVerts[iVert][i] = tempOut[i];
             }
 
-            if (verboseLevel >= 2) System.out.println("        after 3d shadow projection: verts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(verts[0]));
-            if (verboseLevel >= 2) System.out.println("        after 3d shadow projection: shadowVerts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts[0]));
-            if (verboseLevel >= 4) System.out.println("        after 3d shadow projection: shadowVerts = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts));
+            if (verboseLevel >= 2) System.out.println("      after 3d shadow projection: verts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(verts[0]));
+            if (verboseLevel >= 2) System.out.println("      after 3d shadow projection: shadowVerts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts[0]));
+            if (verboseLevel >= 4) System.out.println("      after 3d shadow projection: shadowVerts = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts));
         }
 
 
@@ -495,7 +508,7 @@ public class GenericPipelineUtils
         {
             // XXX DO ME?
         }
-        //if (verboseLevel >= 4) System.out.println("        after 3d clip: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        //if (verboseLevel >= 4) System.out.println("      after 3d clip: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Compute and save the polygon normals in 3d.
@@ -597,8 +610,8 @@ public class GenericPipelineUtils
                 shadowVerts[i][2] = z; // keep this for future reference
             }
         }
-        if (verboseLevel >= 4) System.out.println("        after 3d->2d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
-        if (verboseLevel >= 2) if (shadowVerts != null) System.out.println("        after 3d->3d project: shadowVerts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts[0]));
+        if (verboseLevel >= 4) System.out.println("      after 3d->2d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 2) if (shadowVerts != null) System.out.println("      after 3d->3d project: shadowVerts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts[0]));
 
         boolean stickerPolyIsStrictlyBackfacing[][] = new boolean[nStickers][];
         boolean unshrunkStickerPolyIsStrictlyBackfacing[][] = new boolean[nStickers][];
@@ -676,7 +689,7 @@ public class GenericPipelineUtils
                 shadowDrawListSize = nFrontFacing+nBackfacing;
             }
         }
-        if (verboseLevel >= 4) System.out.println("        after back-face cull: drawList = "+com.donhatchsw.util.Arrays.toStringCompact(com.donhatchsw.util.Arrays.subarray(drawList,0,drawListSize)));
+        if (verboseLevel >= 4) System.out.println("      after back-face cull: drawList = "+com.donhatchsw.util.Arrays.toStringCompact(com.donhatchsw.util.Arrays.subarray(drawList,0,drawListSize)));
 
         //
         // Rotate/scale in 2d
@@ -711,14 +724,14 @@ public class GenericPipelineUtils
             }
         }
 
-        if (verboseLevel >= 4) System.out.println("        after 2d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 4) System.out.println("      after 2d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         if (useTopsort
          && puzzleDescription.getAdjacentStickerPairs() == null)
         {
             if (verboseLevel >= 2)
-                System.out.println("        topsort forced off because this puzzle description didn't give any adjacent sticker pairs!");
-            useTopsort = false; // XXX bleah! haven't got it implemented for 3d puzzles yet
+                System.out.println("      topsort forced off because this puzzle description didn't give any adjacent sticker pairs!");
+            useTopsort = false;
         }
         if (useTopsort)
         {
@@ -872,7 +885,7 @@ public class GenericPipelineUtils
             }
         }
 
-        if (verboseLevel >= 4) System.out.println("        after z-sort: stickerInds = "+com.donhatchsw.util.Arrays.toStringCompact(stickerInds));
+        if (verboseLevel >= 4) System.out.println("      after z-sort: stickerInds = "+com.donhatchsw.util.Arrays.toStringCompact(stickerInds));
 
         frame.drawListSize = drawListSize;
         frame.shadowDrawListSize = groundNormal!=null ? shadowDrawListSize : 0;

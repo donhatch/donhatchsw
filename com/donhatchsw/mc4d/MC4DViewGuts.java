@@ -1,8 +1,8 @@
 /**
 * All right, here's how to make everyone happy...
 * A completely generic viewer that can be stuck inside
-* an ancient Canvas or icky Applet
-* or a beautiful modern JComponent or whatever.
+* an ancient Canvas, or icky Applet,
+* or a beautiful modern JComponent.
 *
 * We can't derive it from Canvas,
 * and we can't derive it from JComponent either...
