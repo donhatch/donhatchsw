@@ -1130,6 +1130,9 @@ public final class Arrays
     {
         if (array == null)
             return "null";
+        if (array instanceof java.util.ArrayList) {
+            array = ((java.util.ArrayList)array).toArray();
+        }
         return toString(array,
                         (String[][/*3*/])fill(
                                               getDimExtent(array), // getDim intent not safe for this
