@@ -258,7 +258,14 @@
     TODO:
     =====
         TOPSORTING:
-            - standard puzzle, ctrl-rotate front vert to center, twist it: sorting messes up :(
+            - standard puzzle, ctrl-rotate front vert to center, twist it: sorting messes up during approx first half of the animation.
+              - conjecture:  "which slice the eye is in" isn't the right criterion?
+              - also "3,3,3 2" in standard position. do one twist, now it's messed up
+              - WAIT a minute, where the hell is the center sticker of each face in "3,3,3 2"?? should be an octahedron, I think??
+                I guess those missing octahedra are stickers of the central (non-moving) cubie, in this case?? wtf? who removed them?
+                I guess someone thought they were inaccessible or something? maybe?
+                OTOH it says "there seem to be 6 acessible cubie(s) at the start, which is correct.  hmm.
+
             - "4,3 3", flatten, turn on topsort viz, do twists... sometimes spazzes out and draws lines to the upper-left of window, wtf?
             - make a suble red/green indicator saying whether something went wrong
             - get confidence in new algorithm, maybe retire old?

@@ -435,6 +435,14 @@ public class VeryCleverPaintersSortingOfStickers
                             // this really shouldn't happen, I don't think
                         }
                     }
+
+                    if (true) {
+                        // There will be up to 4 dups of each constraint, here, in 2x case
+                        // (in which case each sticker poly is carved up into 4 pieces); de-dup.
+                        // CBB: could leave them in, or not generate them to begin with? not sure. clearest for debugging to de-dup, anyway.
+                        partialOrderSize = sortAndCompressPartialOrder(partialOrderSize, partialOrder);
+                    }
+
                     if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort "+this.visibleStickers.length+" visible stickers with partial order "+$(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
                     int nComponents = topsorter.topsort(this.visibleStickers.length, nodeSortOrder,
                                                         partialOrderSize, partialOrder,
@@ -657,7 +665,7 @@ public class VeryCleverPaintersSortingOfStickers
                     }
 
                     if (true) {
-                        // There will be a lot of dups here; de-dup.
+                        // There will be a lot of dups here (since group constraints are formed in multiple ways); de-dup.
                         // CBB: could leave them in, or not generate them to begin with? not sure. clearest for debugging to de-dup, anyway.
                         partialOrderSize = sortAndCompressPartialOrder(partialOrderSize, partialOrder);
                     }
@@ -923,6 +931,7 @@ public class VeryCleverPaintersSortingOfStickers
                 }
             }
 
+            if (localVerboseLevel >= 1 && returnPartialOrderInfoOptionalForDebugging != null) System.out.println("      partial order info = "+$(returnPartialOrderInfoOptionalForDebugging[0]));
             if (localVerboseLevel >= 1) System.out.println("      returnStickerSortOrder = "+$(com.donhatchsw.util.Arrays.subarray(returnStickerSortOrder, 0, nStickersEmitted)));
             if (localVerboseLevel >= 1) System.out.println("    out sortStickersBackToFront (bold new way), returning nStickersEmitted="+nStickersEmitted);
             return nStickersEmitted;
@@ -1442,7 +1451,7 @@ public class VeryCleverPaintersSortingOfStickers
     } // sortStickersBackToFront
 
     // general utility; could go elsewhere
-    private static int sortAndCompressPartialOrder(int partialOrderSize, int[][/*2*/] partialOrder)
+    private static int sortAndCompressPartialOrder(int partialOrderSize, int[][/*2 or 3*/] partialOrder)
     {
         com.donhatchsw.util.SortStuff.sort(partialOrder, 0, partialOrderSize,
             new com.donhatchsw.util.SortStuff.Comparator() { // XXX ALLOCATION! (need to make sort smarter)
