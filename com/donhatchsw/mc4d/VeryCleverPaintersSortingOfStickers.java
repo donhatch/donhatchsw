@@ -1001,7 +1001,8 @@ public class VeryCleverPaintersSortingOfStickers
                     if (!iVisible && !jVisible) continue;
 
                     if (iVisible && jVisible
-                     && sticker2face[iSticker] != sticker2face[jSticker]  // argh, this might make it worse, but in a good way.  oh! it fixes the problem with canonical puzzle, vert in center, twist front!  I don't quite understand.  VOODOO
+                     //&& sticker2face[iSticker] != sticker2face[jSticker]  // argh, this might make it worse, but in a good way.  oh! it fixes the problem with canonical puzzle, vert in center, twist front!  I don't quite understand.  VOODOO
+                     && sticker2Slice[iSticker] == sticker2Slice[jSticker]  // better voodoo I think.  at least it makes sure the xforms are the same and therefore the geometry we're about to do is really a test of whether warped
                     ) {
                         //
                         // See whether things are visible and so inside out
