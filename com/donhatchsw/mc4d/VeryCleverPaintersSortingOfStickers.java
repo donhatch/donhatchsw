@@ -269,17 +269,6 @@ public class VeryCleverPaintersSortingOfStickers
 
         final int nAllSlices = cutOffsets.length + 1;
         final int nCompressedSlices = nAllSlices; // XXX should combine adjacent slices that are moving together... but maybe it doesn't hurt to just pretend all the slices are twisting separately, it keeps things simple?  Not sure.
-        int nNodes = nStickers + 2*nCompressedSlices;
-        int parents[] = new int[nNodes];
-        int depths[] = new int[nNodes]; // XXX this array is not really necessary, but it simplifies the code
-
-        int maxPartialOrderSize = nStickers*2 // for group inclusion
-                                + adjacentStickerPairs.length;
-        final int partialOrder[][] = new int[maxPartialOrderSize][2];
-        int partialOrderSize = 0;
-        final com.donhatchsw.util.TopSorter topsorter = new com.donhatchsw.util.TopSorter(/*maxN=*/nNodes, maxPartialOrderSize); // XXX allocation
-        final int nodeSortOrder[] = new int[nNodes]; // XXX allocation
-        final int componentStarts[] = new int[nNodes+1]; // one extra for end of last one.  XXX allocation
 
         // Sanity check: for each pair of adjacent stickers,
         // they are either in the same slice or in adjacent slices.
@@ -321,6 +310,15 @@ public class VeryCleverPaintersSortingOfStickers
 
         if (boldNewWay) {
             // BOLD NEW WORK IN PROGRESS: new way of doing things, let's see if it pans out.
+
+            int maxPartialOrderSize = adjacentStickerPairs.length;  // CBB: could think of tighter bound on this as well
+            final int[][] partialOrder = new int[maxPartialOrderSize][2];
+
+            int maxSortOrderSizeNeeded = nStickers;  // CBB: tighter bound would be max of stickers-per-face and nFaces+2, or something weird like that
+            final com.donhatchsw.util.TopSorter topsorter = new com.donhatchsw.util.TopSorter(/*maxN=*/maxSortOrderSizeNeeded, maxPartialOrderSize); // XXX allocation
+            final int sortOrder[] = new int[maxSortOrderSizeNeeded]; // XXX allocation
+            final int componentStarts[] = new int[maxSortOrderSizeNeeded+1]; // one extra for end of last one.  XXX allocation
+
 
             final int[] visibleStickersSortedBySliceAndFace = new int[nStickers];
             int nVisibleStickersTotal = 0;
@@ -530,10 +528,10 @@ public class VeryCleverPaintersSortingOfStickers
                     }
 
                     if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort "+this.visibleStickers.size()+" visible stickers with partial order "+$(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
-                    int nComponents = topsorter.topsort(this.visibleStickers.size(), nodeSortOrder,
+                    int nComponents = topsorter.topsort(this.visibleStickers.size(), sortOrder,
                                                         partialOrderSize, partialOrder,
                                                         componentStarts);
-                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort returned "+nComponents+"/"+this.visibleStickers.size()+" components: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.visibleStickers.size())));
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort returned "+nComponents+"/"+this.visibleStickers.size()+" components: "+$(com.donhatchsw.util.Arrays.subarray(sortOrder, 0, this.visibleStickers.size())));
                     if (nComponents < this.visibleStickers.size()) {
                         if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging!=null) System.out.println("      LOCAL TOPSORT OF "+this.visibleStickers.size()+" STICKERS WITHIN FACE "+iFace+"/"+nFaces+" WITHIN SLICE "+iSlice+"/"+nCompressedSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF STICKERS");
                         for (int iComponent = 0; iComponent < nComponents; ++iComponent)
@@ -542,10 +540,10 @@ public class VeryCleverPaintersSortingOfStickers
                             if (componentSize >= 2)
                             {
                                 if (localVerboseLevel >= 1) System.out.println("    sorting a strongly connected component (i.e. snakepit of cycles) of length "+componentSize+"");
-                                if (localVerboseLevel >= 2) System.out.println("              before: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, componentStarts[iComponent], componentSize)));
+                                if (localVerboseLevel >= 2) System.out.println("              before: "+$(com.donhatchsw.util.Arrays.subarray(sortOrder, componentStarts[iComponent], componentSize)));
                                 if (true)
                                 {
-                                    com.donhatchsw.util.SortStuff.sort(nodeSortOrder, componentStarts[iComponent], componentSize,
+                                    com.donhatchsw.util.SortStuff.sort(sortOrder, componentStarts[iComponent], componentSize,
                                         new com.donhatchsw.util.SortStuff.IntComparator() { // XXX ALLOCATION! (need to make sort smarter)
                                             @Override public int compare(int i, int j)
                                             {
@@ -564,12 +562,12 @@ public class VeryCleverPaintersSortingOfStickers
                                     );
                                 }
                                 numZsortsDoneHolder[0]++;
-                                if (localVerboseLevel >= 2) System.out.println("              after: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, componentStarts[iComponent], componentSize)));
+                                if (localVerboseLevel >= 2) System.out.println("              after: "+$(com.donhatchsw.util.Arrays.subarray(sortOrder, componentStarts[iComponent], componentSize)));
                             }
                         }
                     }
                     for (int i = 0; i < this.visibleStickers.size(); ++i) {
-                        int iSticker = visibleStickers.get(nodeSortOrder[i]);
+                        int iSticker = visibleStickers.get(sortOrder[i]);
                         answer[answerSizeSoFar++] = iSticker;
                     }
 
@@ -605,7 +603,7 @@ public class VeryCleverPaintersSortingOfStickers
                                 for (int i = componentStarts[iComponent]; i < componentStarts[iComponent+1]; ++i) {
                                     if (i > componentStarts[iComponent]) tracebuffer.append(",");
                                     int iSticker = answer[answerSizeSoFar-this.visibleStickers.size()+i];
-                                    CHECK(iSticker == visibleStickers.get(nodeSortOrder[i]));
+                                    CHECK(iSticker == visibleStickers.get(sortOrder[i]));
                                     tracebuffer.append(iSticker);
                                 }
                                 if (componentSize > 1) tracebuffer.append(")");
@@ -621,14 +619,14 @@ public class VeryCleverPaintersSortingOfStickers
                             {
                                 if (i > 0) tracebuffer.append(" ");
                                 int iSticker = answer[answerSizeSoFar-this.visibleStickers.size()+i];
-                                CHECK(iSticker == visibleStickers.get(nodeSortOrder[i]));
+                                CHECK(iSticker == visibleStickers.get(sortOrder[i]));
 
                                 // CBB: move out of loop.  whatever
                                 java.util.ArrayList<Integer> preds = new java.util.ArrayList<Integer>();
                                 java.util.ArrayList<Integer> succs = new java.util.ArrayList<Integer>();
                                 for (int j = 0; j < partialOrderSize; ++j) {
-                                    if (partialOrder[j][1] == nodeSortOrder[i]) preds.add(visibleStickers.get(partialOrder[j][0]));
-                                    if (partialOrder[j][0] == nodeSortOrder[i]) succs.add(visibleStickers.get(partialOrder[j][1]));
+                                    if (partialOrder[j][1] == sortOrder[i]) preds.add(visibleStickers.get(partialOrder[j][0]));
+                                    if (partialOrder[j][0] == sortOrder[i]) succs.add(visibleStickers.get(partialOrder[j][1]));
                                 }
 
                                 if (preds.size() > 0) tracebuffer.append(com.donhatchsw.util.Arrays.toString(preds,"["," ","]")+"->");
@@ -662,7 +660,12 @@ public class VeryCleverPaintersSortingOfStickers
                     this.iSlice = iSlice;
                 }
                 public int iSlice;
-                public Node[] children;
+
+                // Logically, we have an array of children.
+                // To avoid memory allocations, we use a view into visibleStickersSortedBySliceAndFace instead.
+                public ArrayView<Node> childrenArrayView = new ArrayView<Node>();
+
+                public Node[] children;  // XXX GET RID
 
                 @Override protected double computeAverageZnumerator()
                 {
@@ -848,10 +851,10 @@ public class VeryCleverPaintersSortingOfStickers
                     // topsort the children of this slice (other slices, and slicefaces)
                     // and emit them in order.
                     if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort "+this.children.length+" items with partial order "+$(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
-                    int nComponents = topsorter.topsort(this.children.length, nodeSortOrder,
+                    int nComponents = topsorter.topsort(this.children.length, sortOrder,
                                                         partialOrderSize, partialOrder,
                                                         componentStarts);
-                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort returned "+nComponents+"/"+this.children.length+" components: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.children.length)));
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort returned "+nComponents+"/"+this.children.length+" components: "+$(com.donhatchsw.util.Arrays.subarray(sortOrder, 0, this.children.length)));
 
                     if (nComponents < this.children.length) {
                         // Canonical case of this:
@@ -864,10 +867,10 @@ public class VeryCleverPaintersSortingOfStickers
                             if (componentSize >= 2)
                             {
                                 if (localVerboseLevel >= 1) System.out.println("              sorting a strongly connected component (i.e. snakepit of cycles) of length "+componentSize);
-                                if (localVerboseLevel >= 2) System.out.println("              before: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, componentStarts[iComponent], componentSize)));
+                                if (localVerboseLevel >= 2) System.out.println("              before: "+$(com.donhatchsw.util.Arrays.subarray(sortOrder, componentStarts[iComponent], componentSize)));
                                 if (true)
                                 {
-                                    com.donhatchsw.util.SortStuff.sort(nodeSortOrder, componentStarts[iComponent], componentSize,
+                                    com.donhatchsw.util.SortStuff.sort(sortOrder, componentStarts[iComponent], componentSize,
                                         new com.donhatchsw.util.SortStuff.IntComparator() { // XXX ALLOCATION! (need to make sort smarter)
                                             @Override public int compare(int i, int j)
                                             {
@@ -882,7 +885,7 @@ public class VeryCleverPaintersSortingOfStickers
                                     );
                                 }
                                 numZsortsDoneHolder[0]++;
-                                if (localVerboseLevel >= 2) System.out.println("              after: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, componentStarts[iComponent], componentSize)));
+                                if (localVerboseLevel >= 2) System.out.println("              after: "+$(com.donhatchsw.util.Arrays.subarray(sortOrder, componentStarts[iComponent], componentSize)));
                             }
                         }
                     }
@@ -915,11 +918,11 @@ public class VeryCleverPaintersSortingOfStickers
                         tracebuffer.append(repeat("    ",recursionLevel)+"Slice("+this.iSlice+") {\n");
                     }
                     {
-                        // subtle: need to save nodeSortOrder to avoid colliding with sub calls!
-                        int[] nodeSortOrderSnapshot = (int[])com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.children.length);  // XXX allocation. Idea: maybe permute the children instead? hmm.
+                        // subtle: need to save sortOrder to avoid colliding with sub calls!
+                        int[] sortOrderSnapshot = (int[])com.donhatchsw.util.Arrays.subarray(sortOrder, 0, this.children.length);  // XXX allocation. Idea: maybe permute the children instead? hmm.
 
                         for (int i = 0; i < children.length; ++i) {
-                            Node child = children[nodeSortOrderSnapshot[i]];
+                            Node child = children[sortOrderSnapshot[i]];
                             answerSizeSoFar = child.traverse(answer, answerSizeSoFar, tracebuffer, recursionLevel+1);
                         }
                     }
@@ -936,6 +939,25 @@ public class VeryCleverPaintersSortingOfStickers
                 }  // traverse
             }  // class SliceNode
 
+
+            // Allocate a sparse array so we can easily find a given SliceFaceNode from iSlice,iFace.
+            // This may seem alarming, but it really isn't that huge
+            // (number of entries is commensurate with nStickers).
+            SliceFaceNode sliceFaceNodes[][] = new SliceFaceNode[nCompressedSlices][nFaces];  // nulls
+
+            for (int iiSticker = 0; iiSticker < nVisibleStickersTotal; ++iiSticker) {
+                int iSticker = visibleStickersSortedBySliceAndFace[iiSticker];
+                int iSlice = sticker2Slice[iSticker];
+                int iFace = sticker2face[iSticker];
+                if (sliceFaceNodes[iSlice][iFace] == null)
+                {
+                    sliceFaceNodes[iSlice][iFace] = new SliceFaceNode(iSlice, iFace);
+                    sliceFaceNodes[iSlice][iFace].visibleStickers.init(visibleStickersSortedBySliceAndFace, iiSticker, 0);
+                }
+                sliceFaceNodes[iSlice][iFace].visibleStickers.init(sliceFaceNodes[iSlice][iFace].visibleStickers.backingStore(),
+                                                                   sliceFaceNodes[iSlice][iFace].visibleStickers.i0(),
+                                                                   sliceFaceNodes[iSlice][iFace].visibleStickers.size()+1);
+            }
 
             SliceNode sliceNodes[] = new SliceNode[nCompressedSlices];
             for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice)
@@ -954,25 +976,15 @@ public class VeryCleverPaintersSortingOfStickers
                 if (hasRightChild) sliceNodes[iSlice].children = (Node[])com.donhatchsw.util.Arrays.append(sliceNodes[iSlice].children, sliceNodes[iSlice+1]);
             }
 
-            // Allocate a sparse array so we can easily find a given SliceFaceNode from iSlice,iFace.
-            // This may seem alarming, but it really isn't that huge
-            // (number of entries is commensurate with nStickers).
-            SliceFaceNode sliceFaceNodes[][] = new SliceFaceNode[nCompressedSlices][nFaces];  // nulls
-
-            for (int iiSticker = 0; iiSticker < nVisibleStickersTotal; ++iiSticker) {
-                int iSticker = visibleStickersSortedBySliceAndFace[iiSticker];
-                int iSlice = sticker2Slice[iSticker];
-                int iFace = sticker2face[iSticker];
-                if (sliceFaceNodes[iSlice][iFace] == null)
-                {
-                    sliceFaceNodes[iSlice][iFace] = new SliceFaceNode(iSlice, iFace);
-                    sliceFaceNodes[iSlice][iFace].visibleStickers.init(visibleStickersSortedBySliceAndFace, iiSticker, 0);
-
-                    sliceNodes[iSlice].children = (Node[])com.donhatchsw.util.Arrays.append(sliceNodes[iSlice].children, sliceFaceNodes[iSlice][iFace]);
+            // all nodes, cleverly arranged so that the children of any SliceNode are contiguous.
+            Node[] allNodes = new Node[42];
+            for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice) {
+                for (int iFace = 0; iFace < nFaces; ++iFace) {
+                    SliceFaceNode sliceFaceNode = sliceFaceNodes[iSlice][iFace];
+                    if (sliceFaceNode != null) {
+                        sliceNodes[iSlice].children = (Node[])com.donhatchsw.util.Arrays.append(sliceNodes[iSlice].children, sliceFaceNode);
+                    }
                 }
-                sliceFaceNodes[iSlice][iFace].visibleStickers.init(sliceFaceNodes[iSlice][iFace].visibleStickers.backingStore(),
-                                                                   sliceFaceNodes[iSlice][iFace].visibleStickers.i0(),
-                                                                   sliceFaceNodes[iSlice][iFace].visibleStickers.size()+1);
             }
 
             Node root = sliceNodes[eyeSlice];
@@ -1143,6 +1155,18 @@ public class VeryCleverPaintersSortingOfStickers
         else  // old inferior way
         {
             // OLD INFERIOR (mostly) WAY
+
+            int nNodes = nStickers + 2*nCompressedSlices;
+            int parents[] = new int[nNodes];
+            int depths[] = new int[nNodes]; // XXX this array is not really necessary, but it simplifies the code
+            int maxNodePartialOrderSize = nStickers*2 // for group inclusion
+                                    + adjacentStickerPairs.length;
+            final int[][] partialOrder = new int[maxNodePartialOrderSize][2];
+            int partialOrderSize = 0;
+            final com.donhatchsw.util.TopSorter nodeTopSorter = new com.donhatchsw.util.TopSorter(/*maxN=*/nNodes, maxNodePartialOrderSize); // XXX allocation
+            final int nodeSortOrder[] = new int[nNodes]; // XXX allocation
+            final int nodeComponentStarts[] = new int[nNodes+1]; // one extra for end of last one.  XXX allocation
+
             int numIgnored = 0;
 
             // Initialize parents and depths...
@@ -1454,13 +1478,13 @@ public class VeryCleverPaintersSortingOfStickers
             //
             //System.out.println("nStickers = "+nStickers);
             //System.out.println("nNodes = "+nNodes);
-            int nComponents = doScramble ? topsorter.topsortRandomized(nNodes, nodeSortOrder,
+            int nComponents = doScramble ? nodeTopSorter.topsortRandomized(nNodes, nodeSortOrder,
                                                              partialOrderSize, partialOrder,
-                                                             componentStarts,
+                                                             nodeComponentStarts,
                                                              randomnessGenerator)
-                                         : topsorter.topsort(nNodes, nodeSortOrder,
+                                         : nodeTopSorter.topsort(nNodes, nodeSortOrder,
                                                              partialOrderSize, partialOrder,
-                                                             componentStarts);
+                                                             nodeComponentStarts);
             int cycleVerboseLevel = 0;  // CBB: this concept is rotting, but I think I'll be retiring this code path soon anyway
             if (nComponents == nNodes)
             {
@@ -1471,8 +1495,8 @@ public class VeryCleverPaintersSortingOfStickers
                 int nNontrivialComponents = 0;
                 for (int iComponent = 0; iComponent < nComponents; ++iComponent)
                 {
-                    int componentSize = componentStarts[iComponent+1]
-                                      - componentStarts[iComponent];
+                    int componentSize = nodeComponentStarts[iComponent+1]
+                                      - nodeComponentStarts[iComponent];
                     if (componentSize >= 2)
                         nNontrivialComponents++;
                 }
@@ -1480,7 +1504,7 @@ public class VeryCleverPaintersSortingOfStickers
 
                 for (int iComponent = 0; iComponent < nComponents; ++iComponent)
                 {
-                    int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
+                    int componentSize = nodeComponentStarts[iComponent+1] - nodeComponentStarts[iComponent];
                     if (componentSize >= 2)
                     {
                         if (cycleVerboseLevel >= 1) System.out.println("    there's a cycle (actually connected component) of length "+componentSize+"");
@@ -1489,7 +1513,7 @@ public class VeryCleverPaintersSortingOfStickers
                         //
                         if (true)
                         {
-                            com.donhatchsw.util.SortStuff.sort(nodeSortOrder, componentStarts[iComponent], componentSize,
+                            com.donhatchsw.util.SortStuff.sort(nodeSortOrder, nodeComponentStarts[iComponent], componentSize,
                                 new com.donhatchsw.util.SortStuff.IntComparator() { // XXX ALLOCATION! (need to make sort smarter)
                                     @Override public int compare(int i, int j)
                                     {
@@ -1541,21 +1565,21 @@ public class VeryCleverPaintersSortingOfStickers
                     int justTheCyclesSize = 0;
                     for (int iComponent = 0; iComponent < nComponents; ++iComponent)
                     {
-                        int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
+                        int componentSize = nodeComponentStarts[iComponent+1] - nodeComponentStarts[iComponent];
                         if (componentSize > 1)
                         {
                             // Okay to be verbose since user is debugging
                             System.out.println("    found a cycle (well at least a connected component) of length "+componentSize+"");
 
-                            int iNode0 = nodeSortOrder[componentStarts[iComponent]];
+                            int iNode0 = nodeSortOrder[nodeComponentStarts[iComponent]];
                             // Progress forward componentSize times,
                             // to make sure we are within where it's going to loop
                             for (int i = 0; i < componentSize; ++i)
                             {
                                 int jNode = -1;
                                 for (int iSucc = 0; iSucc < successors[iNode0].length; ++iSucc)
-                                    if (origToSorted[successors[iNode0][iSucc]] >= componentStarts[iComponent]
-                                     && origToSorted[successors[iNode0][iSucc]] < componentStarts[iComponent+1])
+                                    if (origToSorted[successors[iNode0][iSucc]] >= nodeComponentStarts[iComponent]
+                                     && origToSorted[successors[iNode0][iSucc]] < nodeComponentStarts[iComponent+1])
                                     {
                                         jNode = successors[iNode0][iSucc];
                                         break;
@@ -1568,8 +1592,8 @@ public class VeryCleverPaintersSortingOfStickers
                             {
                                 int jNode = -1;
                                 for (int iSucc = 0; iSucc < successors[iNode].length; ++iSucc)
-                                    if (origToSorted[successors[iNode][iSucc]] >= componentStarts[iComponent]
-                                     && origToSorted[successors[iNode][iSucc]] < componentStarts[iComponent+1])
+                                    if (origToSorted[successors[iNode][iSucc]] >= nodeComponentStarts[iComponent]
+                                     && origToSorted[successors[iNode][iSucc]] < nodeComponentStarts[iComponent+1])
                                     {
                                         jNode = successors[iNode][iSucc];
                                         break;
