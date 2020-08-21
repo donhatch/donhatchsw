@@ -1017,7 +1017,7 @@ public class MC4DJApplet
                 controlPanelFrame.setVisible(true);  // available in java 1.5, replaces deprecated show()
                 return;
             }
-            makeNewLegacyControlPanelWindow(viewGuts, allPuzzlesAndWindows);
+            makeNewSwingControlPanelWindow(viewGuts, allPuzzlesAndWindows);
         }
         private static void makeNewSwingControlPanelWindow(MC4DViewGuts viewGuts,
                                                             PuzzlesAndWindows allPuzzlesAndWindows)
