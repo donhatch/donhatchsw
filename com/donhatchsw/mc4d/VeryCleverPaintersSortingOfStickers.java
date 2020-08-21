@@ -254,7 +254,7 @@ public class VeryCleverPaintersSortingOfStickers
         if (localVerboseLevel >= 1) System.out.println("      nStickers = "+$(nStickers));
         if (localVerboseLevel >= 1) System.out.println("      cutNormal = "+$(cutNormal));
         if (localVerboseLevel >= 1) System.out.println("      cutOffsets = "+$(cutOffsets));
-        if (localVerboseLevel >= 1) System.out.println("      eye = "+$(eye));
+        if (localVerboseLevel >= 1) System.out.println("      eye = "+$(eye)+"  (distance from origin = "+VecMath.norm(eye));
         if (localVerboseLevel >= 3) {
           System.out.println("      sticker2Slice = "+$(sticker2Slice));
           System.out.println("      "+stickerVisibilities.length+" stickerVisibilities = "+$(stickerVisibilities));

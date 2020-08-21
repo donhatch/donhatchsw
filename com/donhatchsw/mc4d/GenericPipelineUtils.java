@@ -291,7 +291,7 @@ public class GenericPipelineUtils
         {
             // Make it so circumradius is 1.
             // That way any 4d eye distance > 1 is safe.
-            float scale4d = 1.f/puzzleDescription.circumRadius();
+            float scale4d = 1.f/puzzleDescription.circumRadius();  // DUP CODE: keep this in sync with the other case of this
             float rotScale4d[][] = VecMath.mxs(rot4d, scale4d); // XXX MEMORY ALLOCATION
             float temp[] = new float[4]; // XXX MEMORY ALLOCATION
             for (int iArray = 0; iArray < 3; ++iArray)
@@ -805,6 +805,8 @@ public class GenericPipelineUtils
             int[] stickerSortOrder = new int[nStickers]; // XXX allocation
             int[][][][] partialOrderInfoAddress = (showPartialOrder ? new int[1][][][] : null);
             String[] cyclesSummaryAddress = new String[1];
+            float scale4d = 1.f/puzzleDescription.circumRadius();  // DUP CODE: keep this in sync with the other case of this
+
             int nSortedStickers = VeryCleverPaintersSortingOfStickers.sortStickersBackToFront(
                     topsortUsesBoldNewWay,
                     nStickersToSort,
@@ -812,7 +814,7 @@ public class GenericPipelineUtils
                     stickerVisibilities,
                     unshrunkStickerPolyIsStrictlyBackfacing,
                     partiallyShrunkStickerPolyIsStrictlyBackfacing,
-                    VecMath.mxv(rot4d, new float[]{0,0,0,eyeW}), // in opposite order so we multiply the eye by the *inverse* of the matrix, to get it into object space  XXX put this elsewhere
+                    VecMath.mxv(rot4d, new float[]{0,0,0,eyeW/scale4d}), // in opposite order so we multiply the eye by the *inverse* of the matrix, to get it into object space  XXX put this elsewhere
                     cutNormal,
                     cutOffsets,
                     sticker2Slice,
