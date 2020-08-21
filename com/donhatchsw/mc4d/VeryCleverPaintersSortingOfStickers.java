@@ -1164,9 +1164,9 @@ public class VeryCleverPaintersSortingOfStickers
 
             if (returnSummaryOptionalForDebugging != null) {
                 if (numZsortsDoneHolder[0] == 0) {
-                    returnSummaryOptionalForDebugging[0] = "no cycles!";
+                    returnSummaryOptionalForDebugging[0] = "no cycles";
                 } else {
-                    returnSummaryOptionalForDebugging[0] = ""+numZsortsDoneHolder[0]+" z-sort"+(numZsortsDoneHolder[0]==1?"":"s")+" needed to resolve cycles";
+                    returnSummaryOptionalForDebugging[0] = ""+numZsortsDoneHolder[0]+" z-sort"+(numZsortsDoneHolder[0]==1?"":"s")+" needed to resolve cycles (increasing 4D Eye Distance usually fixes this)";
                 }
             }
 

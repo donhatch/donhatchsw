@@ -123,8 +123,18 @@ public class MC4DViewGuts
             {0,0,1,0},
             {0,0,0,1},
         });
-        //public Listenable.Float eyeW = new Listenable.Float(0.f, 20.f, 5.2f); // used this when circumradius was scaled to be 6 instead of 1
-        public Listenable.Float eyeW = new Listenable.Float(0.f, 4.f, .867f); // XXX default should be a little more than 1!
+
+        // CBB:
+        // We probably want eyeW to be as small as possible (though > 1),
+        // but currently making too close to 1 makes topsort fail.
+        // (And, it makes the puzzle look unfamiliar sometimes.)
+        // Empirically, here are some thresholds:
+        // eyeW=1.1: default puzzle bad on some twists
+        // eyeW=1.05: just large enough so topsort fully succeeds in hypermegaminx "{5,3,3} 3" at rest. Too small for 4,3,3 in nonstandard positions though.
+        // eyeW=1.5: good for 4,3,3 3 vert first, but edge-first outer faces are exactly flat/flaky (!) so needs to be smaller
+        // eyeW=1.45: good (though still very flat) for 4,3,3 3 edge-first, still decent for vertex first
+        public Listenable.Float eyeW = new Listenable.Float(0.f, 4.f, 1.45f); // 1 means circumradius after shrinks applied (4d shrinks only, currently).  Theoretically anything >=1 should be safe for rendering, however, currently, too close to 1 makes the topsort fail.
+
         public Listenable.FloatMatrix viewMat3d = new Listenable.FloatMatrix(
             VecMath.mxm(VecMath.makeRowRotMat(3, 2,0, -42*(float)Math.PI/180), // twirl
                         VecMath.makeRowRotMat(3, 1,2,  30*(float)Math.PI/180))); // tilt

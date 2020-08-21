@@ -1015,8 +1015,20 @@ public class MC4DSwingControlPanel
             "4d Eye Distance",
             viewParams.eyeW,
             new String[] {
-                "Specifies the distance from the eye to the center of the puzzle in 4d.",
-                "(XXX coming soon: what the units mean exactly)",
+                "Specifies the distance from the eye to the center of the puzzle in 4d,",
+                "where 1 is the circumradius of the puzzle (with 4d shrinks applied).",
+                "",
+                "Considerations/tradeoffs:",
+                "    - If you make the value too large, then fewer faces will be shown",
+                "      in particular, it will make you unable to see all faces simultaneously",
+                "      in some of the vertex-first, edge-first, and 2d-polygon-first views",
+                "      of the standard puzzle.",
+                "    - If you make the value too small, the smart depth sort of stickers will fail,",
+                "      and the rendering will fall back to a lower-quality z-sort.  See the indicator",
+                "      in the lower right of the picture, which should normally say \"no cycles\".",
+                "    - If you make the value less than 1, expect bad rendering,",
+                "      since part of the puzzle will be behind the eye,",
+                "      which the rendering engine can't handle.",
             });
         addFloatSliderRow(
             "3d Face Shrink",

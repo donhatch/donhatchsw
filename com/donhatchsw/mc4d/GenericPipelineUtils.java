@@ -282,6 +282,26 @@ public class GenericPipelineUtils
             perStickerFaceCenters,
         };
         
+        // Choose 4d scale.
+        float scale4d;
+        {
+            // Make it so circumradius (of shrunk puzzle!) is 1.
+            // CBB: this incorporates only the 4d shrinks, since we haven't
+            // done the 3d ones yet (and in fact they are buggy, as of this writing).
+            // We could make it include the 3d ones,
+            // if we reorder some operations (since scaling should commute
+            // with other operations, I think).
+            double maxDist2 = 0.;
+            for (int iVert = 0; iVert < verts.length; ++iVert)
+            {
+                double thisDist2 = VecMath.normsqrd(verts[iVert]);
+                if (thisDist2 > maxDist2) maxDist2 = thisDist2;
+            }
+            scale4d = 1.f/(float)Math.sqrt(maxDist2);
+            //System.out.println("maxDist = "+Math.sqrt(maxDist2));
+            //System.out.println("scale4d = "+scale4d);
+        }
+
         //
         // Rotate/scale in 4d.
         // Not just the verts, but also the shrink-to points,
@@ -289,9 +309,6 @@ public class GenericPipelineUtils
         // for the 3d part of the shrink.  And the per-sticker face centers too.
         //
         {
-            // Make it so circumradius is 1.
-            // That way any 4d eye distance > 1 is safe.
-            float scale4d = 1.f/puzzleDescription.circumRadius();  // DUP CODE: keep this in sync with the other case of this
             float rotScale4d[][] = VecMath.mxs(rot4d, scale4d); // XXX MEMORY ALLOCATION
             float temp[] = new float[4]; // XXX MEMORY ALLOCATION
             for (int iArray = 0; iArray < 3; ++iArray)
@@ -805,7 +822,6 @@ public class GenericPipelineUtils
             int[] stickerSortOrder = new int[nStickers]; // XXX allocation
             int[][][][] partialOrderInfoAddress = (showPartialOrder ? new int[1][][][] : null);
             String[] cyclesSummaryAddress = new String[1];
-            float scale4d = 1.f/puzzleDescription.circumRadius();  // DUP CODE: keep this in sync with the other case of this
 
             int nSortedStickers = VeryCleverPaintersSortingOfStickers.sortStickersBackToFront(
                     topsortUsesBoldNewWay,
