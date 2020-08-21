@@ -152,7 +152,7 @@
 
         - CHECK fail on 3d puzzle when 1color sticker gonality isn't same as the facet gonality: puzzleDescription="(.25)4(2)3 3(1.4)": CHECK(cutWeight >= -1e-9 && cutWeight <= 1.) (cutWeight is -.75)
         - 5-dimensional puzzles get ArrayIndexOutOfBoundException when trying to view them (should just get rejected, I think)
-        - can't fling on laptop (neither macboox nor glinux box)
+        - can't fling on laptop (neither macboox nor glinux), and it's sucky even with mouse (glinux)
         - '{4,3} 3(4)' with nonzero stickers-shrink-to-face-boundaries is asymmetric (due to the one-of-opposite-pairs-doing-all-the-cuts-for-both-of-them thing, I think)
         - make && java -jar donhatchsw.jar puzzleDescription="Fruity 3(9)" shouldn't require such a shallow cut specification!  isn't it supposed to be using the edge that would give the shallowest cut?
         - `java -jar donhatchsw.jar puzzleDescription='{4,3} 2,3,4'`, twisting gives CHECK failure: "CHECK(whereIstickerGoes != null);", 	at com.donhatchsw.mc4d.PolytopePuzzleDescription.applyTwistToState(PolytopePuzzleDescription.java:2402)
@@ -264,12 +264,11 @@
               - "3,4,3 3": twist center face: why is a z-sort needed???  and it comes out horribly :-(
               - same for "5,3 3" flatten, rotate a bit more edge on, twist center: why is a z-sort needed?
                 - observation: seems to be choosing the wrong slice? I think whenever I twist center, 4d eye should be in *last* slice???  that's the right choice for the convexity condition, maybe my way of choosing that is wrong?
-                - observation: now that I think about it, the choice of eyeW may be weird: think about eyeW, and faceShrink, and the choice of tree structure.
+                - observation: increasing eyeW fixes it (various increasing needed for various twist faces)
                   - however: the 5,3:3 one still chooses wrong root slice even if shrinks are 1, so that's not the problem (or at least, not *all* of the problem)
-                - observation: if I increase eye W, it gets better.  but some other face twists still bad.
                 - obvervation: if this happens when twisting center, z-sorting can't possibly help, since everyone's center is origin.
-                  IDEA: if zsorting slices, how about we force breaking up into faces first???
-              - "3,4,3 2" in this case center is ok, but some other faces (e.g. tan at 12:00, brick at 1:00) are still bad
+                  IDEA: when falling back to zsorting slices, how about we force breaking up into faces first???
+              - "3,4,3 2" in this case center is ok (at default eyeW), but some other faces (e.g. tan at 12:00, brick at 1:00) are still bad
             - "4,3,3 4": rotate vert to center, twist front face: z-sort needed :-( and alter the view a bit, the result is horrible.
                   
             - (FIXED maybe): standard puzzle, ctrl-rotate front vert to center, twist it: sorting messes up during approx first half of the animation.

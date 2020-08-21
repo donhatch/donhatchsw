@@ -254,6 +254,7 @@ public class VeryCleverPaintersSortingOfStickers
         if (localVerboseLevel >= 1) System.out.println("      nStickers = "+$(nStickers));
         if (localVerboseLevel >= 1) System.out.println("      cutNormal = "+$(cutNormal));
         if (localVerboseLevel >= 1) System.out.println("      cutOffsets = "+$(cutOffsets));
+        if (localVerboseLevel >= 1) System.out.println("      eye = "+$(eye));
         if (localVerboseLevel >= 3) {
           System.out.println("      sticker2Slice = "+$(sticker2Slice));
           System.out.println("      "+stickerVisibilities.length+" stickerVisibilities = "+$(stickerVisibilities));
@@ -955,7 +956,7 @@ public class VeryCleverPaintersSortingOfStickers
                                                                    sliceFaceNodes[iSlice][iFace].visibleStickers.i0(),
                                                                    sliceFaceNodes[iSlice][iFace].visibleStickers.size()+1);
             }
-            if (localVerboseLevel >= 1) System.out.println("          nSliceFaceNodes = "+nSliceFaceNodes);
+            if (localVerboseLevel >= 1) System.out.println("      nSliceFaceNodes = "+nSliceFaceNodes);
 
             SliceNode sliceNodes[] = new SliceNode[nCompressedSlices];
             for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice)
@@ -966,7 +967,7 @@ public class VeryCleverPaintersSortingOfStickers
             // All non-root nodes, arranged so that the children of any SliceNode are contiguous,
             // so that each SliceNode's children can be an array view into this one big backing store array.
             Node[] allChildNodes = new Node[nCompressedSlices-1 + nSliceFaceNodes];
-            if (localVerboseLevel >= 3) System.out.println("          allChildNodes.length = "+allChildNodes.length);
+            if (localVerboseLevel >= 3) System.out.println("      allChildNodes.length = "+allChildNodes.length);
             {
                 int iChildNode = 0;
                 for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice) {
@@ -998,21 +999,34 @@ public class VeryCleverPaintersSortingOfStickers
             }
 
             Node root = sliceNodes[eyeSlice];
-            if (localVerboseLevel >= 3) System.out.println("          root = sliceNodes[eyeSlice="+eyeSlice+"] = "+root+" totalSize="+root.totalSize());
+            if (localVerboseLevel >= 3) System.out.println("      root = sliceNodes[eyeSlice="+eyeSlice+"] = "+root+" totalSize="+root.totalSize());
 
             // Sanity check that we built the tree correctly.
+            if (true)
             {
+                if (localVerboseLevel >= 3) {
+                    for (int iiSticker = 0; iiSticker < nVisibleStickersTotal; ++iiSticker) {
+                        int iSticker = visibleStickersSortedBySliceAndFace[iiSticker];
+                        if (iiSticker > 0) {
+                            if (sticker2Slice[iSticker] != sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker-1]]) System.out.println("          =============================");
+                            else if (sticker2face[iSticker] != sticker2face[visibleStickersSortedBySliceAndFace[iiSticker-1]]) System.out.println("          --------------");
+                        }
+                        System.out.println("          iiSticker="+iiSticker+": iSticker="+iSticker+" iSlice="+sticker2Slice[iSticker]+" iFace="+sticker2face[iSticker]);
+                    }
+                }
                 int iiSticker = 0;
                 for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice) {
+                    if (localVerboseLevel >= 3) System.out.println("              iSlice = "+iSlice+" (iiSticker="+iiSticker+")");
                     // check we're at a new slice
-                    // XXX TODO: this has been observed to fail on "{5,3} 3", flattened, with far enough eye4 (2 or so, or more), and do a twist
                     CHECK(iiSticker == 0
+                       || iiSticker == nVisibleStickersTotal  // there may be a slice with no visible stickers
                        || sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker-1]] < sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker]]);
                     SliceNode sliceNode = sliceNodes[iSlice];
                     for (int iChild = 0; iChild < sliceNode.children.size(); ++iChild) {
                         Node child = sliceNode.children.get(iChild);
                         if (child instanceof SliceFaceNode) {
                             // check we're at a new sliceface
+                            CHECK(iiSticker < nVisibleStickersTotal);  // every SliceFaceNode has at least one visible sticker, or wouldn't have been created
                             CHECK(iiSticker == 0
                                || sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker-1]] < sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker]]
                                || (sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker-1]] == sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker]]
@@ -1141,7 +1155,7 @@ public class VeryCleverPaintersSortingOfStickers
                 }
             }
 
-            StringBuffer tracebuffer = localVerboseLevel >= 1 ? new StringBuffer() : null;
+            StringBuffer tracebuffer = localVerboseLevel >= 2 ? new StringBuffer() : null;
             int nStickersEmitted = root.traverse(returnStickerSortOrder, 0, tracebuffer, /*recursionLevel=*/0);
 
             if (returnPartialOrderInfoOptionalForDebugging != null) {
