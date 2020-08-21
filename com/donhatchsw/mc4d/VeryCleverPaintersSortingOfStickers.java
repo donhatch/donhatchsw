@@ -428,40 +428,47 @@ public class VeryCleverPaintersSortingOfStickers
                 // To avoid memory allocations, we use a view into visibleStickersSortedBySliceAndFace instead.
                 // CBB: Unfortunately the usage is not particularly readable, so I've left the old way in, in comments
                 //public int[] visibleStickers;  // this was the clearer less efficient way
-                public int iiVisibleSticker0;  // index of start into visibleStickersSortedBySliceAndFace
-                public int nVisibleStickersHere;
+                //public int iiVisibleSticker0;  // index of start into visibleStickersSortedBySliceAndFace
+                //public int nVisibleStickersHere;
+
+                // EXPERIMENTAL
+                public IntArrayView visibleStickers = new IntArrayView();
 
                 @Override protected double computeAverageZnumerator()
                 {
                     double answer = 0.;
-                    for (int i = 0; i < nVisibleStickersHere; ++i) {
+                    for (int i = 0; i < this.visibleStickers.size(); ++i) {
                         //answer += stickerCentersZ[this.visibleStickers[i]];
-                        answer += stickerCentersZ[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]];
+                        answer += stickerCentersZ[this.visibleStickers.get(i)];  // this is what it would look like if visibleStickers was an "array view" object. (java.util.ArrayList.subList() provides such a thing, but I want something reusable instead
+                        //answer += stickerCentersZ[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]];
                     }
                     return answer;
                 }
                 @Override protected double computeAverageZdenominator()
                 {
-                    return (double)nVisibleStickersHere;
+                    return (double)this.visibleStickers.size();
                 }
 
                 @Override public String toString() {
                     //return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+$(visibleStickers)+")";
-                    return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+$(visibleStickersSortedBySliceAndFace, this.iiVisibleSticker0, this.nVisibleStickersHere)+")";
+                    //return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+$(visibleStickersSortedBySliceAndFace, this.iiVisibleSticker0, this.nVisibleStickersHere)+")";
+                    return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+visibleStickers.toString();
                 }
                 @Override public String shortLabel() {
                     return "SF("+iSlice+","+iFace+")";
                 }
-                @Override public int totalSize() { return nVisibleStickersHere; }
+                @Override public int totalSize() { return visibleStickers.size(); }
                 @Override public int traverse(int answer[], int answerSizeSoFar, StringBuffer tracebuffer, int recursionLevel) {
                     if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            in SliceFaceNode(iSlice="+iSlice+" iFace="+iFace+").traverse, answerSizeSoFar="+answerSizeSoFar);
 
-                    for (int i = 0; i < nVisibleStickersHere; ++i)
+                    for (int i = 0; i < this.visibleStickers.size(); ++i)
                     {
                         //CHECK(sticker2localIndex[visibleStickers[i]] == -1);
                         //sticker2localIndex[visibleStickers[i]] = i;
-                        CHECK(sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] == -1);
-                        sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] = i;
+                        //CHECK(sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] == -1);
+                        //sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] = i;
+                        CHECK(sticker2localIndex[visibleStickers.get(i)] == -1);
+                        sticker2localIndex[visibleStickers.get(i)] = i;
                     }
                     // topsort the visibleStickers within this sliceface, by immediate adjacencies,
                     // and emit them in order.
@@ -523,12 +530,14 @@ public class VeryCleverPaintersSortingOfStickers
                     }
 
                     // restore -1's
-                    for (int i = 0; i < nVisibleStickersHere; ++i)
+                    for (int i = 0; i < this.visibleStickers.size(); ++i)
                     {
                         //CHECK(sticker2localIndex[visibleStickers[i]] == i);
                         //sticker2localIndex[visibleStickers[i]] = -1;
-                        CHECK(sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] == i);
-                        sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] = -1;
+                        //CHECK(sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] == i);
+                        //sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] = -1;
+                        CHECK(sticker2localIndex[visibleStickers.get(i)] == i);
+                        sticker2localIndex[visibleStickers.get(i)] = -1;
                     }
 
                     if (true) {
@@ -538,13 +547,13 @@ public class VeryCleverPaintersSortingOfStickers
                         partialOrderSize = sortAndCompressPartialOrder(partialOrderSize, partialOrder);
                     }
 
-                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort "+this.nVisibleStickersHere+" visible stickers with partial order "+$(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
-                    int nComponents = topsorter.topsort(this.nVisibleStickersHere, nodeSortOrder,
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort "+this.visibleStickers.size()+" visible stickers with partial order "+$(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
+                    int nComponents = topsorter.topsort(this.visibleStickers.size(), nodeSortOrder,
                                                         partialOrderSize, partialOrder,
                                                         componentStarts);
-                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort returned "+nComponents+"/"+this.nVisibleStickersHere+" components: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.nVisibleStickersHere)));
-                    if (nComponents < this.nVisibleStickersHere) {
-                        if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging!=null) System.out.println("      LOCAL TOPSORT OF "+this.nVisibleStickersHere+" STICKERS WITHIN FACE "+iFace+"/"+nFaces+" WITHIN SLICE "+iSlice+"/"+nCompressedSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF STICKERS");
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort returned "+nComponents+"/"+this.visibleStickers.size()+" components: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.visibleStickers.size())));
+                    if (nComponents < this.visibleStickers.size()) {
+                        if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging!=null) System.out.println("      LOCAL TOPSORT OF "+this.visibleStickers.size()+" STICKERS WITHIN FACE "+iFace+"/"+nFaces+" WITHIN SLICE "+iSlice+"/"+nCompressedSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF STICKERS");
                         for (int iComponent = 0; iComponent < nComponents; ++iComponent)
                         {
                             int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
@@ -560,8 +569,10 @@ public class VeryCleverPaintersSortingOfStickers
                                             {
                                                 //int iSticker = SliceFaceNode.this.visibleStickers[i];
                                                 //int jSticker = SliceFaceNode.this.visibleStickers[j];
-                                                int iSticker = visibleStickersSortedBySliceAndFace[SliceFaceNode.this.iiVisibleSticker0+i];
-                                                int jSticker = visibleStickersSortedBySliceAndFace[SliceFaceNode.this.iiVisibleSticker0+j];
+                                                //int iSticker = visibleStickersSortedBySliceAndFace[SliceFaceNode.this.iiVisibleSticker0+i];
+                                                //int jSticker = visibleStickersSortedBySliceAndFace[SliceFaceNode.this.iiVisibleSticker0+j];
+                                                int iSticker = SliceFaceNode.this.visibleStickers.get(i);
+                                                int jSticker = SliceFaceNode.this.visibleStickers.get(j);
                                                 CHECK(stickerVisibilities[iSticker]);
                                                 CHECK(stickerVisibilities[jSticker]);
                                                 float iZ = stickerCentersZ[iSticker];
@@ -579,9 +590,10 @@ public class VeryCleverPaintersSortingOfStickers
                             }
                         }
                     }
-                    for (int i = 0; i < nVisibleStickersHere; ++i) {
+                    for (int i = 0; i < this.visibleStickers.size(); ++i) {
                         //int iSticker = visibleStickers[nodeSortOrder[i]];
-                        int iSticker = visibleStickersSortedBySliceAndFace[SliceFaceNode.this.iiVisibleSticker0+nodeSortOrder[i]];
+                        //int iSticker = visibleStickersSortedBySliceAndFace[SliceFaceNode.this.iiVisibleSticker0+nodeSortOrder[i]];
+                        int iSticker = visibleStickers.get(nodeSortOrder[i]);
                         answer[answerSizeSoFar++] = iSticker;
                     }
 
@@ -596,10 +608,10 @@ public class VeryCleverPaintersSortingOfStickers
                             // The nodes in final order.
                             // E.g. "{16 18 17 19 20 21 22 23}"
                             tracebuffer.append(" {");
-                            for (int i = 0; i < nVisibleStickersHere; ++i)
+                            for (int i = 0; i < this.visibleStickers.size(); ++i)
                             {
                                 if (i > 0) tracebuffer.append(" ");
-                                int iSticker = answer[answerSizeSoFar-nVisibleStickersHere+i];
+                                int iSticker = answer[answerSizeSoFar-this.visibleStickers.size()+i];
                                 tracebuffer.append(iSticker);
                             }
                             tracebuffer.append("}");
@@ -616,9 +628,10 @@ public class VeryCleverPaintersSortingOfStickers
                                 if (componentSize > 1) tracebuffer.append("(");
                                 for (int i = componentStarts[iComponent]; i < componentStarts[iComponent+1]; ++i) {
                                     if (i > componentStarts[iComponent]) tracebuffer.append(",");
-                                    int iSticker = answer[answerSizeSoFar-nVisibleStickersHere+i];
+                                    int iSticker = answer[answerSizeSoFar-this.visibleStickers.size()+i];
                                     //CHECK(iSticker == visibleStickers[nodeSortOrder[i]]);
-                                    CHECK(iSticker == visibleStickersSortedBySliceAndFace[iiVisibleSticker0+nodeSortOrder[i]]);
+                                    //CHECK(iSticker == visibleStickersSortedBySliceAndFace[iiVisibleSticker0+nodeSortOrder[i]]);
+                                    CHECK(iSticker == visibleStickers.get(nodeSortOrder[i]));
                                     tracebuffer.append(iSticker);
                                 }
                                 if (componentSize > 1) tracebuffer.append(")");
@@ -630,12 +643,13 @@ public class VeryCleverPaintersSortingOfStickers
                             // Experimental: the sticker inds in final order, with predecessors and succesors of each
                             // E.g. "{[19]->16->[17 18 20] [16]->18->[19 22] [16]->17->[19 21] [17 18]->19->[16 23] [16]->20->[21 22] [17 20]->21->[23] [18 20 23]->22->[23] [19 21 22]->23->[22]}";
                             tracebuffer.append(" {");
-                            for (int i = 0; i < nVisibleStickersHere; ++i)
+                            for (int i = 0; i < this.visibleStickers.size(); ++i)
                             {
                                 if (i > 0) tracebuffer.append(" ");
-                                int iSticker = answer[answerSizeSoFar-nVisibleStickersHere+i];
+                                int iSticker = answer[answerSizeSoFar-this.visibleStickers.size()+i];
                                 //CHECK(iSticker == visibleStickers[nodeSortOrder[i]]);
-                                CHECK(iSticker == visibleStickersSortedBySliceAndFace[iiVisibleSticker0+nodeSortOrder[i]]);
+                                //CHECK(iSticker == visibleStickersSortedBySliceAndFace[iiVisibleSticker0+nodeSortOrder[i]]);
+                                CHECK(iSticker == visibleStickers.get(nodeSortOrder[i]));
 
                                 // CBB: move out of loop.  whatever
                                 java.util.ArrayList<Integer> preds = new java.util.ArrayList<Integer>();
@@ -643,8 +657,10 @@ public class VeryCleverPaintersSortingOfStickers
                                 for (int j = 0; j < partialOrderSize; ++j) {
                                     //if (partialOrder[j][1] == nodeSortOrder[i]) preds.add(visibleStickers[partialOrder[j][0]]);
                                     //if (partialOrder[j][0] == nodeSortOrder[i]) succs.add(visibleStickers[partialOrder[j][1]]);
-                                    if (partialOrder[j][1] == nodeSortOrder[i]) preds.add(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[j][0]]);
-                                    if (partialOrder[j][0] == nodeSortOrder[i]) succs.add(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[j][1]]);
+                                    //if (partialOrder[j][1] == nodeSortOrder[i]) preds.add(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[j][0]]);
+                                    //if (partialOrder[j][0] == nodeSortOrder[i]) succs.add(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[j][1]]);
+                                    if (partialOrder[j][1] == nodeSortOrder[i]) preds.add(visibleStickers.get(partialOrder[j][0]));
+                                    if (partialOrder[j][0] == nodeSortOrder[i]) succs.add(visibleStickers.get(partialOrder[j][1]));
                                 }
 
                                 if (preds.size() > 0) tracebuffer.append(com.donhatchsw.util.Arrays.toString(preds,"["," ","]")+"->");
@@ -660,10 +676,12 @@ public class VeryCleverPaintersSortingOfStickers
                             for (int i = 0; i < partialOrderSize; ++i) {
                                 if (i > 0) tracebuffer.append(" ");
                                 //tracebuffer.append(visibleStickers[partialOrder[i][0]]);
-                                tracebuffer.append(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[i][0]]);
+                                //tracebuffer.append(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[i][0]]);
+                                tracebuffer.append(visibleStickers.get(partialOrder[i][0]));
                                 tracebuffer.append("->");
                                 //tracebuffer.append(visibleStickers[partialOrder[i][1]]);
-                                tracebuffer.append(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[i][1]]);
+                                //tracebuffer.append(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[i][1]]);
+                                tracebuffer.append(visibleStickers.get(partialOrder[i][1]));
                             }
                             tracebuffer.append("}");
                         }
@@ -985,13 +1003,18 @@ public class VeryCleverPaintersSortingOfStickers
                 {
                     sliceFaceNodes[iSlice][iFace] = new SliceFaceNode(iSlice, iFace);
                     //sliceFaceNodes[iSlice][iFace].visibleStickers = new int[0];
-                    sliceFaceNodes[iSlice][iFace].iiVisibleSticker0 = iiSticker;
-                    sliceFaceNodes[iSlice][iFace].nVisibleStickersHere = 0;
+                    //sliceFaceNodes[iSlice][iFace].iiVisibleSticker0 = iiSticker;
+                    //sliceFaceNodes[iSlice][iFace].nVisibleStickersHere = 0;
+                    sliceFaceNodes[iSlice][iFace].visibleStickers.init(visibleStickersSortedBySliceAndFace, iiSticker, 0);
+
                     sliceNodes[iSlice].children = (Node[])com.donhatchsw.util.Arrays.append(sliceNodes[iSlice].children, sliceFaceNodes[iSlice][iFace]);
                 }
                 // This was the old quadratic-growth way of growing the array; good to be rid of it
                 //sliceFaceNodes[iSlice][iFace].visibleStickers = com.donhatchsw.util.Arrays.append(sliceFaceNodes[iSlice][iFace].visibleStickers, iSticker);
-                sliceFaceNodes[iSlice][iFace].nVisibleStickersHere++;
+                //sliceFaceNodes[iSlice][iFace].nVisibleStickersHere++;
+                sliceFaceNodes[iSlice][iFace].visibleStickers.init(sliceFaceNodes[iSlice][iFace].visibleStickers.backingStore(),
+                                                                   sliceFaceNodes[iSlice][iFace].visibleStickers.i0(),
+                                                                   sliceFaceNodes[iSlice][iFace].visibleStickers.size()+1);
             }
 
             Node root = sliceNodes[eyeSlice];
@@ -1016,16 +1039,19 @@ public class VeryCleverPaintersSortingOfStickers
                                  && sticker2face[visibleStickersSortedBySliceAndFace[iiSticker-1]] < sticker2face[visibleStickersSortedBySliceAndFace[iiSticker]]));
 
                             SliceFaceNode sliceFaceNode = (SliceFaceNode)child;
-                            for (int i = 0; i < sliceFaceNode.nVisibleStickersHere; ++i) {
+                            for (int i = 0; i < sliceFaceNode.visibleStickers.size(); ++i) {
                                 //int iSticker = sliceFaceNode.visibleStickers[i];
-                                int iSticker = visibleStickersSortedBySliceAndFace[sliceFaceNode.iiVisibleSticker0+i];
+                                //int iSticker = visibleStickersSortedBySliceAndFace[sliceFaceNode.iiVisibleSticker0+i];
+                                int iSticker = sliceFaceNode.visibleStickers.get(i);
                                 CHECK(iSticker == visibleStickersSortedBySliceAndFace[iiSticker++]);
                                 if (i != 0)  {
                                     // same everything as previous
                                     //CHECK(sticker2Slice[iSticker] == sticker2Slice[sliceFaceNode.visibleStickers[i-1]]);
                                     //CHECK(sticker2face[iSticker] == sticker2face[sliceFaceNode.visibleStickers[i-1]]);
-                                    CHECK(sticker2Slice[iSticker] == sticker2Slice[visibleStickersSortedBySliceAndFace[sliceFaceNode.iiVisibleSticker0+i-1]]);
-                                    CHECK(sticker2face[iSticker] == sticker2face[visibleStickersSortedBySliceAndFace[sliceFaceNode.iiVisibleSticker0+i-1]]);
+                                    //CHECK(sticker2Slice[iSticker] == sticker2Slice[visibleStickersSortedBySliceAndFace[sliceFaceNode.iiVisibleSticker0+i-1]]);
+                                    //CHECK(sticker2face[iSticker] == sticker2face[visibleStickersSortedBySliceAndFace[sliceFaceNode.iiVisibleSticker0+i-1]]);
+                                    CHECK(sticker2Slice[iSticker] == sticker2Slice[sliceFaceNode.visibleStickers.get(i-1)]);
+                                    CHECK(sticker2face[iSticker] == sticker2face[sliceFaceNode.visibleStickers.get(i-1)]);
                                 }
                             }
                         }
@@ -1723,6 +1749,88 @@ public class VeryCleverPaintersSortingOfStickers
         //System.out.println("out sortAndCompressPartialOrder");
         return partialOrderSize;
     }  // sortAndCompressPartialOrder
+
+    // EXPERIMENTAL
+    public static class ArrayView<E>
+    {
+        private E[] backingStore;
+        private int i0;
+        private int size;
+        // Note, there is intentionally no constructor that takes backingStore,i0,size.
+        // This is to encourage reuse rather than (possibly accidentally) constructing new instances.
+        public void init(E[] backingStore, int i0, int size)
+        {
+            // note, if size is 0, then anything else is allowed (including backingStore==null), but in that case get() will throw if called
+            if (size != 0 && (i0 < 0 || i0+size > backingStore.length)) {
+                throw new IndexOutOfBoundsException("ArrayView.init: "+i0+".."+(i0+size)+"-1 out of bounds 0.."+backingStore.length+"-1");
+            }
+            this.backingStore = (size==0 ? null : backingStore);
+            this.i0 = i0;
+            this.size = size;
+        }
+        public void init(ArrayView<E> that, int i0, int size)
+        {
+            // note, if size is 0, then anything else is allowed (including backingStore==null), but in that case get() will throw if called
+            if (size != 0 && (i0 < 0 || i0+size > that.size)) {
+                throw new IndexOutOfBoundsException("ArrayView.init: "+i0+".."+(i0+size)+"-1 out of bounds 0.."+that.size+"-1");
+            }
+            this.backingStore = (size==0 ? null : that.backingStore);
+            this.i0 = that.i0 + i0;
+            this.size = size;
+        }
+        public E get(int i) {
+            if (i < 0 || i >= this.size)
+                throw new IndexOutOfBoundsException("ArrayView.get: "+i+" out of bounds 0.."+this.size+"-1");
+            return this.backingStore[this.i0 + i];
+        }
+        public void set(int i, E e) {
+            if (i < 0 || i >= this.size)
+                throw new IndexOutOfBoundsException("ArrayView.set: "+i+" out of bounds 0.."+this.size+"-1");
+            this.backingStore[this.i0 + i] = e;
+        }
+
+        public final int size() { return size; }  // read-only
+    };  // class ArrayView
+    // Argh, and the generic version doesn't work for int[].  Burned again :-(
+    // I don't want the overhead of boxing/unboxing,
+    // so I'll just write a one-off, with a bare minimum of functionality.
+    // The overhead of writing this is worth the clarity of usage in this file alone.
+    public static class IntArrayView
+    {
+        private int[] backingStore = null;
+        private int i0 = 0;
+        private int size = 0;
+        public IntArrayView() {}
+        // Note, there is intentionally no constructor that takes backingStore,i0,size.
+        // This is to encourage reuse rather than (possibly accidentally) constructing new instances.
+        public final void init(int[] backingStore, int i0, int size)
+        {
+            // note, if size is 0, then anything else is allowed (including backingStore==null), but in that case get() will throw if called
+            if (size != 0 && (i0 < 0 || i0+size > backingStore.length)) {
+                throw new IndexOutOfBoundsException("IntArrayView.init: "+i0+".."+(i0+size)+"-1 out of bounds 0.."+backingStore.length+"-1");
+            }
+            this.backingStore = backingStore;
+            this.i0 = i0;
+            this.size = size;
+        }
+        public final int get(int i) {
+            if (i < 0 || i >= this.size) {
+                throw new IndexOutOfBoundsException("ArrayView.get: "+i+" out of bounds 0.."+this.size+"-1");
+            }
+            return this.backingStore[this.i0 + i];
+        }
+        public final String toString() {
+            return com.donhatchsw.util.Arrays.toStringCompact(
+                   com.donhatchsw.util.Arrays.subarray(this.backingStore, this.i0, this.size));
+        }
+
+        public final int size() { return size; }  // read-only
+        // Full public read-only access, so contents be passed to other utilities like Arrays
+        // and Topsorter that don't know about this class.
+        public final int[] backingStore() { return backingStore; }
+        public final int i0() { return i0; }
+    };  // class IntArrayView
+
 
 } // class VeryCleverPaintersSortingOfStickers
 
