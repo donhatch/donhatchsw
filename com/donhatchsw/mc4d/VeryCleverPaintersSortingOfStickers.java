@@ -431,7 +431,7 @@ public class VeryCleverPaintersSortingOfStickers
                 }
 
                 @Override public String toString() {
-                    return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+visibleStickers.toString();
+                    return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+visibleStickers.toString()+")";
                 }
                 @Override public String shortLabel() {
                     return "SF("+iSlice+","+iFace+")";
@@ -612,7 +612,7 @@ public class VeryCleverPaintersSortingOfStickers
                                 int iSticker = answer[answerSizeSoFar-this.visibleStickers.size()+i];
                                 CHECK(iSticker == visibleStickers.get(sortOrder[i]));
 
-                                // CBB: move out of loop.  whatever
+                                // this is wildly inefficient, but whatever; this debugging stuff isn't useful when huge anyway
                                 java.util.ArrayList<Integer> preds = new java.util.ArrayList<Integer>();
                                 java.util.ArrayList<Integer> succs = new java.util.ArrayList<Integer>();
                                 for (int j = 0; j < partialOrderSize; ++j) {
@@ -955,6 +955,7 @@ public class VeryCleverPaintersSortingOfStickers
                                                                    sliceFaceNodes[iSlice][iFace].visibleStickers.i0(),
                                                                    sliceFaceNodes[iSlice][iFace].visibleStickers.size()+1);
             }
+            if (localVerboseLevel >= 1) System.out.println("          nSliceFaceNodes = "+nSliceFaceNodes);
 
             SliceNode sliceNodes[] = new SliceNode[nCompressedSlices];
             for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice)
@@ -965,10 +966,11 @@ public class VeryCleverPaintersSortingOfStickers
             // All non-root nodes, arranged so that the children of any SliceNode are contiguous,
             // so that each SliceNode's children can be an array view into this one big backing store array.
             Node[] allChildNodes = new Node[nCompressedSlices-1 + nSliceFaceNodes];
+            if (localVerboseLevel >= 3) System.out.println("          allChildNodes.length = "+allChildNodes.length);
             {
                 int iChildNode = 0;
                 for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice) {
-                    if (localVerboseLevel >= 3) System.out.println("          iSlice = "+iSlice);
+                    if (localVerboseLevel >= 3) System.out.println("              iSlice = "+iSlice);
                     // first, count children
                     boolean hasLeftChild = iSlice <= eyeSlice && iSlice != 0;
                     boolean hasRightChild = iSlice >= eyeSlice && iSlice != nCompressedSlices-1;
@@ -978,9 +980,10 @@ public class VeryCleverPaintersSortingOfStickers
                     for (int iFace = 0; iFace < nFaces; ++iFace) {
                         if (sliceFaceNodes[iSlice][iFace] != null) nChildren++;
                     }
+                    if (localVerboseLevel >= 3) System.out.println("                  nChildren = "+nChildren);
 
-                    int childRangeStart = iChildNode;
                     // now, populate children
+                    int childRangeStart = iChildNode;
                     if (hasLeftChild) allChildNodes[iChildNode++] = sliceNodes[iSlice-1];
                     if (hasRightChild) allChildNodes[iChildNode++] = sliceNodes[iSlice+1];
                     for (int iFace = 0; iFace < nFaces; ++iFace) {
@@ -989,11 +992,8 @@ public class VeryCleverPaintersSortingOfStickers
                             allChildNodes[iChildNode++] = sliceFaceNode;
                         }
                     }
-                    int childRangeEnd = iChildNode;
-                    sliceNodes[iSlice].children.init(allChildNodes, childRangeStart, childRangeEnd);
+                    sliceNodes[iSlice].children.init(allChildNodes, childRangeStart, nChildren);
                 }
-                System.out.println("iChildNode = "+iChildNode);
-                System.out.println("allChildNodes.length = "+allChildNodes.length);
                 CHECK(iChildNode == allChildNodes.length);
             }
 
