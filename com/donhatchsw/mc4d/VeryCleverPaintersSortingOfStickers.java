@@ -249,7 +249,7 @@ public class VeryCleverPaintersSortingOfStickers
             float polyCenters3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/],
             float polyNormals3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/])
     {
-        final int localVerboseLevel = 3;  // hard-code to something higher to debug. 0: nothing, 1: in/out and constant time, and nice dump at end 2: more verbose on cycles, 3: fine details
+        final int localVerboseLevel = 0;  // hard-code to something higher to debug. 0: nothing, 1: in/out and constant time, and nice dump at end 2: more verbose on cycles, 3: fine details
         if (localVerboseLevel >= 1) System.out.println("    in sortStickersBackToFront");
         if (localVerboseLevel >= 1) System.out.println("      nStickers = "+$(nStickers));
         if (localVerboseLevel >= 1) System.out.println("      cutNormal = "+$(cutNormal));
@@ -351,15 +351,6 @@ public class VeryCleverPaintersSortingOfStickers
               traverse(sliceface)
                   topsort the stickers within this sliceface, by immediate adjacencies
                   emit them in order
-
-            Preparation must proceed as follows:
-              for each sticker adjacency
-                  if in different slices:
-                     add faceslice-slice constraint within this slice
-                  else if in different faceslice within same slice:
-                     add faceslice-faceslice constraint within this slice
-                  else:  // in same faceslice
-                     add sticker-sticker constraint within this faceslice
             */
 
             // figure out nFaces (or rather an upper bound on what we're interested in)
@@ -664,8 +655,6 @@ public class VeryCleverPaintersSortingOfStickers
                 // Logically, we have an array of children.
                 // To avoid memory allocations, we use a view into visibleStickersSortedBySliceAndFace instead.
                 public ArrayView<Node> children = new ArrayView<Node>();
-
-                //public Node[] children;  // XXX GET RID
 
                 @Override protected double computeAverageZnumerator()
                 {
@@ -1768,25 +1757,12 @@ public class VeryCleverPaintersSortingOfStickers
             this.i0 = i0;
             this.size = size;
         }
-        public void init(ArrayView<E> that, int i0, int size)
-        {
-            // note, if size is 0, then anything else is allowed (including backingStore==null), but in that case get() will throw if called
-            if (size != 0 && (i0 < 0 || i0+size > that.size)) {
-                throw new IndexOutOfBoundsException("ArrayView.init: "+i0+".."+(i0+size)+"-1 out of bounds 0.."+that.size+"-1");
-            }
-            this.backingStore = (size==0 ? null : that.backingStore);
-            this.i0 = that.i0 + i0;
-            this.size = size;
-        }
+        // CBB: could have an init() that takes another IntArrayView
+        // CBB: could have set()
         public E get(int i) {
             if (i < 0 || i >= this.size)
                 throw new IndexOutOfBoundsException("ArrayView.get: "+i+" out of bounds 0.."+this.size+"-1");
             return this.backingStore[this.i0 + i];
-        }
-        public void set(int i, E e) {
-            if (i < 0 || i >= this.size)
-                throw new IndexOutOfBoundsException("ArrayView.set: "+i+" out of bounds 0.."+this.size+"-1");
-            this.backingStore[this.i0 + i] = e;
         }
 
         public final int size() { return size; }  // read-only
@@ -1813,6 +1789,8 @@ public class VeryCleverPaintersSortingOfStickers
             this.i0 = i0;
             this.size = size;
         }
+        // CBB: could have an init() that takes another IntArrayView
+        // CBB: could have set()
         public final int get(int i) {
             if (i < 0 || i >= this.size) {
                 throw new IndexOutOfBoundsException("ArrayView.get: "+i+" out of bounds 0.."+this.size+"-1");
