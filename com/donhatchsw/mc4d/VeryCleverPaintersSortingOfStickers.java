@@ -426,21 +426,13 @@ public class VeryCleverPaintersSortingOfStickers
 
                 // Logically, we have an array of visible stickers.
                 // To avoid memory allocations, we use a view into visibleStickersSortedBySliceAndFace instead.
-                // CBB: Unfortunately the usage is not particularly readable, so I've left the old way in, in comments
-                //public int[] visibleStickers;  // this was the clearer less efficient way
-                //public int iiVisibleSticker0;  // index of start into visibleStickersSortedBySliceAndFace
-                //public int nVisibleStickersHere;
-
-                // EXPERIMENTAL
                 public IntArrayView visibleStickers = new IntArrayView();
 
                 @Override protected double computeAverageZnumerator()
                 {
                     double answer = 0.;
                     for (int i = 0; i < this.visibleStickers.size(); ++i) {
-                        //answer += stickerCentersZ[this.visibleStickers[i]];
                         answer += stickerCentersZ[this.visibleStickers.get(i)];  // this is what it would look like if visibleStickers was an "array view" object. (java.util.ArrayList.subList() provides such a thing, but I want something reusable instead
-                        //answer += stickerCentersZ[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]];
                     }
                     return answer;
                 }
@@ -450,8 +442,6 @@ public class VeryCleverPaintersSortingOfStickers
                 }
 
                 @Override public String toString() {
-                    //return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+$(visibleStickers)+")";
-                    //return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+$(visibleStickersSortedBySliceAndFace, this.iiVisibleSticker0, this.nVisibleStickersHere)+")";
                     return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+visibleStickers.toString();
                 }
                 @Override public String shortLabel() {
@@ -463,10 +453,6 @@ public class VeryCleverPaintersSortingOfStickers
 
                     for (int i = 0; i < this.visibleStickers.size(); ++i)
                     {
-                        //CHECK(sticker2localIndex[visibleStickers[i]] == -1);
-                        //sticker2localIndex[visibleStickers[i]] = i;
-                        //CHECK(sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] == -1);
-                        //sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] = i;
                         CHECK(sticker2localIndex[visibleStickers.get(i)] == -1);
                         sticker2localIndex[visibleStickers.get(i)] = i;
                     }
@@ -532,10 +518,6 @@ public class VeryCleverPaintersSortingOfStickers
                     // restore -1's
                     for (int i = 0; i < this.visibleStickers.size(); ++i)
                     {
-                        //CHECK(sticker2localIndex[visibleStickers[i]] == i);
-                        //sticker2localIndex[visibleStickers[i]] = -1;
-                        //CHECK(sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] == i);
-                        //sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] = -1;
                         CHECK(sticker2localIndex[visibleStickers.get(i)] == i);
                         sticker2localIndex[visibleStickers.get(i)] = -1;
                     }
@@ -567,10 +549,6 @@ public class VeryCleverPaintersSortingOfStickers
                                         new com.donhatchsw.util.SortStuff.IntComparator() { // XXX ALLOCATION! (need to make sort smarter)
                                             @Override public int compare(int i, int j)
                                             {
-                                                //int iSticker = SliceFaceNode.this.visibleStickers[i];
-                                                //int jSticker = SliceFaceNode.this.visibleStickers[j];
-                                                //int iSticker = visibleStickersSortedBySliceAndFace[SliceFaceNode.this.iiVisibleSticker0+i];
-                                                //int jSticker = visibleStickersSortedBySliceAndFace[SliceFaceNode.this.iiVisibleSticker0+j];
                                                 int iSticker = SliceFaceNode.this.visibleStickers.get(i);
                                                 int jSticker = SliceFaceNode.this.visibleStickers.get(j);
                                                 CHECK(stickerVisibilities[iSticker]);
@@ -591,8 +569,6 @@ public class VeryCleverPaintersSortingOfStickers
                         }
                     }
                     for (int i = 0; i < this.visibleStickers.size(); ++i) {
-                        //int iSticker = visibleStickers[nodeSortOrder[i]];
-                        //int iSticker = visibleStickersSortedBySliceAndFace[SliceFaceNode.this.iiVisibleSticker0+nodeSortOrder[i]];
                         int iSticker = visibleStickers.get(nodeSortOrder[i]);
                         answer[answerSizeSoFar++] = iSticker;
                     }
@@ -629,8 +605,6 @@ public class VeryCleverPaintersSortingOfStickers
                                 for (int i = componentStarts[iComponent]; i < componentStarts[iComponent+1]; ++i) {
                                     if (i > componentStarts[iComponent]) tracebuffer.append(",");
                                     int iSticker = answer[answerSizeSoFar-this.visibleStickers.size()+i];
-                                    //CHECK(iSticker == visibleStickers[nodeSortOrder[i]]);
-                                    //CHECK(iSticker == visibleStickersSortedBySliceAndFace[iiVisibleSticker0+nodeSortOrder[i]]);
                                     CHECK(iSticker == visibleStickers.get(nodeSortOrder[i]));
                                     tracebuffer.append(iSticker);
                                 }
@@ -647,18 +621,12 @@ public class VeryCleverPaintersSortingOfStickers
                             {
                                 if (i > 0) tracebuffer.append(" ");
                                 int iSticker = answer[answerSizeSoFar-this.visibleStickers.size()+i];
-                                //CHECK(iSticker == visibleStickers[nodeSortOrder[i]]);
-                                //CHECK(iSticker == visibleStickersSortedBySliceAndFace[iiVisibleSticker0+nodeSortOrder[i]]);
                                 CHECK(iSticker == visibleStickers.get(nodeSortOrder[i]));
 
                                 // CBB: move out of loop.  whatever
                                 java.util.ArrayList<Integer> preds = new java.util.ArrayList<Integer>();
                                 java.util.ArrayList<Integer> succs = new java.util.ArrayList<Integer>();
                                 for (int j = 0; j < partialOrderSize; ++j) {
-                                    //if (partialOrder[j][1] == nodeSortOrder[i]) preds.add(visibleStickers[partialOrder[j][0]]);
-                                    //if (partialOrder[j][0] == nodeSortOrder[i]) succs.add(visibleStickers[partialOrder[j][1]]);
-                                    //if (partialOrder[j][1] == nodeSortOrder[i]) preds.add(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[j][0]]);
-                                    //if (partialOrder[j][0] == nodeSortOrder[i]) succs.add(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[j][1]]);
                                     if (partialOrder[j][1] == nodeSortOrder[i]) preds.add(visibleStickers.get(partialOrder[j][0]));
                                     if (partialOrder[j][0] == nodeSortOrder[i]) succs.add(visibleStickers.get(partialOrder[j][1]));
                                 }
@@ -675,12 +643,8 @@ public class VeryCleverPaintersSortingOfStickers
                             tracebuffer.append(" {");
                             for (int i = 0; i < partialOrderSize; ++i) {
                                 if (i > 0) tracebuffer.append(" ");
-                                //tracebuffer.append(visibleStickers[partialOrder[i][0]]);
-                                //tracebuffer.append(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[i][0]]);
                                 tracebuffer.append(visibleStickers.get(partialOrder[i][0]));
                                 tracebuffer.append("->");
-                                //tracebuffer.append(visibleStickers[partialOrder[i][1]]);
-                                //tracebuffer.append(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[i][1]]);
                                 tracebuffer.append(visibleStickers.get(partialOrder[i][1]));
                             }
                             tracebuffer.append("}");
@@ -1002,16 +966,10 @@ public class VeryCleverPaintersSortingOfStickers
                 if (sliceFaceNodes[iSlice][iFace] == null)
                 {
                     sliceFaceNodes[iSlice][iFace] = new SliceFaceNode(iSlice, iFace);
-                    //sliceFaceNodes[iSlice][iFace].visibleStickers = new int[0];
-                    //sliceFaceNodes[iSlice][iFace].iiVisibleSticker0 = iiSticker;
-                    //sliceFaceNodes[iSlice][iFace].nVisibleStickersHere = 0;
                     sliceFaceNodes[iSlice][iFace].visibleStickers.init(visibleStickersSortedBySliceAndFace, iiSticker, 0);
 
                     sliceNodes[iSlice].children = (Node[])com.donhatchsw.util.Arrays.append(sliceNodes[iSlice].children, sliceFaceNodes[iSlice][iFace]);
                 }
-                // This was the old quadratic-growth way of growing the array; good to be rid of it
-                //sliceFaceNodes[iSlice][iFace].visibleStickers = com.donhatchsw.util.Arrays.append(sliceFaceNodes[iSlice][iFace].visibleStickers, iSticker);
-                //sliceFaceNodes[iSlice][iFace].nVisibleStickersHere++;
                 sliceFaceNodes[iSlice][iFace].visibleStickers.init(sliceFaceNodes[iSlice][iFace].visibleStickers.backingStore(),
                                                                    sliceFaceNodes[iSlice][iFace].visibleStickers.i0(),
                                                                    sliceFaceNodes[iSlice][iFace].visibleStickers.size()+1);
@@ -1040,16 +998,10 @@ public class VeryCleverPaintersSortingOfStickers
 
                             SliceFaceNode sliceFaceNode = (SliceFaceNode)child;
                             for (int i = 0; i < sliceFaceNode.visibleStickers.size(); ++i) {
-                                //int iSticker = sliceFaceNode.visibleStickers[i];
-                                //int iSticker = visibleStickersSortedBySliceAndFace[sliceFaceNode.iiVisibleSticker0+i];
                                 int iSticker = sliceFaceNode.visibleStickers.get(i);
                                 CHECK(iSticker == visibleStickersSortedBySliceAndFace[iiSticker++]);
                                 if (i != 0)  {
                                     // same everything as previous
-                                    //CHECK(sticker2Slice[iSticker] == sticker2Slice[sliceFaceNode.visibleStickers[i-1]]);
-                                    //CHECK(sticker2face[iSticker] == sticker2face[sliceFaceNode.visibleStickers[i-1]]);
-                                    //CHECK(sticker2Slice[iSticker] == sticker2Slice[visibleStickersSortedBySliceAndFace[sliceFaceNode.iiVisibleSticker0+i-1]]);
-                                    //CHECK(sticker2face[iSticker] == sticker2face[visibleStickersSortedBySliceAndFace[sliceFaceNode.iiVisibleSticker0+i-1]]);
                                     CHECK(sticker2Slice[iSticker] == sticker2Slice[sliceFaceNode.visibleStickers.get(i-1)]);
                                     CHECK(sticker2face[iSticker] == sticker2face[sliceFaceNode.visibleStickers.get(i-1)]);
                                 }
