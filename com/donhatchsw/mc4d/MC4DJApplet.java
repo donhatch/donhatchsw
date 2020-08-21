@@ -1029,8 +1029,8 @@ public class MC4DJApplet
                                                                viewGuts.viewState);
 
             System.out.println("Making the window...");
-            JFrame frame = new JFrame("MC4D Swing Control Panel");
-            frame.getContentPane().add(new JScrollPane(controlPanel) {{
+            JFrame controlPanelFrame = new JFrame("MC4D Swing Control Panel");
+            controlPanelFrame.getContentPane().add(new JScrollPane(controlPanel) {{
               // from ShephardsPlayApplet:
               // "if we don't do the following, it will screw up and pick a width that forces a horizontal scrollbar... lame!"
               // TODO: figure out what I meant.  is it relevant?  the scrollbar doesn't appear in that applet anyway, so I don't understand what's happening
@@ -1039,10 +1039,12 @@ public class MC4DJApplet
 
             allPuzzlesAndWindows.addControlPanel(controlPanel); // needs the frame before doing this, so it can set window titles
 
+            controlPanelFrame.setLocation(0,0);
+            //controlPanelFrame.setLocation(675,0);
             System.out.println("Packing the window...");
-            frame.pack();
+            controlPanelFrame.pack();
             System.out.println("Showing the window...");
-            frame.setVisible(true);
+            controlPanelFrame.setVisible(true);
             System.out.println("Done.");
         }  // makeNewSwingControlPanelWindow
         private static void makeNewLegacyControlPanelWindow(MC4DViewGuts viewGuts,
@@ -1073,6 +1075,7 @@ public class MC4DJApplet
 
             allPuzzlesAndWindows.addControlPanel(controlPanel); // needs the frame before doing this, so it can set window titles
 
+            //controlPanelFrame.setLocation(0,0);
             controlPanelFrame.setLocation(675,0);
             System.out.println("Packing the window...");
             controlPanelFrame.pack();

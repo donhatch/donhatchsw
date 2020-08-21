@@ -288,19 +288,49 @@ public class MC4DSwingControlPanel
             super(JSlider.HORIZONTAL, /*min=*/0, /*max=*/100, /*value=*/0);
             // Reverse engineer to try to make a change of 1 unit in the integer slider value
             // corresponds to .001 unit in the number value, as long as maxDouble is <= 1.
-            double desired_increment = f.maxDouble() > 100. ? 1.
-                                     : f.maxDouble() > 10. ? .1
-                                     : f.maxDouble() > 1. ? .01
+            // Annoyance: the default 4d eye distance is .867, which we'd like to be honored.
+            // And its max is 4.  So, tailor to that.  (I'm not proud of this)
+            double desired_increment = f.maxDouble() > 100. ? .1
+                                     : f.maxDouble() > 10. ? .01
                                      : .001;
             int max = (int)Math.round((f.maxDouble()-f.minDouble()) / desired_increment);
             setMaximum(max);
 
-            // TODO: figure out what I'm doing with ticks.  This is probably meaningless.
-            setMinorTickSpacing(1000);  // .001 units, if range is 0..1
-            setMajorTickSpacing(10*1000); // .01 units, if numeric range is 0..1
+            // I can't think of a good general principle,
+            // so I just hand-picked the following ticks based on what looks nice for the ranges we use.
+            if (f.minDouble() == 0. && f.maxDouble() == 1.) {
+                CHECK(getMaximum() == 1000);
+                setMinorTickSpacing(100);  // at .1, .2, ...
+                setMajorTickSpacing(500); // at 0, .5, 1
+                setPaintTicks(true);
+                //setPaintLabels(true);  // can't do this unless I give it custom labels
+            }
+            if (f.minDouble() == 0. && f.maxDouble() == 4.) {
+                CHECK(getMaximum() == 4000);
+                setMinorTickSpacing(100);  // at .1, .2, ...
+                setMajorTickSpacing(1000);  // at 0,1,2,3,4
+                setPaintTicks(true);
+                //setPaintLabels(true);  // can't do this unless I give it custom labels
+            }
+            if (f.minDouble() == 0. && f.maxDouble() == 20.) {
+                CHECK(getMaximum() == 2000);
+                setMinorTickSpacing(100);   // at 1,2,3,...
+                setMajorTickSpacing(1000);  // at 0,10,20
+                setPaintTicks(true);
+                //setPaintLabels(true);  // can't do this unless I give it custom labels
+            }
+            if (f.minDouble() == 0. && f.maxDouble() == 300.) {
+                CHECK(getMaximum() == 3000);
+                setMinorTickSpacing(100);   // at 1,2,...
+                setMajorTickSpacing(1000);  // at 0,10,20,30
+                setPaintTicks(true);
+                //setPaintLabels(true);  // can't do this unless I give it custom labels
+            }
+
+            // TODO: try to make it so clicking on a tick will snap to it?  That would be somewhat intuitive
 
 
-            boolean XXXdebug = (""+f.getDouble()).equals("0.8669999837875366");
+            boolean XXXdebug = (""+f.getDouble()).equals("0.8669999837875366");  // 4d eye, the one that I'm struggling with
             if (verboseLevel >= 1 && XXXdebug) System.out.println("=====================================================");
             if (verboseLevel >= 1) System.out.println("in JSliderForFloat ctor");
             if (verboseLevel >= 1) System.out.println("  The number:");
