@@ -249,7 +249,7 @@ public class VeryCleverPaintersSortingOfStickers
             float polyCenters3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/],
             float polyNormals3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/])
     {
-        final int localVerboseLevel = 1;  // hard-code to something higher to debug. 0: nothing, 1: in/out and constant time, and nice dump at end 2: more verbose on cycles, 3: fine details
+        final int localVerboseLevel = 0;  // hard-code to something higher to debug. 0: nothing, 1: in/out and constant time, and nice dump at end 2: more verbose on cycles, 3: fine details
         if (localVerboseLevel >= 1) System.out.println("    in sortStickersBackToFront");
         if (localVerboseLevel >= 1) System.out.println("      nStickers = "+$(nStickers));
         if (localVerboseLevel >= 1) System.out.println("      cutNormal = "+$(cutNormal));
@@ -322,16 +322,16 @@ public class VeryCleverPaintersSortingOfStickers
         if (boldNewWay) {
             // BOLD NEW WORK IN PROGRESS: new way of doing things, let's see if it pans out.
 
-            int[] visibleStickersSortedBySliceAndFace = new int[nStickers];
-            int nVisibleStickers = 0;
+            final int[] visibleStickersSortedBySliceAndFace = new int[nStickers];
+            int nVisibleStickersTotal = 0;
             for (int iSticker = 0; iSticker < nStickers; ++iSticker) {
                 if (stickerVisibilities[iSticker]) {
-                    visibleStickersSortedBySliceAndFace[nVisibleStickers++] = iSticker;
+                    visibleStickersSortedBySliceAndFace[nVisibleStickersTotal++] = iSticker;
                 }
             }
-            if (localVerboseLevel >= 1) System.out.println("      nVisibleStickers = "+$(nVisibleStickers));
+            if (localVerboseLevel >= 1) System.out.println("      nVisibleStickersTotal = "+$(nVisibleStickersTotal));
 
-            com.donhatchsw.util.SortStuff.sort(visibleStickersSortedBySliceAndFace, 0, nVisibleStickers,
+            com.donhatchsw.util.SortStuff.sort(visibleStickersSortedBySliceAndFace, 0, nVisibleStickersTotal,
                 new com.donhatchsw.util.SortStuff.IntComparator() { // XXX ALLOCATION! (need to make sort smarter)
                     @Override public int compare(int i, int j)
                     {
@@ -423,35 +423,45 @@ public class VeryCleverPaintersSortingOfStickers
                 }
                 public int iSlice;
                 public int iFace;
-                public int[] visibleStickers;
+
+                // Logically, we have an array of visible stickers.
+                // To avoid memory allocations, we use a view into visibleStickersSortedBySliceAndFace instead.
+                // CBB: Unfortunately the usage is not particularly readable, so I've left the old way in, in comments
+                //public int[] visibleStickers;  // this was the clearer less efficient way
+                public int iiVisibleSticker0;  // index of start into visibleStickersSortedBySliceAndFace
+                public int nVisibleStickersHere;
 
                 @Override protected double computeAverageZnumerator()
                 {
                     double answer = 0.;
-                    for (int i = 0; i < visibleStickers.length; ++i) {
-                        answer += stickerCentersZ[this.visibleStickers[i]];
+                    for (int i = 0; i < nVisibleStickersHere; ++i) {
+                        //answer += stickerCentersZ[this.visibleStickers[i]];
+                        answer += stickerCentersZ[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]];
                     }
                     return answer;
                 }
                 @Override protected double computeAverageZdenominator()
                 {
-                    return (double)visibleStickers.length;
+                    return (double)nVisibleStickersHere;
                 }
 
                 @Override public String toString() {
-                    return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+$(visibleStickers)+")";
+                    //return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+$(visibleStickers)+")";
+                    return "SliceFaceNode("+iSlice+","+iFace+",visibleStickers="+$(visibleStickersSortedBySliceAndFace, this.iiVisibleSticker0, this.nVisibleStickersHere)+")";
                 }
                 @Override public String shortLabel() {
                     return "SF("+iSlice+","+iFace+")";
                 }
-                @Override public int totalSize() { return visibleStickers.length; }
+                @Override public int totalSize() { return nVisibleStickersHere; }
                 @Override public int traverse(int answer[], int answerSizeSoFar, StringBuffer tracebuffer, int recursionLevel) {
                     if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            in SliceFaceNode(iSlice="+iSlice+" iFace="+iFace+").traverse, answerSizeSoFar="+answerSizeSoFar);
 
-                    for (int i = 0; i < visibleStickers.length; ++i)
+                    for (int i = 0; i < nVisibleStickersHere; ++i)
                     {
-                        CHECK(sticker2localIndex[visibleStickers[i]] == -1);
-                        sticker2localIndex[visibleStickers[i]] = i;
+                        //CHECK(sticker2localIndex[visibleStickers[i]] == -1);
+                        //sticker2localIndex[visibleStickers[i]] = i;
+                        CHECK(sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] == -1);
+                        sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] = i;
                     }
                     // topsort the visibleStickers within this sliceface, by immediate adjacencies,
                     // and emit them in order.
@@ -513,10 +523,12 @@ public class VeryCleverPaintersSortingOfStickers
                     }
 
                     // restore -1's
-                    for (int i = 0; i < visibleStickers.length; ++i)
+                    for (int i = 0; i < nVisibleStickersHere; ++i)
                     {
-                        CHECK(sticker2localIndex[visibleStickers[i]] == i);
-                        sticker2localIndex[visibleStickers[i]] = -1;
+                        //CHECK(sticker2localIndex[visibleStickers[i]] == i);
+                        //sticker2localIndex[visibleStickers[i]] = -1;
+                        CHECK(sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] == i);
+                        sticker2localIndex[visibleStickersSortedBySliceAndFace[this.iiVisibleSticker0+i]] = -1;
                     }
 
                     if (true) {
@@ -526,13 +538,13 @@ public class VeryCleverPaintersSortingOfStickers
                         partialOrderSize = sortAndCompressPartialOrder(partialOrderSize, partialOrder);
                     }
 
-                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort "+this.visibleStickers.length+" visible stickers with partial order "+$(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
-                    int nComponents = topsorter.topsort(this.visibleStickers.length, nodeSortOrder,
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort "+this.nVisibleStickersHere+" visible stickers with partial order "+$(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
+                    int nComponents = topsorter.topsort(this.nVisibleStickersHere, nodeSortOrder,
                                                         partialOrderSize, partialOrder,
                                                         componentStarts);
-                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort returned "+nComponents+"/"+this.visibleStickers.length+" components: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.visibleStickers.length)));
-                    if (nComponents < this.visibleStickers.length) {
-                        if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging!=null) System.out.println("      LOCAL TOPSORT OF "+this.visibleStickers.length+" STICKERS WITHIN FACE "+iFace+"/"+nFaces+" WITHIN SLICE "+iSlice+"/"+nCompressedSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF STICKERS");
+                    if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"              topsort returned "+nComponents+"/"+this.nVisibleStickersHere+" components: "+$(com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.nVisibleStickersHere)));
+                    if (nComponents < this.nVisibleStickersHere) {
+                        if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging!=null) System.out.println("      LOCAL TOPSORT OF "+this.nVisibleStickersHere+" STICKERS WITHIN FACE "+iFace+"/"+nFaces+" WITHIN SLICE "+iSlice+"/"+nCompressedSlices+" FAILED - Z-SORTING ONE OR MORE CYCLE OF STICKERS");
                         for (int iComponent = 0; iComponent < nComponents; ++iComponent)
                         {
                             int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
@@ -546,10 +558,14 @@ public class VeryCleverPaintersSortingOfStickers
                                         new com.donhatchsw.util.SortStuff.IntComparator() { // XXX ALLOCATION! (need to make sort smarter)
                                             @Override public int compare(int i, int j)
                                             {
-                                                CHECK(stickerVisibilities[SliceFaceNode.this.visibleStickers[i]]);
-                                                CHECK(stickerVisibilities[SliceFaceNode.this.visibleStickers[j]]);
-                                                float iZ = stickerCentersZ[SliceFaceNode.this.visibleStickers[i]];
-                                                float jZ = stickerCentersZ[SliceFaceNode.this.visibleStickers[j]];
+                                                //int iSticker = SliceFaceNode.this.visibleStickers[i];
+                                                //int jSticker = SliceFaceNode.this.visibleStickers[j];
+                                                int iSticker = visibleStickersSortedBySliceAndFace[SliceFaceNode.this.iiVisibleSticker0+i];
+                                                int jSticker = visibleStickersSortedBySliceAndFace[SliceFaceNode.this.iiVisibleSticker0+j];
+                                                CHECK(stickerVisibilities[iSticker]);
+                                                CHECK(stickerVisibilities[jSticker]);
+                                                float iZ = stickerCentersZ[iSticker];
+                                                float jZ = stickerCentersZ[jSticker];
                                                 // sort from increasing z to decreasing!
                                                 // that is because the z's got negated just before the projection!
                                                 return iZ > jZ ? -1 :
@@ -563,8 +579,9 @@ public class VeryCleverPaintersSortingOfStickers
                             }
                         }
                     }
-                    for (int i = 0; i < visibleStickers.length; ++i) {
-                        int iSticker = visibleStickers[nodeSortOrder[i]];
+                    for (int i = 0; i < nVisibleStickersHere; ++i) {
+                        //int iSticker = visibleStickers[nodeSortOrder[i]];
+                        int iSticker = visibleStickersSortedBySliceAndFace[SliceFaceNode.this.iiVisibleSticker0+nodeSortOrder[i]];
                         answer[answerSizeSoFar++] = iSticker;
                     }
 
@@ -579,17 +596,17 @@ public class VeryCleverPaintersSortingOfStickers
                             // The nodes in final order.
                             // E.g. "{16 18 17 19 20 21 22 23}"
                             tracebuffer.append(" {");
-                            for (int i = 0; i < visibleStickers.length; ++i)
+                            for (int i = 0; i < nVisibleStickersHere; ++i)
                             {
                                 if (i > 0) tracebuffer.append(" ");
-                                int iSticker = answer[answerSizeSoFar-visibleStickers.length+i];
+                                int iSticker = answer[answerSizeSoFar-nVisibleStickersHere+i];
                                 tracebuffer.append(iSticker);
                             }
                             tracebuffer.append("}");
                         }
 
                         if (true) {
-                            // The nodes in final order, with strongly connected components highlighted.
+                            // The sticker inds in final order, with strongly connected components highlighted.
                             // E.g. "{(16,18,17,19) 20 21 (22,23)}"
                             tracebuffer.append(" {");
                             for (int iComponent = 0; iComponent < nComponents; ++iComponent)
@@ -599,8 +616,9 @@ public class VeryCleverPaintersSortingOfStickers
                                 if (componentSize > 1) tracebuffer.append("(");
                                 for (int i = componentStarts[iComponent]; i < componentStarts[iComponent+1]; ++i) {
                                     if (i > componentStarts[iComponent]) tracebuffer.append(",");
-                                    int iSticker = answer[answerSizeSoFar-visibleStickers.length+i];
-                                    CHECK(iSticker == visibleStickers[nodeSortOrder[i]]);
+                                    int iSticker = answer[answerSizeSoFar-nVisibleStickersHere+i];
+                                    //CHECK(iSticker == visibleStickers[nodeSortOrder[i]]);
+                                    CHECK(iSticker == visibleStickersSortedBySliceAndFace[iiVisibleSticker0+nodeSortOrder[i]]);
                                     tracebuffer.append(iSticker);
                                 }
                                 if (componentSize > 1) tracebuffer.append(")");
@@ -609,20 +627,24 @@ public class VeryCleverPaintersSortingOfStickers
                         }
 
                         if (true) {
-                            // Experimental: the nodes in final order, with predecessors and succesors of each
+                            // Experimental: the sticker inds in final order, with predecessors and succesors of each
                             // E.g. "{[19]->16->[17 18 20] [16]->18->[19 22] [16]->17->[19 21] [17 18]->19->[16 23] [16]->20->[21 22] [17 20]->21->[23] [18 20 23]->22->[23] [19 21 22]->23->[22]}";
                             tracebuffer.append(" {");
-                            for (int i = 0; i < visibleStickers.length; ++i)
+                            for (int i = 0; i < nVisibleStickersHere; ++i)
                             {
                                 if (i > 0) tracebuffer.append(" ");
-                                int iSticker = answer[answerSizeSoFar-visibleStickers.length+i];
+                                int iSticker = answer[answerSizeSoFar-nVisibleStickersHere+i];
+                                //CHECK(iSticker == visibleStickers[nodeSortOrder[i]]);
+                                CHECK(iSticker == visibleStickersSortedBySliceAndFace[iiVisibleSticker0+nodeSortOrder[i]]);
 
                                 // CBB: move out of loop.  whatever
                                 java.util.ArrayList<Integer> preds = new java.util.ArrayList<Integer>();
                                 java.util.ArrayList<Integer> succs = new java.util.ArrayList<Integer>();
                                 for (int j = 0; j < partialOrderSize; ++j) {
-                                    if (visibleStickers[partialOrder[j][1]] == iSticker) preds.add(visibleStickers[partialOrder[j][0]]);
-                                    if (visibleStickers[partialOrder[j][0]] == iSticker) succs.add(visibleStickers[partialOrder[j][1]]);
+                                    //if (partialOrder[j][1] == nodeSortOrder[i]) preds.add(visibleStickers[partialOrder[j][0]]);
+                                    //if (partialOrder[j][0] == nodeSortOrder[i]) succs.add(visibleStickers[partialOrder[j][1]]);
+                                    if (partialOrder[j][1] == nodeSortOrder[i]) preds.add(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[j][0]]);
+                                    if (partialOrder[j][0] == nodeSortOrder[i]) succs.add(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[j][1]]);
                                 }
 
                                 if (preds.size() > 0) tracebuffer.append(com.donhatchsw.util.Arrays.toString(preds,"["," ","]")+"->");
@@ -637,9 +659,11 @@ public class VeryCleverPaintersSortingOfStickers
                             tracebuffer.append(" {");
                             for (int i = 0; i < partialOrderSize; ++i) {
                                 if (i > 0) tracebuffer.append(" ");
-                                tracebuffer.append(visibleStickers[partialOrder[i][0]]);
+                                //tracebuffer.append(visibleStickers[partialOrder[i][0]]);
+                                tracebuffer.append(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[i][0]]);
                                 tracebuffer.append("->");
-                                tracebuffer.append(visibleStickers[partialOrder[i][1]]);
+                                //tracebuffer.append(visibleStickers[partialOrder[i][1]]);
+                                tracebuffer.append(visibleStickersSortedBySliceAndFace[iiVisibleSticker0+partialOrder[i][1]]);
                             }
                             tracebuffer.append("}");
                         }
@@ -953,18 +977,21 @@ public class VeryCleverPaintersSortingOfStickers
             // (number of entries is commensurate with nStickers).
             SliceFaceNode sliceFaceNodes[][] = new SliceFaceNode[nCompressedSlices][nFaces];  // nulls
 
-            for (int iiSticker = 0; iiSticker < nVisibleStickers; ++iiSticker) {
+            for (int iiSticker = 0; iiSticker < nVisibleStickersTotal; ++iiSticker) {
                 int iSticker = visibleStickersSortedBySliceAndFace[iiSticker];
                 int iSlice = sticker2Slice[iSticker];
                 int iFace = sticker2face[iSticker];
                 if (sliceFaceNodes[iSlice][iFace] == null)
                 {
                     sliceFaceNodes[iSlice][iFace] = new SliceFaceNode(iSlice, iFace);
-                    sliceFaceNodes[iSlice][iFace].visibleStickers = new int[0];
+                    //sliceFaceNodes[iSlice][iFace].visibleStickers = new int[0];
+                    sliceFaceNodes[iSlice][iFace].iiVisibleSticker0 = iiSticker;
+                    sliceFaceNodes[iSlice][iFace].nVisibleStickersHere = 0;
                     sliceNodes[iSlice].children = (Node[])com.donhatchsw.util.Arrays.append(sliceNodes[iSlice].children, sliceFaceNodes[iSlice][iFace]);
                 }
-                // TODO: get rid of this quadratic growing, and just store a begin and end index into visibleStickersSortedBySliceAndFace
-                sliceFaceNodes[iSlice][iFace].visibleStickers = com.donhatchsw.util.Arrays.append(sliceFaceNodes[iSlice][iFace].visibleStickers, iSticker);
+                // This was the old quadratic-growth way of growing the array; good to be rid of it
+                //sliceFaceNodes[iSlice][iFace].visibleStickers = com.donhatchsw.util.Arrays.append(sliceFaceNodes[iSlice][iFace].visibleStickers, iSticker);
+                sliceFaceNodes[iSlice][iFace].nVisibleStickersHere++;
             }
 
             Node root = sliceNodes[eyeSlice];
@@ -989,19 +1016,22 @@ public class VeryCleverPaintersSortingOfStickers
                                  && sticker2face[visibleStickersSortedBySliceAndFace[iiSticker-1]] < sticker2face[visibleStickersSortedBySliceAndFace[iiSticker]]));
 
                             SliceFaceNode sliceFaceNode = (SliceFaceNode)child;
-                            for (int i = 0; i < sliceFaceNode.visibleStickers.length; ++i) {
-                                int iSticker = sliceFaceNode.visibleStickers[i];
+                            for (int i = 0; i < sliceFaceNode.nVisibleStickersHere; ++i) {
+                                //int iSticker = sliceFaceNode.visibleStickers[i];
+                                int iSticker = visibleStickersSortedBySliceAndFace[sliceFaceNode.iiVisibleSticker0+i];
                                 CHECK(iSticker == visibleStickersSortedBySliceAndFace[iiSticker++]);
                                 if (i != 0)  {
                                     // same everything as previous
-                                    CHECK(sticker2Slice[iSticker] == sticker2Slice[sliceFaceNode.visibleStickers[i-1]]);
-                                    CHECK(sticker2face[iSticker] == sticker2face[sliceFaceNode.visibleStickers[i-1]]);
+                                    //CHECK(sticker2Slice[iSticker] == sticker2Slice[sliceFaceNode.visibleStickers[i-1]]);
+                                    //CHECK(sticker2face[iSticker] == sticker2face[sliceFaceNode.visibleStickers[i-1]]);
+                                    CHECK(sticker2Slice[iSticker] == sticker2Slice[visibleStickersSortedBySliceAndFace[sliceFaceNode.iiVisibleSticker0+i-1]]);
+                                    CHECK(sticker2face[iSticker] == sticker2face[visibleStickersSortedBySliceAndFace[sliceFaceNode.iiVisibleSticker0+i-1]]);
                                 }
                             }
                         }
                     }
                 }
-                CHECK(iiSticker == nVisibleStickers);
+                CHECK(iiSticker == nVisibleStickersTotal);
             }
 
             {
