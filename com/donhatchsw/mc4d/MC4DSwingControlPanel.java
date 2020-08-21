@@ -1,19 +1,3 @@
-// TODO: 4D Eye Distance "Reset to default" is enabled by default? and throws when clicked.  something about .867 (the default) getting changed to 865???  and it got even worse with JSliderForFloat :-(
-/*
-    .860 -> .86
-    .861 -> .861 (ok)
-    .862 -> .862 (ok
-    .863 -> .861
-    .864 -> .864 (ok)
-    .865 -> .865 (ok)
-    .866 -> .866 (ok)
-    .867 -> .865
-    .868 -> .865
-    .869 -> .869 (ok)
-    .870 -> .87
-*/
-
-// TODO: strange, clicking on right side of slider doesn't do anything.  works better in ShephardsPlayApplet.  (may have something to do with the above).  right arrow key nothing too.
 // TODO: help windows are way too wide, wtf?  even worse than legacy
 package com.donhatchsw.mc4d;
 
@@ -273,71 +257,160 @@ public class MC4DSwingControlPanel
     @SuppressWarnings("serial")
     public static class JSliderForFloat extends JSlider
     {
+        private static int verboseLevel = 0;
+
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
 
         // private helper function
         private void updateThumb(Listenable.Number f)
         {
-            double value = f.getDouble();
-            double defaultValue = f.defaultDouble();
-            double frac = (value-f.minDouble())/(f.maxDouble()-f.minDouble());
+            if (verboseLevel >= 1) System.out.println("    in updateThumb (just a private helper function)");
+            if (verboseLevel >= 1) System.out.println("      The number:");
+            if (verboseLevel >= 1) System.out.println("          f.minDouble() = "+f.minDouble());
+            if (verboseLevel >= 1) System.out.println("          f.maxDouble() = "+f.maxDouble());
+            if (verboseLevel >= 1) System.out.println("          f.getDouble() = "+f.getDouble()+" (corresponds to slider val "+relerp(f.getDouble(),f.minDouble(),f.maxDouble(),getMinimum(),getMaximum())+")");
+            if (verboseLevel >= 1) System.out.println("      The slider:");
+            if (verboseLevel >= 1) System.out.println("          min = "+getMinimum());
+            if (verboseLevel >= 1) System.out.println("          max = "+getMaximum());
+            if (verboseLevel >= 1) System.out.println("          max-min = "+(getMaximum()-getMinimum()));
+            if (verboseLevel >= 1) System.out.println("          val = "+getValue()+" (corresponds to number value "+relerp(getValue(), getMinimum(), getMaximum(), f.minDouble(), f.maxDouble())+")");
 
-            //setValue((int)(getMinimum() + ((getMaximum()-getVisibleAmount())-getMinimum())*frac));
-            setValue((int)(getMinimum() + (getMaximum()-getMinimum())*frac));
+            int intendedValue = (int)Math.round(relerp(f.getDouble(), f.minDouble(),f.maxDouble(), getMinimum(),getMaximum()));
+            if (verboseLevel >= 1) System.out.println("      calling setValue("+intendedValue+") on the slider");
+            setValue(intendedValue);
+            if (verboseLevel >= 1) System.out.println("      returned from setValue("+intendedValue+") on the slider");
+
+            if (verboseLevel >= 1) System.out.println("    out updateThumb (just a private helper function)");
         }
 
         public JSliderForFloat(final Listenable.Number f)
         {
-            // 3 significant digits seems reasonable...
+            super(JSlider.HORIZONTAL, /*min=*/0, /*max=*/100, /*value=*/0);
+            // Reverse engineer to try to make a change of 1 unit in the integer slider value
+            // corresponds to .001 unit in the number value, as long as maxDouble is <= 1.
+            double desired_increment = f.maxDouble() > 100. ? 1.
+                                     : f.maxDouble() > 10. ? .1
+                                     : f.maxDouble() > 1. ? .01
+                                     : .001;
+            int max = (int)Math.round((f.maxDouble()-f.minDouble()) / desired_increment);
+            setMaximum(max);
+
+            // TODO: figure out what I'm doing with ticks.  This is probably meaningless.
+            setMinorTickSpacing(1000);  // .001 units, if range is 0..1
+            setMajorTickSpacing(10*1000); // .01 units, if numeric range is 0..1
+
+
+            boolean XXXdebug = (""+f.getDouble()).equals("0.8669999837875366");
+            if (verboseLevel >= 1 && XXXdebug) System.out.println("=====================================================");
+            if (verboseLevel >= 1) System.out.println("in JSliderForFloat ctor");
+            if (verboseLevel >= 1) System.out.println("  The number:");
+            if (verboseLevel >= 1) System.out.println("      f.minDouble() = "+f.minDouble());
+            if (verboseLevel >= 1) System.out.println("      f.maxDouble() = "+f.maxDouble());
+            if (verboseLevel >= 1) System.out.println("      f.getDouble() = "+f.getDouble()+" (corresponds to slider val "+relerp(f.getDouble(),f.minDouble(),f.maxDouble(),getMinimum(),getMaximum())+")");
+            if (verboseLevel >= 1) System.out.println("  The slider:");
+            if (verboseLevel >= 1) System.out.println("      min = "+getMinimum());
+            if (verboseLevel >= 1) System.out.println("      max = "+getMaximum());
+            if (verboseLevel >= 1) System.out.println("      max-min = "+(getMaximum()-getMinimum()));
+            if (verboseLevel >= 1) System.out.println("      val = "+getValue()+" (corresponds to number value "+relerp(getValue(), getMinimum(), getMaximum(), f.minDouble(), f.maxDouble())+")");
+            if (verboseLevel >= 1) System.out.println("      extent = "+getExtent());
+
             /*
-            super(JSlider.HORIZONTAL,
-                  (int)Math.round(f.minDouble()*1000),
-                  (int)Math.round(f.maxDouble()*1000),
-                  (int)Math.round(f.getDouble())*1000);
+            // this may or may not be the amount by which things change when clicked
+            setExtent((getMaximum()-getMinimum())/10);  // .01 units, if numeric range is 0..1
+            if (verboseLevel >= 1) System.out.println("      extent = "+getExtent());
+            setExtent(getMaximum());
+            if (verboseLevel >= 1) System.out.println("      extent = "+getExtent());
             */
-            super(JSlider.HORIZONTAL, 0, 1000, 500);
 
-            if (false)
-            {
-                System.out.println("getMinimum() = "+getMinimum());
-                System.out.println("getMaximum() = "+getMaximum());
-                System.out.println("getValue() = "+getValue());
-            }
-
-            setMinorTickSpacing(1);  // .001 units
-            setMajorTickSpacing(10); // .01 units
             f.addListener(listener = new Listenable.Listener() {
                 @Override public void valueChanged()
                 {
+                    if (verboseLevel >= 1) System.out.println("in JSliderForFloat valueChanged (i.e. someone changed the number)");
+                    if (verboseLevel >= 1) System.out.println("  The number changed to:");
+                    if (verboseLevel >= 1) System.out.println("      f.minDouble() = "+f.minDouble());
+                    if (verboseLevel >= 1) System.out.println("      f.maxDouble() = "+f.maxDouble());
+                    if (verboseLevel >= 1) System.out.println("      f.getDouble() = "+f.getDouble()+" (corresponds to slider val "+relerp(f.getDouble(),f.minDouble(),f.maxDouble(),getMinimum(),getMaximum())+")");
+                    if (verboseLevel >= 1) System.out.println("  The slider was:");
+                    if (verboseLevel >= 1) System.out.println("      min = "+getMinimum());
+                    if (verboseLevel >= 1) System.out.println("      max = "+getMaximum());
+                    if (verboseLevel >= 1) System.out.println("      max-min = "+(getMaximum()-getMinimum()));
+                    if (verboseLevel >= 1) System.out.println("      val = "+getValue()+" (corresponds to number value "+relerp(getValue(), getMinimum(), getMaximum(), f.minDouble(), f.maxDouble())+")");
+                    if (verboseLevel >= 1) System.out.println("  f.getDouble() = "+f.getDouble());
+                    if (verboseLevel >= 1) System.out.println("  calling updateThumb(f)");
                     updateThumb(f);
+                    if (verboseLevel >= 1) System.out.println("  returned from updateThumb(f)");
+                    if (verboseLevel >= 1) System.out.println("  f.getDouble() = "+f.getDouble());
+                    if (verboseLevel >= 1) System.out.println("out JSliderForFloat valueChanged (i.e. someone changed the number)");
                 }
             });
             addChangeListener(new javax.swing.event.ChangeListener() {
                 @Override public void stateChanged(javax.swing.event.ChangeEvent e)
                 {
-                    if (false)
+                    if (verboseLevel >= 1) System.out.println("            in JSliderForFloat stateChanged (i.e. someone changed the slider, either from setValue() or dragging or clicking it)");
+                    if (verboseLevel >= 1) System.out.println("              e = "+e);
+                    if (verboseLevel >= 1) System.out.println("              getValueIsAdjusting() = "+getValueIsAdjusting());
+                    if (verboseLevel >= 1) System.out.println("              The slider changed to:");
+                    if (verboseLevel >= 1) System.out.println("                  min = "+getMinimum());
+                    if (verboseLevel >= 1) System.out.println("                  max = "+getMaximum());
+                    if (verboseLevel >= 1) System.out.println("                  max-min = "+(getMaximum()-getMinimum()));
+                    if (verboseLevel >= 1) System.out.println("                  val = "+getValue()+" (corresponds to number value "+relerp(getValue(), getMinimum(), getMaximum(), f.minDouble(), f.maxDouble())+")");
+                    if (verboseLevel >= 1) System.out.println("              The number, before we now mess with it, is:");
+                    if (verboseLevel >= 1) System.out.println("                  f.minDouble() = "+f.minDouble());
+                    if (verboseLevel >= 1) System.out.println("                  f.maxDouble() = "+f.maxDouble());
+                    if (verboseLevel >= 1) System.out.println("                  f.getDouble() = "+f.getDouble()+" (corresponds to slider val "+relerp(f.getDouble(),f.minDouble(),f.maxDouble(),getMinimum(),getMaximum())+")");
+
+                    if (verboseLevel >= 3)
                     {
-                        System.out.println("==================");
-                        System.out.println("    min = "+getMinimum());
-                        System.out.println("    max = "+getMaximum());
-                        System.out.println("    max-min = "+(getMaximum()-getMinimum()));
-                        System.out.println("    getValue() = "+getValue());
-                        System.out.println("    getMinorTickSpacing() = "+getMinorTickSpacing());
-                        System.out.println("    getMajorTickSpacing() = "+getMajorTickSpacing());
-                        System.out.println("    getSize() = "+getSize());
-                        System.out.println("    getPreferredSize() = "+getPreferredSize());
+                        // incidental stuff about the slider, hopefully not relevant to the logic
+                        System.out.println("              getMinorTickSpacing() = "+getMinorTickSpacing());
+                        System.out.println("              getMajorTickSpacing() = "+getMajorTickSpacing());
+                        System.out.println("              getSize() = "+getSize());
+                        System.out.println("              getPreferredSize() = "+getPreferredSize());
                     }
-                    // Doing the following in double precision makes a difference;
-                    // if we do it in float, we get ugly values in the textfield
-                    double frac = (double)(getValue()-getMinimum())
-                                / (double)(getMaximum()-getMinimum());
-                    f.setDouble(f.minDouble() + frac*(f.maxDouble()-f.minDouble()));
+
+                    double intendedValue = relerp(getValue(), getMinimum(),getMaximum(), f.minDouble(),f.maxDouble());
+                    if (verboseLevel >= 1) System.out.println("              intendedValue = "+intendedValue);
+                    if (false)   // hmm, maybe not needed after all now that I am micromanaging the slider min and max
+                    {
+                        // Try to make it look nice: round to thousandths.  Hope this does not result in a feedback loop (this kind of stuff *should* reach a fixed point).
+                        intendedValue = Math.round(intendedValue*1000.)/1000.;
+                    }
+                    if (verboseLevel >= 1) System.out.println("              intendedValue = "+intendedValue);
+                    if (verboseLevel >= 1) System.out.println("              f.getDouble() = "+f.getDouble()+" (corresponds to slider val "+relerp(f.getDouble(),f.minDouble(),f.maxDouble(),getMinimum(),getMaximum())+")");
+                    if (verboseLevel >= 1) System.out.println("              calling f.setDouble("+intendedValue+")");
+                    f.setDouble(intendedValue);
                     // will trigger valueChanged()
                     // which will call updateThumb()
+                    // which may call us recursively, whee!
+                    if (verboseLevel >= 1) System.out.println("              returned from f.setDouble("+intendedValue+")");
+                    if (verboseLevel >= 1) System.out.println("              f.getDouble() = "+f.getDouble()+" (corresponds to slider val "+relerp(f.getDouble(),f.minDouble(),f.maxDouble(),getMinimum(),getMaximum())+")");
+                    if (verboseLevel >= 1) System.out.println("            out JSliderForFloat stateChanged (i.e. someone changed the slider, either from setValue() or dragging or clicking it)");
                 }
             });
-            updateThumb(f); // because we fucked it up in the contructor?
+
+            // still in ctor here
+            if (verboseLevel >= 1) System.out.println("  f.getDouble() = "+f.getDouble());
+            if (verboseLevel >= 1) System.out.println("  calling updateThumb(f)");
+            updateThumb(f); // because we fucked it up earlier in this contructor?
+            if (verboseLevel >= 1) System.out.println("  returned from updateThumb(f)");
+            if (verboseLevel >= 1) System.out.println("  f.getDouble() = "+f.getDouble());
+            if (verboseLevel >= 1) System.out.println("  The number:");
+            if (verboseLevel >= 1) System.out.println("      f.minDouble() = "+f.minDouble());
+            if (verboseLevel >= 1) System.out.println("      f.maxDouble() = "+f.maxDouble());
+            if (verboseLevel >= 1) System.out.println("      f.getDouble() = "+f.getDouble()+" (corresponds to slider val "+relerp(f.getDouble(),f.minDouble(),f.maxDouble(),getMinimum(),getMaximum())+")");
+            if (verboseLevel >= 1) System.out.println("  The slider:");
+            if (verboseLevel >= 1) System.out.println("      min = "+getMinimum());
+            if (verboseLevel >= 1) System.out.println("      max = "+getMaximum());
+            if (verboseLevel >= 1) System.out.println("      max-min = "+(getMaximum()-getMinimum()));
+            if (verboseLevel >= 1) System.out.println("      val = "+getValue()+" (corresponds to number value "+relerp(getValue(), getMinimum(), getMaximum(), f.minDouble(), f.maxDouble())+")");
+            if (verboseLevel >= 1) System.out.println("out JSliderForFloat ctor");
+            if (verboseLevel >= 1 && XXXdebug) System.out.println("=====================================================");
         }
+        private double relerp(double a, double a0, double a1, double b0, double b1) {
+            double frac = (a-a0)/(a1-a0);
+            return (1.-frac)*b0 + frac*b1;
+        }
+
     } // JSliderForFloat
 
 
