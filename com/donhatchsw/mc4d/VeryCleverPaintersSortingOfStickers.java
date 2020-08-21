@@ -249,7 +249,7 @@ public class VeryCleverPaintersSortingOfStickers
             float polyCenters3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/],
             float polyNormals3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/])
     {
-        final int localVerboseLevel = 0;  // hard-code to something higher to debug. 0: nothing, 1: in/out and constant time, and some important arrays, 2: more verbose on cycles, 3: fine details
+        final int localVerboseLevel = 1;  // hard-code to something higher to debug. 0: nothing, 1: in/out and constant time, and nice dump at end 2: more verbose on cycles, 3: fine details
         if (localVerboseLevel >= 1) System.out.println("    in sortStickersBackToFront");
         if (localVerboseLevel >= 1) System.out.println("      nStickers = "+$(nStickers));
         if (localVerboseLevel >= 1) System.out.println("      cutNormal = "+$(cutNormal));
@@ -311,7 +311,13 @@ public class VeryCleverPaintersSortingOfStickers
                 && eyeOffset > cutOffsets[eyeSlice])
                 eyeSlice++;
         }
-        if (localVerboseLevel >= 1) System.out.println("      eyeSlice = "+eyeSlice);
+        if (false) {  // XXX GET RID when finished debugging problem with "{5,3} 3" when flattened
+            if (eyeSlice != nCompressedSlices-1) {
+                System.out.println("FUDGING eyeSlice from "+eyeSlice+" to "+(nCompressedSlices-1));
+                eyeSlice = nCompressedSlices-1;
+            }
+        }
+        if (localVerboseLevel >= 1) System.out.println("      eyeSlice = "+eyeSlice+"/"+nCompressedSlices);
 
         if (boldNewWay) {
             // BOLD NEW WORK IN PROGRESS: new way of doing things, let's see if it pans out.
@@ -880,21 +886,28 @@ public class VeryCleverPaintersSortingOfStickers
                         // Compose information about the partial order into a local aux tracebuffer, before we recurse and destroy the partial order buffer
                         if (true) {
                             tracebufferAux = new StringBuffer();
-                            // The partial order as pairs.
-                            // CBB: could make some nicer presentation of pred/succ lists, like we do for FaceBufferNode.
-                            tracebufferAux.append("THE LOCAL PARTIAL ORDER WAS: {");
-                            for (int i = 0; i < partialOrderSize; ++i) {
-                                if (i > 0) tracebufferAux.append(" ");
-                                tracebufferAux.append(children[partialOrder[i][0]].shortLabel());
-                                tracebufferAux.append("->");
-                                tracebufferAux.append(children[partialOrder[i][1]].shortLabel());
+                            if (nComponents < this.children.length) {
+                                tracebufferAux.append("(XXX THERE ARE CYCLES HERE)");
                             }
-                            tracebufferAux.append("}\n");
+                            if (true) {
+                               // The partial order as pairs.
+                               // CBB: could make some nicer presentation of pred/succ lists, like we do for FaceBufferNode.
+                               tracebufferAux.append("THE LOCAL PARTIAL ORDER WAS: {");
+                               for (int i = 0; i < partialOrderSize; ++i) {
+                                   if (i > 0) tracebufferAux.append(" ");
+                                   tracebufferAux.append(children[partialOrder[i][0]].shortLabel());
+                                   tracebufferAux.append("->");
+                                   tracebufferAux.append(children[partialOrder[i][1]].shortLabel());
+                               }
+                               tracebufferAux.append("}");
+                            }
                         }
 
-                        tracebuffer.append(repeat("    ",recursionLevel)+"Slice("+this.iSlice+") {\n");
                     }
 
+                    if (tracebuffer != null) {
+                        tracebuffer.append(repeat("    ",recursionLevel)+"Slice("+this.iSlice+") {\n");
+                    }
                     {
                         // subtle: need to save nodeSortOrder to avoid colliding with sub calls!
                         int[] nodeSortOrderSnapshot = (int[])com.donhatchsw.util.Arrays.subarray(nodeSortOrder, 0, this.children.length);  // XXX allocation. Idea: maybe permute the children instead? hmm.
@@ -907,6 +920,9 @@ public class VeryCleverPaintersSortingOfStickers
 
                     if (tracebuffer != null) {
                         tracebuffer.append(repeat("    ",recursionLevel+1) + tracebufferAux + "\n");
+                    }
+                    if (tracebuffer != null) {
+                        tracebuffer.append(repeat("    ",recursionLevel)+"}\n");
                     }
 
                     if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            out SliceNode(iSlice="+iSlice+").traverse, returning answerSizeSoFar="+answerSizeSoFar);
@@ -959,6 +975,7 @@ public class VeryCleverPaintersSortingOfStickers
                 int iiSticker = 0;
                 for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice) {
                     // check we're at a new slice
+                    // XXX TODO: this has been observed to fail on "{5,3} 3", flattened, with far enough eye4 (2 or so, or more), and do a twist
                     CHECK(iiSticker == 0
                        || sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker-1]] < sticker2Slice[visibleStickersSortedBySliceAndFace[iiSticker]]);
                     SliceNode sliceNode = sliceNodes[iSlice];

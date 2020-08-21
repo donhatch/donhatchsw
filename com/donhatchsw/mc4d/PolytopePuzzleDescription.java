@@ -258,7 +258,19 @@
     TODO:
     =====
         TOPSORTING:
-            - standard puzzle, ctrl-rotate front vert to center, twist it: sorting messes up during approx first half of the animation.
+            - 3,4,3:
+              - "3,4,3 3": twist center face: why is a z-sort needed???  and it comes out horribly :-(
+              - same for "5,3 3" flatten, rotate a bit more edge on, twist center: why is a z-sort needed?
+                - observation: seems to be choosing the wrong slice? I think whenever I twist center, 4d eye should be in *last* slice???  that's the right choice for the convexity condition, maybe my way of choosing that is wrong?
+                - observation: now that I think about it, the choice of eyeW may be weird: think about eyeW, and faceShrink, and the choice of tree structure.
+                  - however: the 5,3:3 one still chooses wrong root slice even if shrinks are 1, so that's not the problem (or at least, not *all* of the problem)
+                - observation: if I increase eye W, it gets better.  but some other face twists still bad.
+                - obvervation: if this happens when twisting center, z-sorting can't possibly help, since everyone's center is origin.
+                  IDEA: if zsorting slices, how about we force breaking up into faces first???
+              - "3,4,3 2" in this case center is ok, but some other faces (e.g. tan at 12:00, brick at 1:00) are still bad
+            - "4,3,3 4": rotate vert to center, twist front face: z-sort needed :-( and alter the view a bit, the result is horrible.
+                  
+            - (FIXED maybe): standard puzzle, ctrl-rotate front vert to center, twist it: sorting messes up during approx first half of the animation.
               - currently fixed with "VOODOO" (search for that in VeryCleverPaintersSortingOfStickers.java).  need to understand better!
 
             - "4,3 3", flatten, turn on topsort viz, do twists... sometimes spazzes out and draws lines to the upper-left of window, wtf?

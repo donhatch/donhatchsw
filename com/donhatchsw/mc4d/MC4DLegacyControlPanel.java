@@ -1097,7 +1097,7 @@ public class MC4DLegacyControlPanel
             addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(java.awt.Color.black);}}); // Totally lame separator
             addSingleLabelRow(new BigBoldLabel("Experimental"));
             addCheckboxRow(
-                "Use experimental new depth sort (ctrl-alt-P to toggle viz)",
+                "Use newest depth sort algorithm (ctrl-alt-P to toggle viz)",
                 viewParams.topsortUsesBoldNewWay,
                 new String[] {
                     "If this option is checked,",
