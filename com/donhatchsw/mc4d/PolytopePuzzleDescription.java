@@ -146,6 +146,8 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - 3d shrinks sure seem like they are doing nonsense-- they are not shrinking towards respective centers, they seem like they also include some uncontrolled exploding.  this is even when 4d shrinks are 1.
+                - in fact, try "5,3 5", flatten, fiddle with 3d face shrink-- it goes totally crazy! cool effect but wrong
         - "5x5 2" and "4x5 2" strange flickering of some stickers during twists! and in some views (rotate things to center), some wildly inside out stickers showing.  (conjecture:  I didn't get the non-degerate-normalization correct on these further-cuts puzzles)
 
         - CHECK fail on 3d puzzle when 1color sticker gonality isn't same as the facet gonality: puzzleDescription="(.25)4(2)3 3(1.4)": CHECK(cutWeight >= -1e-9 && cutWeight <= 1.) (cutWeight is -.75)

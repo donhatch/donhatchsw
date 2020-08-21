@@ -379,10 +379,11 @@ public class GenericPipelineUtils
 
         //
         // 3d face shrink and sticker shrink
-        // XXX could try to do this on only vertices that passed the culls
-        // XXX need to do this with the xformed and projected shrink-to point,
-        // XXX not calculate screwy centers on the fly here.
-        // Q: should the sticker shrink-to point always be shrunk towards the face shrink-to point in 4d?  Or does 3d make sense?  Well, 4d would be more robust, since that shrinking could prevent having to do with projected original points that could end up behind the eye.  So that's what we do.
+        // TODO: this sure seems to be coming out wrong-- both 3d shrink sliders' effects seem to include some kind of explode, which seems wrong-- in general, the shrink-to point should be inside the face or sticker, right??
+        // CBB: could try to do this on only vertices that passed the culls
+        // CBB: need to do this with the xformed and projected shrink-to point,
+        //     not calculate screwy centers on the fly here.
+        // Q: should the sticker shrink-to point always be shrunk towards the face shrink-to point in 4d (projected to 3d)?  Or does computing a shink point in 3d make sense?  Well, 4d would be more robust, since that shrinking could prevent having to do with projected original points that could end up behind the eye.  So that's what we do.
         //
         if (stickerShrink3d != 1.f)
             for (int iVert = 0; iVert < verts.length; ++iVert)
@@ -393,7 +394,7 @@ public class GenericPipelineUtils
 
         //
         // Rotate/scale in 3d
-        // XXX could try to do this on only vertices that passed the culls
+        // CBB: could try to do this on only vertices that passed the culls
         //
         {
             if (verboseLevel >= 4) System.out.println("rot3d = "+com.donhatchsw.util.Arrays.toStringCompact(rot3d));
