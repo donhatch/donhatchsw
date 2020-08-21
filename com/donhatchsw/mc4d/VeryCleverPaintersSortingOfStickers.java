@@ -1139,531 +1139,534 @@ public class VeryCleverPaintersSortingOfStickers
             if (localVerboseLevel >= 1) System.out.println("      tracebuffer = \n"+tracebuffer);
             if (localVerboseLevel >= 1) System.out.println("    out sortStickersBackToFront (bold new way), returning nStickersEmitted="+nStickersEmitted);
             return nStickersEmitted;
-        }  // end bold new work in progress
-
-        int numIgnored = 0;
-
-        // Initialize parents and depths...
-        {
-            for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice)
-            {
-                int iNode = nStickers + 2*iSlice;
-                if (iSlice < eyeSlice)
-                {
-                    parents[iNode] = nStickers + 2*(iSlice+1);
-                    depths[iNode] = eyeSlice - iSlice;
-                }
-                else if (iSlice > eyeSlice)
-                {
-                    parents[iNode] = nStickers + 2*(iSlice-1);
-                    depths[iNode] = iSlice - eyeSlice;
-                }
-                else
-                {
-                    parents[iNode] = -1;
-                    depths[iNode] = 0;
-                }
-                // For each iSlice, the odd node position nStickers+2*iSlice+1 is not used;
-                // it is just an end token for the group,
-                // so that when we need a sticker to be > an entire group,
-                // we have to specify only one inequality instead
-                // of one for each element of the group.
-            }
-
-            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
-            {
-                int iSlice = sticker2Slice[iSticker];
-                int iGroup = nStickers + 2*iSlice;
-                int iGroupStartToken = nStickers + 2*iSlice;
-                int iGroupEndToken = nStickers + 2*iSlice+1;
-
-                parents[iSticker] = iGroup;
-                depths[iSticker] = depths[parents[iSticker]] + 1;
-
-                if (stickerVisibilities[iSticker])
-                {
-                    // add "iGroupStartToken < iSticker"
-                    partialOrder[partialOrderSize][0] = iGroupStartToken;
-                    partialOrder[partialOrderSize][1] = iSticker;
-                    partialOrderSize++;
-                    // add "iSticker < iGroupEndToken"
-                    partialOrder[partialOrderSize][0] = iSticker;
-                    partialOrder[partialOrderSize][1] = iGroupEndToken;
-                    partialOrderSize++;
-                }
-            }
         }
-
+        else  // old inferior way
         {
-            float jPolyCenterMinusIPolyCenter[] = new float[3]; // scratch
-            for (int iPoly = 0; iPoly < adjacentStickerPairs.length; ++iPoly)
-            {
-                int stickersThisPoly[][] = adjacentStickerPairs[iPoly];
-                int iSticker =         stickersThisPoly[0][0];
-                int iPolyThisSticker = stickersThisPoly[0][1];
-                int jSticker =         stickersThisPoly[1][0];
-                int jPolyThisSticker = stickersThisPoly[1][1];
-                if (iSticker >= nStickers
-                 || jSticker >= nStickers)
-                    continue; // caller probably set nStickers < actaul number of stickers for debugging
+            // OLD INFERIOR (mostly) WAY
+            int numIgnored = 0;
 
-                if (jSticker < iSticker)
-                    continue; // already did it
-                boolean iStickerIsVisible = stickerVisibilities[iSticker];
-                boolean jStickerIsVisible = stickerVisibilities[jSticker];
-                if (!iStickerIsVisible && !jStickerIsVisible)
-                    continue;
-                int iGroup = iSticker;
-                int jGroup = jSticker;
-                // Walk upwards until iGroup,jGroup are siblings...
+            // Initialize parents and depths...
+            {
+                for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice)
                 {
-                    while (depths[iGroup] > depths[jGroup])
-                        iGroup = parents[iGroup];
-                    while (depths[jGroup] > depths[iGroup])
-                        jGroup = parents[jGroup];
-                    while (parents[iGroup] != parents[jGroup])
+                    int iNode = nStickers + 2*iSlice;
+                    if (iSlice < eyeSlice)
                     {
-                        iGroup = parents[iGroup];
-                        jGroup = parents[jGroup];
+                        parents[iNode] = nStickers + 2*(iSlice+1);
+                        depths[iNode] = eyeSlice - iSlice;
+                    }
+                    else if (iSlice > eyeSlice)
+                    {
+                        parents[iNode] = nStickers + 2*(iSlice-1);
+                        depths[iNode] = iSlice - eyeSlice;
+                    }
+                    else
+                    {
+                        parents[iNode] = -1;
+                        depths[iNode] = 0;
+                    }
+                    // For each iSlice, the odd node position nStickers+2*iSlice+1 is not used;
+                    // it is just an end token for the group,
+                    // so that when we need a sticker to be > an entire group,
+                    // we have to specify only one inequality instead
+                    // of one for each element of the group.
+                }
+
+                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                {
+                    int iSlice = sticker2Slice[iSticker];
+                    int iGroup = nStickers + 2*iSlice;
+                    int iGroupStartToken = nStickers + 2*iSlice;
+                    int iGroupEndToken = nStickers + 2*iSlice+1;
+
+                    parents[iSticker] = iGroup;
+                    depths[iSticker] = depths[parents[iSticker]] + 1;
+
+                    if (stickerVisibilities[iSticker])
+                    {
+                        // add "iGroupStartToken < iSticker"
+                        partialOrder[partialOrderSize][0] = iGroupStartToken;
+                        partialOrder[partialOrderSize][1] = iSticker;
+                        partialOrderSize++;
+                        // add "iSticker < iGroupEndToken"
+                        partialOrder[partialOrderSize][0] = iSticker;
+                        partialOrder[partialOrderSize][1] = iGroupEndToken;
+                        partialOrderSize++;
                     }
                 }
+            }
 
-                //
-                // See whether things are so inside out
-                // that the polygons are facing away from each other...
-                // If so, then this polygon should not restrict anything.
-                // This can be observed to happen, e.g. on 5,3,3 in default position, with 4d eye distance increased until nothing behind the 4d eye.
-                if (true)
+            {
+                float jPolyCenterMinusIPolyCenter[] = new float[3]; // scratch
+                for (int iPoly = 0; iPoly < adjacentStickerPairs.length; ++iPoly)
                 {
-                    if (iStickerIsVisible && jStickerIsVisible
-                     && parents[iSticker] == parents[jSticker]) // XXX floundering
-                    {
-                        VecMath.vmv(jPolyCenterMinusIPolyCenter,
-                                    polyCenters3d[jSticker][jPolyThisSticker],
-                                    polyCenters3d[iSticker][iPolyThisSticker]);
+                    int stickersThisPoly[][] = adjacentStickerPairs[iPoly];
+                    int iSticker =         stickersThisPoly[0][0];
+                    int iPolyThisSticker = stickersThisPoly[0][1];
+                    int jSticker =         stickersThisPoly[1][0];
+                    int jPolyThisSticker = stickersThisPoly[1][1];
+                    if (iSticker >= nStickers
+                     || jSticker >= nStickers)
+                        continue; // caller probably set nStickers < actaul number of stickers for debugging
 
-                        // we add a tiny bit of slop to make sure we consider
-                        // the adjacency valid if the faces are coincident
-                        if (VecMath.dot(polyNormals3d[iSticker][iPolyThisSticker], jPolyCenterMinusIPolyCenter) < -1e-3
-                         || VecMath.dot(polyNormals3d[jSticker][jPolyThisSticker], jPolyCenterMinusIPolyCenter) > 1e-3)
+                    if (jSticker < iSticker)
+                        continue; // already did it
+                    boolean iStickerIsVisible = stickerVisibilities[iSticker];
+                    boolean jStickerIsVisible = stickerVisibilities[jSticker];
+                    if (!iStickerIsVisible && !jStickerIsVisible)
+                        continue;
+                    int iGroup = iSticker;
+                    int jGroup = jSticker;
+                    // Walk upwards until iGroup,jGroup are siblings...
+                    {
+                        while (depths[iGroup] > depths[jGroup])
+                            iGroup = parents[iGroup];
+                        while (depths[jGroup] > depths[iGroup])
+                            jGroup = parents[jGroup];
+                        while (parents[iGroup] != parents[jGroup])
                         {
-                            if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging != null)
-                            {
-                                System.out.println("      HA!  I don't CARE because it's SO WARPED! stickers "+iSticker+"("+iPolyThisSticker+") "+jSticker+"("+jPolyThisSticker+")");
-                                System.out.println("          inormal = "+com.donhatchsw.util.Arrays.toStringCompact(polyNormals3d[iSticker][iPolyThisSticker]));
-                                System.out.println("          jnormal = "+com.donhatchsw.util.Arrays.toStringCompact(polyNormals3d[jSticker][jPolyThisSticker]));
-                                System.out.println("          j-i = "+com.donhatchsw.util.Arrays.toStringCompact(jPolyCenterMinusIPolyCenter));
-                                System.out.println("          inormal dot j-i = "+VecMath.dot(polyNormals3d[iSticker][iPolyThisSticker], jPolyCenterMinusIPolyCenter));
-                                System.out.println("          jnormal dot j-i = "+VecMath.dot(polyNormals3d[jSticker][jPolyThisSticker], jPolyCenterMinusIPolyCenter));
-                            }
-                            numIgnored++;
-                            continue;
+                            iGroup = parents[iGroup];
+                            jGroup = parents[jGroup];
                         }
                     }
-                }
 
-                boolean inSameFace = sticker2face[iSticker] == sticker2face[jSticker];
-                boolean stickerPolyIsStrictlyBackfacing[][] = (inSameFace ? partiallyShrunkStickerPolyIsStrictlyBackfacing : unshrunkStickerPolyIsStrictlyBackfacing);
-
-                if (iGroup == iSticker && jGroup == jSticker)
-                {
-                    // The two stickers are immediate siblings,
-                    // i.e. both in the same (compressed) slice.
-                    // This relationship matters only if they are both visible.
-                    if (!iStickerIsVisible || !jStickerIsVisible)
-                        continue;
-                    //System.out.println("    stickers "+iSticker+","+jSticker+" in same slice "+sticker2Slice[iSticker]+"");
-                    boolean iStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
-                    boolean jStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
-
-                    if (iStickerHasPolyBackfacing && jStickerHasPolyBackfacing)
-                    {
-                        // Note that this cannot happen any more unless
-                        // we are viewing the polygon essentially edge-on
-                        // and the math got degenerate, since the backfacing flags
-                        // were computed preshrunk, which means the two polys
-                        // should exactly match.
-
-                        // For posterity, here's a picture of why "either draw order is ok"
-                        // is not ok:
-                        // A doesn't realize there's anything in front of it,
-                        // because it seems like there isn't anything *immediately* in front of it.
-                        // That is, we have only B<D C<D.
-                        // We also need either A<B or A<C, too, otherwise A might be drawn after D!
-                        /*
-                                    *
-                                   / \
-                                  *   *
-                                 / \ / \
-                              _ *   *   * _
-                            *    \ / \ /    *
-                             \  _ * A * _  /
-                              *B / \ / \ C*
-                             /_ *   *   * _\
-                            *               *
-                                  _ * _
-                                * _ D _ *
-                                    *
-                        */
-                        if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging != null) System.out.println("WARNING: sticker "+iSticker+"("+iPolyThisSticker+") and "+jSticker+"("+jPolyThisSticker+") both have poly backfacing!!");
-                        continue;
-                    }
-                    else
-                    {
-                        //System.out.println("phew.");
-                    }
-
-                    if (iStickerHasPolyBackfacing)
-                    {
-                        //add "jSticker < iSticker"
-                        partialOrder[partialOrderSize][0] = jSticker;
-                        partialOrder[partialOrderSize][1] = iSticker;
-                        if (returnPartialOrderInfoOptionalForDebugging != null) {
-                            returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
-                                {jSticker, jSticker, jSticker+1},
-                                {iSticker, iSticker, iSticker+1},
-                            };
-                        }
-                        partialOrderSize++;
-                    }
-                    else if (jStickerHasPolyBackfacing)
-                    {
-                        //add "iSticker < jSticker"
-                        partialOrder[partialOrderSize][0] = iSticker;
-                        partialOrder[partialOrderSize][1] = jSticker;
-                        if (returnPartialOrderInfoOptionalForDebugging != null) {
-                            returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
-                                {iSticker, iSticker, iSticker+1},
-                                {jSticker, jSticker, jSticker+1},
-                            };
-                        }
-                        partialOrderSize++;
-                    }
-                }
-                else if (iGroup == iSticker) // && jGroup != jSticker
-                {
-                    // iSticker is adjacent to a group containing jSticker.
-                    // The group is twisted, so jSticker's
-                    // orientation of the poly is not relevant
-                    // (in fact jSticker might not even be visible, even if both are visible when stationary);
-                    // only iSticker's orientation of the poly is relevant.
-                    // XXX I thought that was true but then I got cycles in the 2x hypercube... think about this
-
-                    // XXX oh, it's not true. it might be that the group (containg jSticker) is stationary and the rest of the puzzle (containing iSticker) is moving, and iSticker might not be visible even if both are visible when stationary!!
-                    // XXX otoh maybe it's all relative and this is still the correct thing to do?  in that case, need a better description of it.
-
-                    if (!iStickerIsVisible)
-                        continue;
-                    boolean iStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
-                    if (localVerboseLevel >= 2) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+") (which is "+(iStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+") is adjacent to sticker "+jSticker+"("+jPolyThisSticker+")'s slice "+sticker2Slice[jSticker]+"");
-                    if (iStickerHasPolyBackfacing)
-                    {
-                        int jIndGroupEndToken = jGroup+1;
-                        //add "jIndGroupEndToken < iSticker";
-                        partialOrder[partialOrderSize][0] = jIndGroupEndToken;
-                        partialOrder[partialOrderSize][1] = iSticker;
-                        if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
-
-                        if (returnPartialOrderInfoOptionalForDebugging != null) {
-                            returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
-                                {jSticker, jSticker, jSticker+0},  // XXX TODO: fix range, maybe.  make it empty for now, just to distinguish from singleton
-                                {iSticker, iSticker, iSticker+1},
-                            };
-                        }
-                        partialOrderSize++;
-                    }
-                    else
-                    {
-                        int jIndGroupStartToken = jGroup;
-                        //add "iSticker < jIndGroupStartToken;
-                        partialOrder[partialOrderSize][0] = iSticker;
-                        partialOrder[partialOrderSize][1] = jIndGroupStartToken;
-                        if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
-                        if (returnPartialOrderInfoOptionalForDebugging != null) {
-                            returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
-                                {iSticker, iSticker, iSticker+1},
-                                {jSticker, jSticker, jSticker+0},  // XXX TODO: fix range, maybe.  make it empty for now, just to distinguish from singleton
-                            };
-                        }
-                        partialOrderSize++;
-                    }
-                }
-                else if (jGroup == jSticker) // && iGroup != iSticker
-                {
-                    // same as previous case but reversed
-                    if (!jStickerIsVisible)
-                        continue;
-                    boolean jStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
-                    if (localVerboseLevel >= 2) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+")'s slice "+sticker2Slice[iSticker]+" is adjacent to sticker "+jSticker+"("+jPolyThisSticker+") (which is "+(jStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+")");
-                    if (jStickerHasPolyBackfacing)
-                    {
-                        int iIndGroupEndToken = iGroup+1;
-                        //add "iIndGroupEndToken < jSticker";
-                        partialOrder[partialOrderSize][0] = iIndGroupEndToken;
-                        partialOrder[partialOrderSize][1] = jSticker;
-                        if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
-                        if (returnPartialOrderInfoOptionalForDebugging != null) {
-                            returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
-                                {iSticker, iSticker, iSticker+0},  // XXX TODO: fix range, maybe.  make it empty for now, just to distinguish from singleton
-                                {jSticker, jSticker, jSticker+1},
-                            };
-                        }
-                        partialOrderSize++;
-                    }
-                    else
-                    {
-                        int iIndGroupStartToken = iGroup;
-                        //add "jSticker < iIndGroupStartToken;
-                        partialOrder[partialOrderSize][0] = jSticker;
-                        partialOrder[partialOrderSize][1] = iIndGroupStartToken;
-                        if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
-                        if (returnPartialOrderInfoOptionalForDebugging != null) {
-                            returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
-                                {jSticker, jSticker, jSticker+1},
-                                {iSticker, iSticker, iSticker+0},  // XXX TODO: fix range, maybe.  make it empty for now, just to distinguish from singleton
-                            };
-                        }
-                        partialOrderSize++;
-                    }
-                }
-                else
-                {
-                    // This would mean the two stickers are adjacent
-                    // but the two different groups they are in are not
-                    // (That is, one is the left child of the root,
-                    // and the other is the right child of the root).
-                    // This can't happen.
-                    // (Partially due to de-duping of cuts during puzzle creation.)
-                    CHECK(false);
-                }
-            }
-        }
-
-        //System.out.println("partial order size = "+partialOrderSize);
-        //System.out.println("partial order = "+com.donhatchsw.util.Arrays.toStringCompact(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
-
-        // can turn this on to get a sense of
-        // what it cares about and what it doesn't, if it's screwing up
-        boolean doScramble = false;
-
-        //
-        // Okay, now we have the partial order.
-        // Topsort it into a total order.
-        //
-        //System.out.println("nStickers = "+nStickers);
-        //System.out.println("nNodes = "+nNodes);
-        int nComponents = doScramble ? topsorter.topsortRandomized(nNodes, nodeSortOrder,
-                                                         partialOrderSize, partialOrder,
-                                                         componentStarts,
-                                                         randomnessGenerator)
-                                     : topsorter.topsort(nNodes, nodeSortOrder,
-                                                         partialOrderSize, partialOrder,
-                                                         componentStarts);
-        int cycleVerboseLevel = 0;  // CBB: this concept is rotting, but I think I'll be retiring this code path soon anyway
-        if (nComponents == nNodes)
-        {
-            if (cycleVerboseLevel >= 2) System.out.println("  no cycles!");
-        }
-        else
-        {
-            int nNontrivialComponents = 0;
-            for (int iComponent = 0; iComponent < nComponents; ++iComponent)
-            {
-                int componentSize = componentStarts[iComponent+1]
-                                  - componentStarts[iComponent];
-                if (componentSize >= 2)
-                    nNontrivialComponents++;
-            }
-            if (cycleVerboseLevel >= 1) System.out.println("  ARGH! "+nNontrivialComponents+" cycle"+(nNontrivialComponents==1 ? "" : "s")+" in topological depth sort!");
-
-            for (int iComponent = 0; iComponent < nComponents; ++iComponent)
-            {
-                int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
-                if (componentSize >= 2)
-                {
-                    if (cycleVerboseLevel >= 1) System.out.println("    there's a cycle (actually connected component) of length "+componentSize+"");
                     //
-                    // z-sort within the strongly connected component
-                    //
+                    // See whether things are so inside out
+                    // that the polygons are facing away from each other...
+                    // If so, then this polygon should not restrict anything.
+                    // This can be observed to happen, e.g. on 5,3,3 in default position, with 4d eye distance increased until nothing behind the 4d eye.
                     if (true)
                     {
-                        com.donhatchsw.util.SortStuff.sort(nodeSortOrder, componentStarts[iComponent], componentSize,
-                            new com.donhatchsw.util.SortStuff.IntComparator() { // XXX ALLOCATION! (need to make sort smarter)
-                                @Override public int compare(int i, int j)
+                        if (iStickerIsVisible && jStickerIsVisible
+                         && parents[iSticker] == parents[jSticker]) // XXX floundering
+                        {
+                            VecMath.vmv(jPolyCenterMinusIPolyCenter,
+                                        polyCenters3d[jSticker][jPolyThisSticker],
+                                        polyCenters3d[iSticker][iPolyThisSticker]);
+
+                            // we add a tiny bit of slop to make sure we consider
+                            // the adjacency valid if the faces are coincident
+                            if (VecMath.dot(polyNormals3d[iSticker][iPolyThisSticker], jPolyCenterMinusIPolyCenter) < -1e-3
+                             || VecMath.dot(polyNormals3d[jSticker][jPolyThisSticker], jPolyCenterMinusIPolyCenter) > 1e-3)
+                            {
+                                if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging != null)
                                 {
-                                    // will be too big if it's a group begin or end token;
-                                    // just stick those at the end for now, they
-                                    // will get deleted soon
-                                    boolean iTooBig = i >= nStickers;
-                                    boolean jTooBig = j >= nStickers;
-                                    if (iTooBig)
-                                        if (jTooBig)
-                                            return 0;
-                                        else
-                                            return 1;
-                                    else
-                                        if (jTooBig)
-                                            return -1;
-
-                                    //System.out.println("stickerVisibilities[i="+i+"] = "+stickerVisibilities[i]);
-                                    //System.out.println("stickerVisibilities[j="+j+"] = "+stickerVisibilities[j]);
-                                    CHECK(stickerVisibilities[i]);
-                                    CHECK(stickerVisibilities[j]);
-
-                                    float iZ = stickerCentersZ[i];
-                                    float jZ = stickerCentersZ[j];
-                                    // sort from increasing z to decreasing! that is because the z's got negated just before the projection!
-                                    return iZ > jZ ? -1 :
-                                           iZ < jZ ? 1 : 0;
+                                    System.out.println("      HA!  I don't CARE because it's SO WARPED! stickers "+iSticker+"("+iPolyThisSticker+") "+jSticker+"("+jPolyThisSticker+")");
+                                    System.out.println("          inormal = "+com.donhatchsw.util.Arrays.toStringCompact(polyNormals3d[iSticker][iPolyThisSticker]));
+                                    System.out.println("          jnormal = "+com.donhatchsw.util.Arrays.toStringCompact(polyNormals3d[jSticker][jPolyThisSticker]));
+                                    System.out.println("          j-i = "+com.donhatchsw.util.Arrays.toStringCompact(jPolyCenterMinusIPolyCenter));
+                                    System.out.println("          inormal dot j-i = "+VecMath.dot(polyNormals3d[iSticker][iPolyThisSticker], jPolyCenterMinusIPolyCenter));
+                                    System.out.println("          jnormal dot j-i = "+VecMath.dot(polyNormals3d[jSticker][jPolyThisSticker], jPolyCenterMinusIPolyCenter));
                                 }
+                                numIgnored++;
+                                continue;
                             }
-                        );
+                        }
                     }
-                    numZsortsDoneHolder[0]++;
+
+                    boolean inSameFace = sticker2face[iSticker] == sticker2face[jSticker];
+                    boolean stickerPolyIsStrictlyBackfacing[][] = (inSameFace ? partiallyShrunkStickerPolyIsStrictlyBackfacing : unshrunkStickerPolyIsStrictlyBackfacing);
+
+                    if (iGroup == iSticker && jGroup == jSticker)
+                    {
+                        // The two stickers are immediate siblings,
+                        // i.e. both in the same (compressed) slice.
+                        // This relationship matters only if they are both visible.
+                        if (!iStickerIsVisible || !jStickerIsVisible)
+                            continue;
+                        //System.out.println("    stickers "+iSticker+","+jSticker+" in same slice "+sticker2Slice[iSticker]+"");
+                        boolean iStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
+                        boolean jStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
+
+                        if (iStickerHasPolyBackfacing && jStickerHasPolyBackfacing)
+                        {
+                            // Note that this cannot happen any more unless
+                            // we are viewing the polygon essentially edge-on
+                            // and the math got degenerate, since the backfacing flags
+                            // were computed preshrunk, which means the two polys
+                            // should exactly match.
+
+                            // For posterity, here's a picture of why "either draw order is ok"
+                            // is not ok:
+                            // A doesn't realize there's anything in front of it,
+                            // because it seems like there isn't anything *immediately* in front of it.
+                            // That is, we have only B<D C<D.
+                            // We also need either A<B or A<C, too, otherwise A might be drawn after D!
+                            /*
+                                        *
+                                       / \
+                                      *   *
+                                     / \ / \
+                                  _ *   *   * _
+                                *    \ / \ /    *
+                                 \  _ * A * _  /
+                                  *B / \ / \ C*
+                                 /_ *   *   * _\
+                                *               *
+                                      _ * _
+                                    * _ D _ *
+                                        *
+                            */
+                            if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging != null) System.out.println("WARNING: sticker "+iSticker+"("+iPolyThisSticker+") and "+jSticker+"("+jPolyThisSticker+") both have poly backfacing!!");
+                            continue;
+                        }
+                        else
+                        {
+                            //System.out.println("phew.");
+                        }
+
+                        if (iStickerHasPolyBackfacing)
+                        {
+                            //add "jSticker < iSticker"
+                            partialOrder[partialOrderSize][0] = jSticker;
+                            partialOrder[partialOrderSize][1] = iSticker;
+                            if (returnPartialOrderInfoOptionalForDebugging != null) {
+                                returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
+                                    {jSticker, jSticker, jSticker+1},
+                                    {iSticker, iSticker, iSticker+1},
+                                };
+                            }
+                            partialOrderSize++;
+                        }
+                        else if (jStickerHasPolyBackfacing)
+                        {
+                            //add "iSticker < jSticker"
+                            partialOrder[partialOrderSize][0] = iSticker;
+                            partialOrder[partialOrderSize][1] = jSticker;
+                            if (returnPartialOrderInfoOptionalForDebugging != null) {
+                                returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
+                                    {iSticker, iSticker, iSticker+1},
+                                    {jSticker, jSticker, jSticker+1},
+                                };
+                            }
+                            partialOrderSize++;
+                        }
+                    }
+                    else if (iGroup == iSticker) // && jGroup != jSticker
+                    {
+                        // iSticker is adjacent to a group containing jSticker.
+                        // The group is twisted, so jSticker's
+                        // orientation of the poly is not relevant
+                        // (in fact jSticker might not even be visible, even if both are visible when stationary);
+                        // only iSticker's orientation of the poly is relevant.
+                        // XXX I thought that was true but then I got cycles in the 2x hypercube... think about this
+
+                        // XXX oh, it's not true. it might be that the group (containg jSticker) is stationary and the rest of the puzzle (containing iSticker) is moving, and iSticker might not be visible even if both are visible when stationary!!
+                        // XXX otoh maybe it's all relative and this is still the correct thing to do?  in that case, need a better description of it.
+
+                        if (!iStickerIsVisible)
+                            continue;
+                        boolean iStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
+                        if (localVerboseLevel >= 2) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+") (which is "+(iStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+") is adjacent to sticker "+jSticker+"("+jPolyThisSticker+")'s slice "+sticker2Slice[jSticker]+"");
+                        if (iStickerHasPolyBackfacing)
+                        {
+                            int jIndGroupEndToken = jGroup+1;
+                            //add "jIndGroupEndToken < iSticker";
+                            partialOrder[partialOrderSize][0] = jIndGroupEndToken;
+                            partialOrder[partialOrderSize][1] = iSticker;
+                            if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+
+                            if (returnPartialOrderInfoOptionalForDebugging != null) {
+                                returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
+                                    {jSticker, jSticker, jSticker+0},  // XXX TODO: fix range, maybe.  make it empty for now, just to distinguish from singleton
+                                    {iSticker, iSticker, iSticker+1},
+                                };
+                            }
+                            partialOrderSize++;
+                        }
+                        else
+                        {
+                            int jIndGroupStartToken = jGroup;
+                            //add "iSticker < jIndGroupStartToken;
+                            partialOrder[partialOrderSize][0] = iSticker;
+                            partialOrder[partialOrderSize][1] = jIndGroupStartToken;
+                            if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                            if (returnPartialOrderInfoOptionalForDebugging != null) {
+                                returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
+                                    {iSticker, iSticker, iSticker+1},
+                                    {jSticker, jSticker, jSticker+0},  // XXX TODO: fix range, maybe.  make it empty for now, just to distinguish from singleton
+                                };
+                            }
+                            partialOrderSize++;
+                        }
+                    }
+                    else if (jGroup == jSticker) // && iGroup != iSticker
+                    {
+                        // same as previous case but reversed
+                        if (!jStickerIsVisible)
+                            continue;
+                        boolean jStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
+                        if (localVerboseLevel >= 2) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+")'s slice "+sticker2Slice[iSticker]+" is adjacent to sticker "+jSticker+"("+jPolyThisSticker+") (which is "+(jStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+")");
+                        if (jStickerHasPolyBackfacing)
+                        {
+                            int iIndGroupEndToken = iGroup+1;
+                            //add "iIndGroupEndToken < jSticker";
+                            partialOrder[partialOrderSize][0] = iIndGroupEndToken;
+                            partialOrder[partialOrderSize][1] = jSticker;
+                            if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                            if (returnPartialOrderInfoOptionalForDebugging != null) {
+                                returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
+                                    {iSticker, iSticker, iSticker+0},  // XXX TODO: fix range, maybe.  make it empty for now, just to distinguish from singleton
+                                    {jSticker, jSticker, jSticker+1},
+                                };
+                            }
+                            partialOrderSize++;
+                        }
+                        else
+                        {
+                            int iIndGroupStartToken = iGroup;
+                            //add "jSticker < iIndGroupStartToken;
+                            partialOrder[partialOrderSize][0] = jSticker;
+                            partialOrder[partialOrderSize][1] = iIndGroupStartToken;
+                            if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                            if (returnPartialOrderInfoOptionalForDebugging != null) {
+                                returnPartialOrderInfoOptionalForDebugging[0][returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]++] = new int[][] {
+                                    {jSticker, jSticker, jSticker+1},
+                                    {iSticker, iSticker, iSticker+0},  // XXX TODO: fix range, maybe.  make it empty for now, just to distinguish from singleton
+                                };
+                            }
+                            partialOrderSize++;
+                        }
+                    }
+                    else
+                    {
+                        // This would mean the two stickers are adjacent
+                        // but the two different groups they are in are not
+                        // (That is, one is the left child of the root,
+                        // and the other is the right child of the root).
+                        // This can't happen.
+                        // (Partially due to de-duping of cuts during puzzle creation.)
+                        CHECK(false);
+                    }
                 }
             }
 
-            // The only further use of partialOrder is for rendering it (if in debug mode).
-            // Prune out everything except one cycle from each component.
-            if (returnPartialOrderInfoOptionalForDebugging != null)
+            //System.out.println("partial order size = "+partialOrderSize);
+            //System.out.println("partial order = "+com.donhatchsw.util.Arrays.toStringCompact(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
+
+            // can turn this on to get a sense of
+            // what it cares about and what it doesn't, if it's screwing up
+            boolean doScramble = false;
+
+            //
+            // Okay, now we have the partial order.
+            // Topsort it into a total order.
+            //
+            //System.out.println("nStickers = "+nStickers);
+            //System.out.println("nNodes = "+nNodes);
+            int nComponents = doScramble ? topsorter.topsortRandomized(nNodes, nodeSortOrder,
+                                                             partialOrderSize, partialOrder,
+                                                             componentStarts,
+                                                             randomnessGenerator)
+                                         : topsorter.topsort(nNodes, nodeSortOrder,
+                                                             partialOrderSize, partialOrder,
+                                                             componentStarts);
+            int cycleVerboseLevel = 0;  // CBB: this concept is rotting, but I think I'll be retiring this code path soon anyway
+            if (nComponents == nNodes)
             {
-                int origToSorted[] = VecMath.invertperm(nodeSortOrder, nNodes);
-                int successors[][] = new int[nNodes][0];
-                for (int iPair = 0; iPair < partialOrderSize; ++iPair)
+                if (cycleVerboseLevel >= 2) System.out.println("  no cycles!");
+            }
+            else
+            {
+                int nNontrivialComponents = 0;
+                for (int iComponent = 0; iComponent < nComponents; ++iComponent)
                 {
-                    int i = partialOrder[iPair][0];
-                    int j = partialOrder[iPair][1];
-                    successors[i] = com.donhatchsw.util.Arrays.append(successors[i], j); // potentially O(n^2) but number of successors is usually at most 3 so whatever
+                    int componentSize = componentStarts[iComponent+1]
+                                      - componentStarts[iComponent];
+                    if (componentSize >= 2)
+                        nNontrivialComponents++;
                 }
-                int justTheCycles[][] = new int[partialOrderSize][];
-                int justTheCyclesSize = 0;
+                if (cycleVerboseLevel >= 1) System.out.println("  ARGH! "+nNontrivialComponents+" cycle"+(nNontrivialComponents==1 ? "" : "s")+" in topological depth sort!");
+
                 for (int iComponent = 0; iComponent < nComponents; ++iComponent)
                 {
                     int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
-                    if (componentSize > 1)
+                    if (componentSize >= 2)
                     {
-                        // Okay to be verbose since user is debugging
-                        System.out.println("    found a cycle (well at least a connected component) of length "+componentSize+"");
-
-                        int iNode0 = nodeSortOrder[componentStarts[iComponent]];
-                        // Progress forward componentSize times,
-                        // to make sure we are within where it's going to loop
-                        for (int i = 0; i < componentSize; ++i)
+                        if (cycleVerboseLevel >= 1) System.out.println("    there's a cycle (actually connected component) of length "+componentSize+"");
+                        //
+                        // z-sort within the strongly connected component
+                        //
+                        if (true)
                         {
-                            int jNode = -1;
-                            for (int iSucc = 0; iSucc < successors[iNode0].length; ++iSucc)
-                                if (origToSorted[successors[iNode0][iSucc]] >= componentStarts[iComponent]
-                                 && origToSorted[successors[iNode0][iSucc]] < componentStarts[iComponent+1])
-                                {
-                                    jNode = successors[iNode0][iSucc];
-                                    break;
-                                }
-                            CHECK(jNode != -1);
-                            iNode0 = jNode;
-                        }
-                        System.out.print("        "+iNode0+"");
-                        for (int iNode = iNode0;;)
-                        {
-                            int jNode = -1;
-                            for (int iSucc = 0; iSucc < successors[iNode].length; ++iSucc)
-                                if (origToSorted[successors[iNode][iSucc]] >= componentStarts[iComponent]
-                                 && origToSorted[successors[iNode][iSucc]] < componentStarts[iComponent+1])
-                                {
-                                    jNode = successors[iNode][iSucc];
-                                    break;
-                                }
-                            CHECK(jNode != -1);
-                            justTheCycles[justTheCyclesSize++] = new int[]{iNode,jNode};
-                            System.out.print(" -> "+jNode+"");
+                            com.donhatchsw.util.SortStuff.sort(nodeSortOrder, componentStarts[iComponent], componentSize,
+                                new com.donhatchsw.util.SortStuff.IntComparator() { // XXX ALLOCATION! (need to make sort smarter)
+                                    @Override public int compare(int i, int j)
+                                    {
+                                        // will be too big if it's a group begin or end token;
+                                        // just stick those at the end for now, they
+                                        // will get deleted soon
+                                        boolean iTooBig = i >= nStickers;
+                                        boolean jTooBig = j >= nStickers;
+                                        if (iTooBig)
+                                            if (jTooBig)
+                                                return 0;
+                                            else
+                                                return 1;
+                                        else
+                                            if (jTooBig)
+                                                return -1;
 
-                            iNode = jNode;
-                            if (jNode == iNode0)
-                                break;
+                                        //System.out.println("stickerVisibilities[i="+i+"] = "+stickerVisibilities[i]);
+                                        //System.out.println("stickerVisibilities[j="+j+"] = "+stickerVisibilities[j]);
+                                        CHECK(stickerVisibilities[i]);
+                                        CHECK(stickerVisibilities[j]);
+
+                                        float iZ = stickerCentersZ[i];
+                                        float jZ = stickerCentersZ[j];
+                                        // sort from increasing z to decreasing! that is because the z's got negated just before the projection!
+                                        return iZ > jZ ? -1 :
+                                               iZ < jZ ? 1 : 0;
+                                    }
+                                }
+                            );
                         }
-                        System.out.println();
-                        System.out.println("    that actual cycle has length "+justTheCyclesSize);
+                        numZsortsDoneHolder[0]++;
                     }
                 }
-                if (true) {
-                    justTheCycles = (int[][])com.donhatchsw.util.Arrays.subarray(justTheCycles, 0, justTheCyclesSize);
-                    System.out.println("================================");
-                    System.out.println("nStickers = "+nStickers);
-                    System.out.println("justTheCyclesSize = "+justTheCyclesSize);
-                    System.out.println("justTheCycles = "+com.donhatchsw.util.Arrays.toStringCompact(justTheCycles));
 
-                    System.out.print("firstCycle = ( ");
-                    int firstCycleSize = 0;
-                    for (int i = 0; i < justTheCycles.length; ++i) {
-                        firstCycleSize++;
-                        int ii = justTheCycles[i][0];
-                        String description = ii<nStickers ? ""+ii : ii%2==0 ? ""+ii+"{" : "}"+ii;
-                        System.out.print(""+description+" -> ");
-                        if (justTheCycles[i][1] == justTheCycles[0][0]) {
-                          int ii0 = justTheCycles[0][0];
-                          String description0 = ii0<nStickers ? ""+ii0 : ii0%2==0 ? ""+ii0+"{" : "}"+ii0;
-                          System.out.println(""+description0+" ) of length "+firstCycleSize);
-                          break;
+                // The only further use of partialOrder is for rendering it (if in debug mode).
+                // Prune out everything except one cycle from each component.
+                if (returnPartialOrderInfoOptionalForDebugging != null)
+                {
+                    int origToSorted[] = VecMath.invertperm(nodeSortOrder, nNodes);
+                    int successors[][] = new int[nNodes][0];
+                    for (int iPair = 0; iPair < partialOrderSize; ++iPair)
+                    {
+                        int i = partialOrder[iPair][0];
+                        int j = partialOrder[iPair][1];
+                        successors[i] = com.donhatchsw.util.Arrays.append(successors[i], j); // potentially O(n^2) but number of successors is usually at most 3 so whatever
+                    }
+                    int justTheCycles[][] = new int[partialOrderSize][];
+                    int justTheCyclesSize = 0;
+                    for (int iComponent = 0; iComponent < nComponents; ++iComponent)
+                    {
+                        int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
+                        if (componentSize > 1)
+                        {
+                            // Okay to be verbose since user is debugging
+                            System.out.println("    found a cycle (well at least a connected component) of length "+componentSize+"");
+
+                            int iNode0 = nodeSortOrder[componentStarts[iComponent]];
+                            // Progress forward componentSize times,
+                            // to make sure we are within where it's going to loop
+                            for (int i = 0; i < componentSize; ++i)
+                            {
+                                int jNode = -1;
+                                for (int iSucc = 0; iSucc < successors[iNode0].length; ++iSucc)
+                                    if (origToSorted[successors[iNode0][iSucc]] >= componentStarts[iComponent]
+                                     && origToSorted[successors[iNode0][iSucc]] < componentStarts[iComponent+1])
+                                    {
+                                        jNode = successors[iNode0][iSucc];
+                                        break;
+                                    }
+                                CHECK(jNode != -1);
+                                iNode0 = jNode;
+                            }
+                            System.out.print("        "+iNode0+"");
+                            for (int iNode = iNode0;;)
+                            {
+                                int jNode = -1;
+                                for (int iSucc = 0; iSucc < successors[iNode].length; ++iSucc)
+                                    if (origToSorted[successors[iNode][iSucc]] >= componentStarts[iComponent]
+                                     && origToSorted[successors[iNode][iSucc]] < componentStarts[iComponent+1])
+                                    {
+                                        jNode = successors[iNode][iSucc];
+                                        break;
+                                    }
+                                CHECK(jNode != -1);
+                                justTheCycles[justTheCyclesSize++] = new int[]{iNode,jNode};
+                                System.out.print(" -> "+jNode+"");
+
+                                iNode = jNode;
+                                if (jNode == iNode0)
+                                    break;
+                            }
+                            System.out.println();
+                            System.out.println("    that actual cycle has length "+justTheCyclesSize);
                         }
                     }
+                    if (true) {
+                        justTheCycles = (int[][])com.donhatchsw.util.Arrays.subarray(justTheCycles, 0, justTheCyclesSize);
+                        System.out.println("================================");
+                        System.out.println("nStickers = "+nStickers);
+                        System.out.println("justTheCyclesSize = "+justTheCyclesSize);
+                        System.out.println("justTheCycles = "+com.donhatchsw.util.Arrays.toStringCompact(justTheCycles));
 
-                    System.out.println("    The slices:");
-                    for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice) {
-                        int groupBeginTokenIndex = nStickers + 2*iSlice;
-                        int groupEndTokenIndex = nStickers + 2*iSlice+1;
-                        System.out.print("        slice "+iSlice+"/"+nCompressedSlices+": begin token "+groupBeginTokenIndex+", end token "+groupEndTokenIndex+": ");
-                        for (int iSticker = 0; iSticker < nStickers; ++iSticker) {
-                            CHECK((parents[iSticker] == groupBeginTokenIndex) == (sticker2Slice[iSticker]==iSlice));
-                            if (parents[iSticker] == groupBeginTokenIndex) {
-                                System.out.print(" "+iSticker);
+                        System.out.print("firstCycle = ( ");
+                        int firstCycleSize = 0;
+                        for (int i = 0; i < justTheCycles.length; ++i) {
+                            firstCycleSize++;
+                            int ii = justTheCycles[i][0];
+                            String description = ii<nStickers ? ""+ii : ii%2==0 ? ""+ii+"{" : "}"+ii;
+                            System.out.print(""+description+" -> ");
+                            if (justTheCycles[i][1] == justTheCycles[0][0]) {
+                              int ii0 = justTheCycles[0][0];
+                              String description0 = ii0<nStickers ? ""+ii0 : ii0%2==0 ? ""+ii0+"{" : "}"+ii0;
+                              System.out.println(""+description0+" ) of length "+firstCycleSize);
+                              break;
                             }
                         }
-                        System.out.println();
-                        int parentSliceBeginTokenIndex = parents[groupBeginTokenIndex];
-                        int parentSlice;
-                        if (parentSliceBeginTokenIndex == -1)
-                            parentSlice = -1;
-                        else {
-                            CHECK((parentSliceBeginTokenIndex-nStickers)%2 == 0);
-                            parentSlice = (parentSliceBeginTokenIndex-nStickers)/2;
+
+                        System.out.println("    The slices:");
+                        for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice) {
+                            int groupBeginTokenIndex = nStickers + 2*iSlice;
+                            int groupEndTokenIndex = nStickers + 2*iSlice+1;
+                            System.out.print("        slice "+iSlice+"/"+nCompressedSlices+": begin token "+groupBeginTokenIndex+", end token "+groupEndTokenIndex+": ");
+                            for (int iSticker = 0; iSticker < nStickers; ++iSticker) {
+                                CHECK((parents[iSticker] == groupBeginTokenIndex) == (sticker2Slice[iSticker]==iSlice));
+                                if (parents[iSticker] == groupBeginTokenIndex) {
+                                    System.out.print(" "+iSticker);
+                                }
+                            }
+                            System.out.println();
+                            int parentSliceBeginTokenIndex = parents[groupBeginTokenIndex];
+                            int parentSlice;
+                            if (parentSliceBeginTokenIndex == -1)
+                                parentSlice = -1;
+                            else {
+                                CHECK((parentSliceBeginTokenIndex-nStickers)%2 == 0);
+                                parentSlice = (parentSliceBeginTokenIndex-nStickers)/2;
+                            }
+                            System.out.println("            parent slice = "+parentSlice);
                         }
-                        System.out.println("            parent slice = "+parentSlice);
+                        System.out.println("================================");
                     }
-                    System.out.println("================================");
                 }
             }
-        }
-        if (returnPartialOrderInfoOptionalForDebugging != null) {
-            returnPartialOrderInfoOptionalForDebugging[0] = (int[][][])com.donhatchsw.util.Arrays.subarray(returnPartialOrderInfoOptionalForDebugging[0], 0, returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]);
-        }
+            if (returnPartialOrderInfoOptionalForDebugging != null) {
+                returnPartialOrderInfoOptionalForDebugging[0] = (int[][][])com.donhatchsw.util.Arrays.subarray(returnPartialOrderInfoOptionalForDebugging[0], 0, returnPartialOrderInfoOptionalForDebuggingSizeHolder[0]);
+            }
 
-        //
-        // Compress out the group start and end tokens
-        // which we no longer care about
-        //
-        int nCompressedSorted = 0;
-        for (int iSorted = 0; iSorted < nNodes; ++iSorted)
-        {
-            int iNode = nodeSortOrder[iSorted];
-            if (iNode < nStickers)
+            //
+            // Compress out the group start and end tokens
+            // which we no longer care about
+            //
+            int nCompressedSorted = 0;
+            for (int iSorted = 0; iSorted < nNodes; ++iSorted)
             {
-                int iSticker = iNode;
-                if (stickerVisibilities[iSticker])
+                int iNode = nodeSortOrder[iSorted];
+                if (iNode < nStickers)
                 {
-                    returnStickerSortOrder[nCompressedSorted++] = iSticker;
-                }
-                else
-                {
-                    // wait what? why are non-visible nodes in this graph at all?  I guess they just don't have edges.  ok fine.
-                }
+                    int iSticker = iNode;
+                    if (stickerVisibilities[iSticker])
+                    {
+                        returnStickerSortOrder[nCompressedSorted++] = iSticker;
+                    }
+                    else
+                    {
+                        // wait what? why are non-visible nodes in this graph at all?  I guess they just don't have edges.  ok fine.
+                    }
 
+                }
             }
-        }
 
-        if (numIgnored > 0) {
-            if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging != null) System.out.println("      hierarchical painters sort ignored "+numIgnored+" sticker pairs because too warped");
-        }
-        if (localVerboseLevel >= 1) System.out.println("    out sortStickersBackToFront (NOT bold new way), returning nCompressedSorted="+nCompressedSorted);
-        return nCompressedSorted;
+            if (numIgnored > 0) {
+                if (localVerboseLevel >= 1 || returnPartialOrderInfoOptionalForDebugging != null) System.out.println("      hierarchical painters sort ignored "+numIgnored+" sticker pairs because too warped");
+            }
+            if (localVerboseLevel >= 1) System.out.println("    out sortStickersBackToFront (NOT bold new way), returning nCompressedSorted="+nCompressedSorted);
+            return nCompressedSorted;
+        }  // old inferior way
     } // sortStickersBackToFront
 
     // general utility; could go elsewhere
