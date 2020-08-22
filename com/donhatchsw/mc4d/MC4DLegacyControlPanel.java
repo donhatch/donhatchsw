@@ -543,6 +543,50 @@ public class MC4DLegacyControlPanel
                      new GridBagConstraints(){{gridy = nRows;}});
         nRows++;
     }
+    private void add3CheckboxesRow(final String labelString,
+                                   final String labelString0,
+                                   final String labelString1,
+                                   final String labelString2,
+                                   final Listenable.Int listenableInt,
+                                   String helpMessage[])
+    {
+        this.add(new CanvasOfSize(20,10), // indent
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
+        this.add(new Row() {
+                     CheckboxGroup checkboxGroup = new CheckboxGroup();
+                 {
+                     this.add(new Label(labelString));
+                     String[] labels012 = {labelString0, labelString1, labelString2};
+                     for (int i = 0; i < 3; ++i) {
+                         final int final_i = i;;
+                         this.add(new Checkbox(labels012[i], checkboxGroup, listenableInt.get()==i) {
+                             Listenable.Listener listener;  // needed to keep a strong ref to it for as long as I'm alive
+                         {
+                             addItemListener(new ItemListener() {
+                                 @Override public void itemStateChanged(ItemEvent e) {
+                                     // Apparently we get this when the user clicks on this radio button,
+                                     // but we do *not* get it when this radio button
+                                     // is changed due to a different one of the three getting
+                                     // turned off.  That's ok.
+                                     listenableInt.set(final_i);
+                                 }
+                             });
+                             listenableInt.addListener(listener = new Listenable.Listener() {
+                                 @Override public void valueChanged() {
+                                     setState(listenableInt.get() == final_i);
+                                 }
+                             });
+                         }});
+                     }
+                 }}, new java.awt.GridBagConstraints(){{anchor = WEST;
+                                                        gridwidth = 3; gridy = nRows;}});
+        this.add(new ResetButton("Reset to default", listenableInt),
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
+        if (helpMessage != null)
+            this.add(new HelpButton(labelString, helpMessage),
+                     new java.awt.GridBagConstraints(){{gridy = nRows;}});
+        nRows++;
+    }
     private void addColorSwatchAndCheckboxRow(String labelString,
                         Listenable.Color color,
                         Listenable.Boolean b,
@@ -1024,14 +1068,13 @@ public class MC4DLegacyControlPanel
                 "(It is a scientific fact that four dimensional",
                 "objects can cast shadows in the air.)",
             });
-        addCheckboxRow(
-            "Antialias when still",
-            viewParams.antialiasWhenStill,
+        add3CheckboxesRow(
+            "Antialias (smooth edges): ",
+            "never", "when still", "always",
+            viewParams.antialias,
             new String[] {
-                "If this option is checked,",
-                "the display will be antialiased (smooth edges)",
-                "when the puzzle is at rest,",
-                "if your computer's graphics hardware supports it.        ", // XXX hack to make the full window title visible on my computer
+                "Whether to anti-alias (smooth edges),",
+                "if your computer's graphics hardware supports it.",
             });
         addColorSwatchAndCheckboxRow(
             "Draw non-shrunk face outlines (not yet implemented)",

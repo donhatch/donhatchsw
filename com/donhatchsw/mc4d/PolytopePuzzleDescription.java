@@ -227,7 +227,7 @@
 
         - doesn't start spinning easily enough when I let go
         - Frame Picture assumes window is 502x485-- bogus!
-        - get antialiasing's notion of "still" right, then turn it on by default
+        - get antialiasing's notion of "still" right, then make it "antialias when still" by default
         - resetting 4d rotation or rotation should do it smoothly, otherwise it's jarring and disorienting
         - really need to pick from the rest frame, not the intermediate twist frame,
           in case of double-clicks... ARGH but the rest frame will lag behind
@@ -260,12 +260,10 @@
     TODO:
     =====
         TOPSORTING:
-            - (FIXED maybe): standard puzzle, ctrl-rotate front vert to center, twist it: sorting messes up during approx first half of the animation.
-              - currently fixed with "VOODOO" (search for that in VeryCleverPaintersSortingOfStickers.java).  need to understand better!
             - "4,3 3", flatten, turn on topsort viz, do twists... sometimes spazzes out and draws lines to the upper-left of window, wtf?
             - get confidence in new algorithm, maybe retire old?
             - viz would look a lot nicer (and wouldn't jump around) if lines were drawn from the poly center rather than otherwise. would need to store that in the array I guess
-            - work more towards getting rid of all per-frame memory allocations (make it a reusable sorter object?)
+            - work more towards getting rid of all per-frame memory allocations (make it a reusable sorter object, with all allocations done once up front?)
 
         JOIN:
             - TODONE (mostly: would be nice to be able to express Johnson solids.  Currently can't even express a square pyramid, I don't think? (could allow pyramid to be expressed? maybe join operator, see https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol) Maybe allow general intersections of half-spaces?

@@ -1,11 +1,10 @@
 // TODO: help windows are way too wide, wtf?  even worse than legacy
 package com.donhatchsw.mc4d;
 
-//import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
-import com.donhatchsw.awt.Row;
-import com.donhatchsw.awt.Col;
+import com.donhatchsw.awt.JRow;
+import com.donhatchsw.awt.JCol;
 import com.donhatchsw.util.Listenable;
 
 @SuppressWarnings("serial")
@@ -486,7 +485,7 @@ public class MC4DSwingControlPanel
     } // ColorSwatch
 
     @SuppressWarnings("serial")
-    private static class ColorSwatchMaybeAndCheckBoxMaybe extends Row
+    private static class ColorSwatchMaybeAndCheckBoxMaybe extends JRow
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
 
@@ -796,6 +795,46 @@ public class MC4DSwingControlPanel
                  new java.awt.GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
                                            gridwidth = 3; gridy = nRows;}});
         this.add(new ResetButton("Reset to default", b),
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
+        if (helpMessage != null)
+            this.add(new HelpButton(labelString, helpMessage),
+                     new java.awt.GridBagConstraints(){{gridy = nRows;}});
+        nRows++;
+    }
+    private void add3CheckboxesRow(final String labelString,
+                                   final String labelString0,
+                                   final String labelString1,
+                                   final String labelString2,
+                                   final Listenable.Int listenableInt,
+                                   String helpMessage[])
+    {
+        this.add(new CanvasOfSize(20,10), // indent
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
+        this.add(new JRow() {{
+                     this.add(new JLabel(labelString));
+                     String[] labels012 = {labelString0, labelString1, labelString2};
+                     for (int i = 0; i < 3; ++i) {
+                         final int final_i = i;;
+                         this.add(new JRadioButton(labels012[i], listenableInt.get()==i) {
+                             Listenable.Listener listener;  // needed to keep a strong ref to it for as long as I'm alive
+                         {
+                             // don't need a ButtonGroup-- the listeners (2 way binding) accomplish the mutual exclusion!
+                             addActionListener(new java.awt.event.ActionListener() {
+                                 @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                                 {
+                                     listenableInt.set(final_i);
+                                 }
+                             });
+                             listenableInt.addListener(listener = new Listenable.Listener() {
+                                 @Override public void valueChanged() {
+                                     setSelected(listenableInt.get() == final_i);
+                                 }
+                             });
+                         }});
+                     }
+                 }}, new java.awt.GridBagConstraints(){{anchor = WEST;
+                                                        gridwidth = 3; gridy = nRows;}});
+        this.add(new ResetButton("Reset to default", listenableInt),
                  new java.awt.GridBagConstraints(){{gridy = nRows;}});
         if (helpMessage != null)
             this.add(new HelpButton(labelString, helpMessage),
@@ -1283,14 +1322,13 @@ public class MC4DSwingControlPanel
                 "(It is a scientific fact that four dimensional",
                 "objects can cast shadows in the air.)",
             });
-        addCheckboxRow(
-            "Antialias when still",
-            viewParams.antialiasWhenStill,
+        add3CheckboxesRow(
+            "Antialias (smooth edges): ",
+            "never", "when still", "always",
+            viewParams.antialias,
             new String[] {
-                "If this option is checked,",
-                "the display will be antialiased (smooth edges)",
-                "when the puzzle is at rest,",
-                "if your computer's graphics hardware supports it.        ", // XXX hack to make the full window title visible on my computer
+                "Whether to anti-alias (smooth edges),",
+                "if your computer's graphics hardware supports it.",
             });
         addColorSwatchAndCheckboxRow(
             "Draw non-shrunk face outlines (not yet implemented)",
@@ -1347,7 +1385,7 @@ public class MC4DSwingControlPanel
 
                 this.add(new CanvasOfSize(20,swatchHeight), // overall additional indent
                          new java.awt.GridBagConstraints(){{gridy = nRows;}});
-                Row row = new Row() {{
+                JRow row = new JRow() {{
 
                     add(new CanvasOfSize(indent,swatchHeight));
 

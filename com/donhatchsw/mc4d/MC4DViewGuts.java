@@ -205,8 +205,9 @@ public class MC4DViewGuts
         public Listenable.Boolean highlightByCubie = new Listenable.Boolean(false);
         public Listenable.Boolean highlightByGrip = new Listenable.Boolean(true); // if possible; it gets turned into highlight by sticker automatically if there is no grip info, which there isn't unless it's a 2x2x2x2 currently.  XXX get rid of this?
         public Listenable.Boolean showShadows = new Listenable.Boolean(true);
-        //public Listenable.Boolean antialiasWhenStill = new Listenable.Boolean(true);
-        public Listenable.Boolean antialiasWhenStill = new Listenable.Boolean(false); // XXX not ready for prime time-- not checking whether still properly
+
+        public Listenable.Int antialias = new Listenable.Int(0,2,0); // 0=never, 1=when still, 2=always  XXX not ready for prime time-- not checking whether still properly, also the transition completely sucks; it moves the picture by 1/2 pixel
+
         public Listenable.Boolean drawNonShrunkFaceOutlines = new Listenable.Boolean(false);
         public Listenable.Boolean drawShrunkFaceOutlines = new Listenable.Boolean(false);
         public Listenable.Boolean drawNonShrunkStickerOutlines = new Listenable.Boolean(false);
@@ -929,9 +930,9 @@ public class MC4DViewGuts
             if (!System.getProperty("java.version").startsWith("1.1.") // have to check to avoid Graphics2D class not found error under 1.1
              && g instanceof Graphics2D) {
                 boolean okToAntialias = true
-                                      // && allowAntiAliasing && lastDrag==null && spindelta==null // XXX need to do this!
-                                      && viewParams.antialiasWhenStill.get()
-                                      && !wasMoving;
+                                      // && allowAntiAliasing && lastDrag==null && spindelta==null // XXX need to do something like this!
+                                      && (viewParams.antialias.get() == 2 ||
+                                          (viewParams.antialias.get() == 1 && !wasMoving));
                 ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                     okToAntialias ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
             }
