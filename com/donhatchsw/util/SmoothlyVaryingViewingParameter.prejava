@@ -13051,7 +13051,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                     e.getComponent(),
                                     e.getID(),
                                     e.getWhen(),
-                                    e.getModifiers(),  // TODO: deprecated!  figure out how to get rid
+
+                                    //e.getModifiers(),  // TODO: deprecated!  figure out how to get rid
+                                    0,                   // TODO: I just blindly replaced this with 0 to get rid of the warning, but I don't know whehter I broke anytyhing!
+
                                     e.getKeyCode(),
                                     'e', // keyChar
                                     e.getKeyLocation()
