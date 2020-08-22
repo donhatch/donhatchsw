@@ -146,6 +146,7 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - argh, auto-4dscale doesn't work well on nonuniform (frucht)
         - 3d shrinks sure seem like they are doing nonsense-- they are not shrinking towards respective centers, they seem like they also include some uncontrolled exploding.  this is even when 4d shrinks are 1.
                 - in fact, try "5,3 5", flatten, fiddle with 3d face shrink-- it goes totally crazy! cool effect but wrong
         - "5x5 2" and "4x5 2" strange flickering of some stickers during twists! and in some views (rotate things to center), some wildly inside out stickers showing.  (conjecture:  I didn't get the non-degerate-normalization correct on these further-cuts puzzles)
