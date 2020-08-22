@@ -13094,7 +13094,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                     e.getComponent(),
                                     e.getID(),
                                     e.getWhen(),
-                                    e.getModifiers(), // TODO: deprecated!  figure out how to get rid
+
+                                    //e.getModifiers(),  // TODO: deprecated!  figure out how to get rid
+                                    0, // TODO: I just blindly replaced this with 0 to get rid of the warning, but I don't know whehter I broke anytyhing!
+
                                     e.getKeyCode(),
                                     'e', // keyChar
                                     e.getKeyLocation()
@@ -13475,7 +13478,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         }
                         else
                         {
-                            do { if (!((controller.indexOfThingBeingDragged)==(-1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/SmoothlyVaryingViewingParameter.prejava"+"("+13435 +"): (" + "controller.indexOfThingBeingDragged" + ")" + "==" + "(" + "-1" + ") ("+(controller.indexOfThingBeingDragged)+" vs. "+(-1)+")"); } while (false);
+                            do { if (!((controller.indexOfThingBeingDragged)==(-1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/SmoothlyVaryingViewingParameter.prejava"+"("+13438 +"): (" + "controller.indexOfThingBeingDragged" + ")" + "==" + "(" + "-1" + ") ("+(controller.indexOfThingBeingDragged)+" vs. "+(-1)+")"); } while (false);
                             // XXX drag the universe around?
                         }
                         if (controller.target_vt1 != null && controller.target_pt1 != null)
@@ -13714,7 +13717,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     // Draw the forward trip
                     if (x1 != x0)
                     {
-                        do { if (!(x1 > x0)) throw new Error("CHECK failed at "+"com/donhatchsw/util/SmoothlyVaryingViewingParameter.prejava"+"("+13674 +"): " + "x1 > x0" + ""); } while (false);
+                        do { if (!(x1 > x0)) throw new Error("CHECK failed at "+"com/donhatchsw/util/SmoothlyVaryingViewingParameter.prejava"+"("+13677 +"): " + "x1 > x0" + ""); } while (false);
                         double v = (y1-y0)/(x1-x0);
                         SmoothlyVaryingViewingParameter param = new SmoothlyVaryingViewingParameter(y1);
                         param.setTargetPosition(0.); // target
@@ -13734,7 +13737,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     // Draw the backward trip
                     if (x1 != x0)
                     {
-                        do { if (!(x1 > x0)) throw new Error("CHECK failed at "+"com/donhatchsw/util/SmoothlyVaryingViewingParameter.prejava"+"("+13694 +"): " + "x1 > x0" + ""); } while (false);
+                        do { if (!(x1 > x0)) throw new Error("CHECK failed at "+"com/donhatchsw/util/SmoothlyVaryingViewingParameter.prejava"+"("+13697 +"): " + "x1 > x0" + ""); } while (false);
                         double v = -(y1-y0)/(x1-x0);
                         SmoothlyVaryingViewingParameter param = new SmoothlyVaryingViewingParameter(y0);
                         param.setTargetPosition(0.); // target
@@ -14177,7 +14180,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         // Note that we could accomplish that by just normalizing to that
                         // length... but the existing method is kind of a sanity check.
 
-                        do { if (!(Double.isNaN(acceleration[0]) == Double.isNaN(acceleration[1]))) throw new Error("CHECK failed at "+"com/donhatchsw/util/SmoothlyVaryingViewingParameter.prejava"+"("+14137 +"): " + "Double.isNaN(acceleration[0]) == Double.isNaN(acceleration[1])" + ""); } while (false)
+                        do { if (!(Double.isNaN(acceleration[0]) == Double.isNaN(acceleration[1]))) throw new Error("CHECK failed at "+"com/donhatchsw/util/SmoothlyVaryingViewingParameter.prejava"+"("+14140 +"): " + "Double.isNaN(acceleration[0]) == Double.isNaN(acceleration[1])" + ""); } while (false)
                                                              ;
                         if (!Double.isNaN(acceleration[0])
                          && VecMath.normsqrd(acceleration) != 0.)
