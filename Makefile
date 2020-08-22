@@ -126,17 +126,28 @@
 #JAR=/usr/bin/jar
 #JAVADOC=/usr/bin/javadoc
 
-# ubuntu, oldest at the moment.  -Xlint:-options suppresses warning about old version (and also about bootpath. argh! I DO want to see that!)
-JAVACPPFLAGS=-DOVERRIDE=@Override
-JAVAC=/usr/bin/javac -source 6 -target 6 -deprecation -Xlint:all -Xlint:-options
-JAR=/usr/bin/jar
-JAVADOC=/usr/bin/javadoc
 
-# ubuntu, newest at the moment
+# ubuntu, using alternative older compiler, from package openjdk-8-jdk
+JAVAROOT=/usr/lib/jvm/java-1.8.0-openjdk-amd64
+JAVACPPFLAGS=-DOVERRIDE=@Override
+JAVAC=${JAVAROOT}/bin/javac -source 1.5 -target 1.5 -deprecation -Xlint:all
+JAR=${JAVAROOT}/bin/jar
+JAVADOC=${JAVAROOT}/bin/javadoc
+
+# ubuntu, oldest at the moment using default installed (11) compiler, from package openjdk-11-jdk.  -Xlint:-options suppresses warning about old version (and also about bootpath. argh! I DO want to see that!)
+#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVAC=/usr/bin/javac -source 8 -target 8 -deprecation -Xlint:all -Xlint:-options
+#JAR=/usr/bin/jar
+#JAVADOC=/usr/bin/javadoc
+
+# ubuntu, newest at the moment using default installed (11) compiler, from package openjdk-11-jdk
 #JAVACPPFLAGS=-DOVERRIDE=@Override
 #JAVAC=/usr/bin/javac -source 11 -target 11 -deprecation -Xlint:all
 #JAR=/usr/bin/jar
 #JAVADOC=/usr/bin/javadoc
+
+
+
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling as modern as possible, whatever that means
 #JAVACPPFLAGS=-DOVERRIDE=@Override

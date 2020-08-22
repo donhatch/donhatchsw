@@ -202,6 +202,7 @@ public class GenericGlue
         @Override public Object newMenu(String name) {
             return new Menu(name);
         }
+        @SuppressWarnings("serial")
         @Override public Object newMenuItem(String name, final ActionListener actionListener) {
             return new MenuItem(name) {{
                 addActionListener(actionListener);
@@ -227,6 +228,7 @@ public class GenericGlue
         @Override public Object newMenu(String name) {
             return new JMenu(name);
         }
+        @SuppressWarnings("serial")
         @Override public Object newMenuItem(String name, ActionListener actionListener) {
             if (false)
             {

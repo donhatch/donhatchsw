@@ -1488,6 +1488,7 @@ public class MC4DViewGuts
     {
         final MC4DViewGuts guts = new MC4DViewGuts();
         guts.setModel(model);
+        @SuppressWarnings("serial")
         final JComponent myJComponent = new JComponent() {
             @Override public void paintComponent(Graphics g)
             {
@@ -1512,6 +1513,7 @@ public class MC4DViewGuts
         //myJComponent.setPreferredSize(new java.awt.Dimension(w,h)); // set size bottom up
 
 
+        @SuppressWarnings("serial")
         JFrame jframe = new JFrame("A spiffy new JComponent") {{
             com.donhatchsw.awt.MainWindowCount.increment();
             addWindowListener(new java.awt.event.WindowAdapter() {
@@ -1567,6 +1569,7 @@ public class MC4DViewGuts
     {
         final MC4DViewGuts guts = new MC4DViewGuts();
         guts.setModel(model);
+        @SuppressWarnings("serial")
         final Canvas myCanvas = new Canvas() {
             private Image backBuffer = null;
             private int bbw=0, bbh=0;

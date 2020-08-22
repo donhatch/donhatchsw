@@ -1519,6 +1519,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     public static void interactiveDemo1()
     {
         final int eventVerbose = 0; // set to something else to debug
+        @SuppressWarnings("serial")
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
             // Make it so we get keyboard focus on startup,
