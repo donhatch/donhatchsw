@@ -377,75 +377,71 @@ public class GenericGlue
           {"        Simplex based"},
           {"            (1)---(0)---(0)---(0) Simplex",                         "1,3(5.0),5(9.0),7(13.0)"},
           {"            (1)---(.5)---(0)---(0) Barely truncated simplex",      "1,3(5.0),3(9.0)"},
-          {"            (1)---(1)---(0)---(0) Truncated simplex",               "1,3(5.0),3(9.0)"},
-          {"            (0)---(1)---(0)---(0)   (octas and tets)",              "1"}, // vertex figure not simplex
-          {"            (0)---(1)---(1)---(0)   (truncated tets)",              "1,3(4.0),3(9.0)"},
-          {"            (0)---(0)---(1)---(0)   (tets and octas)",              "1"}, // vertex figure not simplex
+          {"            (1)---(1)---(0)---(0) Truncated simplex (truncated tets and tets)",               "1,3(5.0),3(9.0)"},
+          {"            (0)---(1)---(0)---(0) Rectified simplex (octas and tets)", "1"}, // vertex figure not simplex
+          {"            (0)---(1)---(1)---(0) Bitruncated simplex (truncated tets)",              "1,3(4.0),3(9.0)"},
+          {"            (0)---(0)---(1)---(0) Rectified simplex (dual) (tets and octas)", "1"}, // vertex figure not simplex
           {"            (0)---(0)---(1)---(1) Truncated simplex (dual)",        "1,3(5.0),3(9.0)"},
           {"            (0)---(0)---(.5)---(1) Barely truncated simplex (dual)","1,3(5.0),3(9.0)"},
           {"            (0)---(0)---(0)---(1) Simplex (dual)",                  "1,3(5.0),3(9.0)"},
-          {"            (1)---(0)---(0)---(1)   (tets and triprisms)",          "1,2,3"}, // vertex figure not simplex, it's an octahedron! still sort of okay, maybe
-          {"            (1)---(0)---(1)---(0)",                                 "1"}, // vertex figure not simplex
-          {"            (0)---(1)---(0)---(1)",                                 "1"}, // vertex figure not simplex
-          {"            (1)---(1)---(1)---(0)",                                 "1,3(4.0),3(9.0)"},
-          {"            (1)---(1)---(0)---(1)",                                 "1"}, // vertex figure not simplex
-          {"            (1)---(0)---(1)---(1)",                                 "1"}, // vertex figure not simplex
-          {"            (0)---(1)---(1)---(1)",                                 "1,3(4.0),3(9.0)"},
+          {"            (1)---(0)---(0)---(1) Runcinated simplex (tets and triprisms)", "1,2,3"}, // vertex figure not simplex, it's an octahedron! still sort of okay, maybe
+          {"            (1)---(0)---(1)---(0) Cantellated simplex",             "1"}, // vertex figure not simplex
+          {"            (0)---(1)---(0)---(1) Cantellated simplex (dual)",      "1"}, // vertex figure not simplex
+          {"            (1)---(1)---(1)---(0) Cantitruncated simplex",          "1,3(4.0),3(9.0)"},
+          {"            (1)---(1)---(0)---(1) Runcitruncated simplex",          "1"}, // vertex figure not simplex
+          {"            (1)---(0)---(1)---(1) Runcitruncated simplex (dual)",   "1"}, // vertex figure not simplex
+          {"            (0)---(1)---(1)---(1) Cantitruncated simplex (dual)",   "1,3(4.0),3(9.0)"},
           {"            (1)---(1)---(1)---(1) Omnitruncated simplex",           "1,3,3(9.0)"}, // XXX get rid of these 9s? not sure, they're kind of interesting
           {"        Hypercube/Cross based"},
           {"            (1)-4-(0)---(0)---(0) Hypercube",                       "1,3"},
           {"            (1)-4-(.5)---(0)---(0) Barely truncated hypercube",    "1,3(5.0)"},
-          {"            (1)-4-(1)---(0)---(0) Truncated hypercube",             "1,3(5.0)"},
+          {"            (1)-4-(1)---(0)---(0) Truncated hypercube (truncated cubes and tets)", "1,3(5.0)"},
           {"            (0)-4-(1)---(0)---(0) Rectified hypercube (cuboctas and tets)", "1"}, // vertex figure not simplex
           {"            (0)-4-(1)---(1)---(0) Bitruncated hypercube/cross (truncated octas and truncated tets)", "1,3(4.0)"},
-          {"            (0)-4-(0)---(1)---(0) Rectified cross (octas and tets)", "1"}, // vertex figure not simplex
-          {"            (0)-4-(0)---(1)---(1) Truncated cross",                 "1"}, // vertex figure not simplex
+          {"            (0)-4-(0)---(1)---(0) Rectified cross (same as 24-cell)", "1"}, // vertex figure not simplex
+          {"            (0)-4-(0)---(1)---(1) Truncated cross (octas and truncated tets)", "1"}, // vertex figure not simplex
           {"            (0)-4-(0)---(.5)---(1) Barely truncated cross",         "1"}, // vertex figure not simplex
           {"            (0)-4-(0)---(0)---(1) Cross",                           "1"}, // vertex figure not simplex
           {"            (1)-4-(0)---(0)---(1) Runcinated hypercube/cross (cubes, tets, and tri prisms)", "1,2,3"}, // vertex figure not simplex, it's an octahedron! still sort of okay, maybe
           {"            (1)-4-(0)---(1)---(0) Cantellated hypercube",           "1"}, // vertex figure not simplex
-          {"            (0)-4-(1)---(0)---(1)   (cuboctas and cubes)",          "1"},  // vertex figure not simplex
-          {"            (1)-4-(1)---(1)---(0)",                                 "1,3(4.0)"},
-          {"            (1)-4-(1)---(0)---(1)",                                 "1"}, // vertex figure not simplex
-          {"            (1)-4-(0)---(1)---(1)",                                 "1"}, // vertex figure not simplex
-          {"            (0)-4-(1)---(1)---(1)   (truncated octas and cubes)",   "1,3"},
+          {"            (0)-4-(1)---(0)---(1) Cantellated cross (same as rectified 24-cell) (cuboctas and cubes)", "1"},  // vertex figure not simplex
+          {"            (1)-4-(1)---(1)---(0) Cantitruncated hypercube",        "1,3(4.0)"},
+          {"            (1)-4-(1)---(0)---(1) Runcitruncated hypercube",        "1"}, // vertex figure not simplex
+          {"            (1)-4-(0)---(1)---(1) Runcitruncated cross",            "1"}, // vertex figure not simplex
+          {"            (0)-4-(1)---(1)---(1) Cantitrucated cross (same as truncated 24-cell) (truncated octas and cubes)", "1,3"},
           {"            (1)-4-(1)---(1)---(1) Omnitruncated hypercube/cross",   "1,3"},
           {"        24-cell based"},
           {"            (1)---(0)-4-(0)---(0) 24-cell",                         "1,2,3,4,5"}, // vertex figure not a simplex, but it works anyway
           {"            (1)---(.5)-4-(0)---(0) Barely truncated 24-cell",       "1,3"},
-          {"            (1)---(1)-4-(0)---(0) Truncated 24-cell",               "1,3"},
-          {"            (0)---(1)-4-(0)---(0)   (cuboctas and cubes)",          "1"}, // vertex figure not simplex
-          {"            (0)---(1)-4-(1)---(0)   (truncated cubes)",             "1,3(4.0)"},
-          {"            (0)---(0)-4-(1)---(0)   (cubes and cuboctas)",          "1"}, // vertex figure not simplex
+          {"            (1)---(1)-4-(0)---(0) Truncated 24-cell (same as cantritrucated 16-cell) (truncated octas and cubes)", "1,3"},
+          {"            (0)---(1)-4-(0)---(0) Rectified 24-cell (same as cantellated cross) (cuboctas and cubes)", "1"}, // vertex figure not simplex
+          {"            (0)---(1)-4-(1)---(0) Bitruncated 24-cell (truncated cubes)", "1,3(4.0)"},
+          {"            (0)---(0)-4-(1)---(0) Rectified 24-cell (dual) (cubes and cuboctas)", "1"}, // vertex figure not simplex
           {"            (0)---(0)-4-(1)---(1) Truncated 24-cell (dual)",        "1,3"},
           {"            (0)---(0)-4-(.5)---(1) Barely truncated 24-cell (dual)","1,3"},
           {"            (0)---(0)-4-(0)---(1) 24-cell (dual)",                  "1"}, // vertex figure not simplex
-          {"            (1)---(0)-4-(0)---(1)",                                 "1,2,3"}, // vertex figure not simplex, it's an octahedron! still sort of okay, maybe
-          {"            (1)---(0)-4-(1)---(0)",                                 "1"}, // vertex figure not simplex
-          {"            (0)---(1)-4-(0)---(1)",                                 "1"},  // vertex figure not simplex
-          {"            (1)---(1)-4-(1)---(0)",                                 "1,3(4.0)"},
-          {"            (1)---(1)-4-(0)---(1)",                                 "1"}, // vertex figure not simplex
-          {"            (1)---(0)-4-(1)---(1)",                                 "1"}, // vertex figure not simplex
-          {"            (0)---(1)-4-(1)---(1)",                                 "1,3(4.0)"},
-          {"            (1)---(1)-4-(1)---(1) Omnitruncated 24-cell",           "1,3"},
+          {"            (1)---(0)-4-(0)---(1) Runcinated 24-cell (octas and triprisms)", "1,2,3"}, // vertex figure not simplex, it's an octahedron! still sort of okay, maybe
+          {"            (1)---(0)-4-(1)---(0) Cantellated 24-cell",             "1"}, // vertex figure not simplex
+          {"            (0)---(1)-4-(0)---(1) Cantellated 24-cell (dual)",      "1"},  // vertex figure not simplex
+          {"            (1)---(1)-4-(1)---(0) Cantitruncated 24-cell",          "1,3(4.0)"},
+          {"            (1)---(1)-4-(0)---(1) Runcitruncated 24-cell",          "1"}, // vertex figure not simplex
+          {"            (1)---(0)-4-(1)---(1) Runcitruncated 24-cell (dual)",   "1"}, // vertex figure not simplex
+          {"            (0)---(1)-4-(1)---(1) Cantitruncated 24-cell (dual)",   "1,3(4.0)"},
+          {"            (1)---(1)-4-(1)---(1) Omnitruncated 24-cell (omnitrunced cubes and hexprisms)", "1,3"},
           {"        120-cell/600-cell based"},
           {"            (1)-5-(0)---(0)---(0) 120-cell (hypermegaminx)",        "1,3(2.5),3"},
           {"            (1)-5-(.5)---(0)---(0) Barely truncated 120-cell",      "1,3(5.0)"},
-          {"            (1)-5-(1)---(0)---(0) Truncated 120-cell",              "1,3(5.0)"},
+          {"            (1)-5-(1)---(0)---(0) Truncated 120-cell (truncated dodecas and tets)", "1,3(5.0)"},
           {"            (0)-5-(1)---(0)---(0) Rectified 120 (icosidodecas and tets)", "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(1)---(0) Bitruncated 120-cell/600-cell (truncated icosas and truncated tets)", "1,3(4.0)"},
           {"            (0)-5-(0)---(1)---(0) Rectified 600-cell (icosas and octas)", "1"}, // vertex figure not simplex
-          {"            (0)-5-(0)---(1)---(1) Truncated 600-cell",              "1"}, // vertex figure not simplex
+          {"            (0)-5-(0)---(1)---(1) Truncated 600-cell (icosas and truncated tets)", "1"}, // vertex figure not simplex
           {"            (0)-5-(0)---(.5)---(1) Barely truncated 600-cell",      "1"}, // vertex figure not simplex
-          {"            (0)-5-(0)---(0)---(1) 600-cell",                        "1"},
+          {"            (0)-5-(0)---(0)---(1) 600-cell",                        "1"}, //vertex figure not simplex
           {"            (1)-5-(0)---(0)---(1) Runcinated 120/600-cell",         "1,2,3"}, // vertex figure not simplex, it's an octahedron! still sort of okay, maybe
           {"            (1)-5-(0)---(1)---(0) Cantellated 120-cell",            "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(0)---(1) Cantellated 600-cell",            "1"},  // vertex figure not simplex
-
           {"            (1)-5-(1)---(1)---(0) Cantitruncated 120-cell",         "1,3(4)"},
-          {"            (1)-5-(1)---(1)---(0) Cantitruncated 120-cell",         "1"},
-
-
           {"            (1)-5-(1)---(0)---(1) Runcitruncated 120-cell",         "1"}, // vertex figure not simplex
           {"            (1)-5-(0)---(1)---(1) Runcitruncated 600-cell",         "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(1)---(1) Cantitruncated 600-cell",         "1,3"},
