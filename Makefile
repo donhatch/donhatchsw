@@ -6,7 +6,6 @@
 
 # Sticking points:
 #    - weak reference doesn't exist in 1.1... is it of any use to me then??
-#    - something's going funny with jikes and renumbering, it's looking for .prejava.lines which is wrong
 
 # TODO: versions should be command line params I think
 # TODO: find automatic way to find all failures to declare @Override
@@ -128,11 +127,11 @@
 
 
 # ubuntu, using alternative older compiler, from package openjdk-8-jdk
-JAVAROOT=/usr/lib/jvm/java-1.8.0-openjdk-amd64
-JAVACPPFLAGS=-DOVERRIDE=@Override
-JAVAC=${JAVAROOT}/bin/javac -source 1.5 -target 1.5 -deprecation -Xlint:all -Xlint:-options -bootclasspath ${JAVAROOT}/jre/lib/rt.jar
-JAR=${JAVAROOT}/bin/jar
-JAVADOC=${JAVAROOT}/bin/javadoc
+#JAVAROOT=/usr/lib/jvm/java-1.8.0-openjdk-amd64
+#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVAC=${JAVAROOT}/bin/javac -source 1.5 -target 1.5 -deprecation -Xlint:all -Xlint:-options -bootclasspath ${JAVAROOT}/jre/lib/rt.jar
+#JAR=${JAVAROOT}/bin/jar
+#JAVADOC=${JAVAROOT}/bin/javadoc
 
 # ubuntu, oldest at the moment using default installed (11) compiler, from package openjdk-11-jdk.  -Xlint:-options suppresses warning about old version (and also about bootpath. argh! I DO want to see that!)
 #JAVACPPFLAGS=-DOVERRIDE=@Override
@@ -141,10 +140,10 @@ JAVADOC=${JAVAROOT}/bin/javadoc
 #JAVADOC=/usr/bin/javadoc
 
 # ubuntu, newest at the moment using default installed (11) compiler, from package openjdk-11-jdk
-#JAVACPPFLAGS=-DOVERRIDE=@Override
-#JAVAC=/usr/bin/javac -source 11 -target 11 -deprecation -Xlint:all
-#JAR=/usr/bin/jar
-#JAVADOC=/usr/bin/javadoc
+JAVACPPFLAGS=-DOVERRIDE=@Override
+JAVAC=/usr/bin/javac -source 11 -target 11 -deprecation -Xlint:all
+JAR=/usr/bin/jar
+JAVADOC=/usr/bin/javadoc
 
 
 
@@ -339,4 +338,5 @@ com/donhatchsw/util/SmoothlyVaryingViewingParameter.class: com/donhatchsw/util/m
 com/donhatchsw/util/MyMath.class: com/donhatchsw/util/macros.h
 com/donhatchsw/util/Catenary.class: com/donhatchsw/util/macros.h
 com/donhatchsw/util/CatenaryRotated.class: com/donhatchsw/util/macros.h
+
 

@@ -5429,6 +5429,124 @@ public final class CSG
             return 1;
         } // calcRotationGroupOrder
 
+        /**
+        * DEPRECATED.  This is currently retained
+        * as a backwards-compatibility shim for superliminal/magiccube4d,
+        * until it updates to a new version of PolytopePuzzleDescription
+        * that figures out usefulMat itself and calls calcRotationGroupOrder() directly.
+        *
+        * calculates the order of the group of symmetries
+        * that are rotations in the 3-space containing cell3d,
+        * about the axis through cell3d's center and subCell's center.
+        * subCell's center must be different from cell3d's center
+        * (which rules out some non-convex uniform polyhedra
+        * that have faces or edges crossing the origin).
+        *
+        * returnUsefulMat is filled in with an orthogonal matrix
+        * the last two rows of which are in the plane of the rotation.
+        * So a rotation of any angle in that plane can be computed as:
+        *        Take the rows of mat to the canonical basis vectors e[0]..e[n-1]
+        *        rotate e[n-2] towards e[n-1]
+        *        take the canonical basis vectors back to the original rows
+        * I.e. rotMat = VecMath.mxmxm(VecMath.transpose(mat),
+        *                             VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, angle,
+        *                             mat);
+        * XXX isn't there a version of makeRowRotMat that does something like this?  check it out.  it looks overly complicated though, and assumes nDims==3 which is lame, should have a look at it
+        *
+        * Returns 0 when subCell is cell3d itself (and zeros out returnUselMat).
+        */
+        public static int calcRotationGroupOrderDEPRECATED(Polytope p,
+                                                 Polytope cell3d,
+                                                 Polytope subCell,
+                                                 double returnUsefulMat[][])
+        {
+            int nDims = p.fullDim;
+            do { if (!(cell3d.dim == 3)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5302 +"): " + "cell3d.dim == 3" + ""); } while (false);
+
+            Polytope cell3dAllElements[][] = cell3d.getAllElements();
+
+            int maxPossibleOrder;
+            {
+                if (subCell.dim == 0)
+                {
+                    // number of edges in cell3d that are incident on this vertex
+                    maxPossibleOrder = 0; // and counting
+                    Polytope edges[] = cell3dAllElements[1];
+                    for (int iEdge = 0; (iEdge) < (edges.length); ++iEdge)
+                    {
+                        Polytope edge = edges[iEdge];
+                        for (int iVertOnEdge = 0; (iVertOnEdge) < (edge.facets.length); ++iVertOnEdge)
+                            if (edge.facets[iVertOnEdge].p == subCell)
+                                maxPossibleOrder++;
+                    }
+                }
+                else if (subCell.dim == 1)
+                    maxPossibleOrder = 2; // assumes two faces meet here, and two vertices
+                else if (subCell.dim == 2)
+                    maxPossibleOrder = subCell.facets.length; // gonality of the face
+                else
+                {
+                    VecMath.zeromat(returnUsefulMat); // nothing better to do
+                    return 0; // no rotation possible here at all
+                }
+            }
+
+            // Figure out returnUsefulMat.
+            {
+                double pCenter[] = new double[nDims]; cgOfVerts(pCenter, p);
+                double cell3dCenter[] = new double[nDims]; cgOfVerts(cell3dCenter, cell3d);
+                double subCellCenter[] = new double[nDims]; cgOfVerts(subCellCenter, subCell);
+                // Make the centers relative (so they are now vectors)
+                VecMath.vmv(subCellCenter, subCellCenter, cell3dCenter);
+                VecMath.vmv(cell3dCenter, cell3dCenter, pCenter);
+
+                //
+                // We want two orthogonal unit vectors
+                // in the 3-space of cell3d
+                // that are orthogonal to the line between
+                // cell3d's center and CGsubCell's center.
+                // We can get this by taking two random vectors
+                // and gram-schmidting them against the normals
+                // of all the hyperplanes defining cell3d's space,
+                // and then against that line,
+                // and then against each other.
+                // XXX should try to do this without randomization!
+                double mat[][] = new double[nDims][nDims];
+                int iRow = 0;
+                for (iRow = 0; (iRow) < (cell3d.contributingHyperplanes.length); ++iRow)
+                    VecMath.copyvec(mat[iRow], cell3d.contributingHyperplanes[iRow].normal);
+                VecMath.copyvec(mat[iRow++], subCellCenter);
+                java.util.Random generator = new java.util.Random(3); // same every time
+                VecMath.random(mat[iRow++], generator);
+                VecMath.random(mat[iRow++], generator);
+                do { if (!(iRow == mat.length)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5360 +"): " + "iRow == mat.length" + ""); } while (false);
+                if (VecMath.det(mat) < 0.)
+                    VecMath.vxs(mat[mat.length-1], mat[mat.length-1], -1.);
+
+                // Gram-Schmidt (XXX should be a function)
+                {
+                    for (int i = 0; (i) < (mat.length); ++i)
+                    {
+                        for (int j = 0; (j) < (i); ++j)
+                        {
+                            // mat[j] is already unit length...
+                            // mat[i] -= (mat[i] dot mat[j])*mat[j]
+                            VecMath.vpsxv(mat[i],
+                                          mat[i],
+                                          -VecMath.dot(mat[i],mat[j]),
+                                          mat[j]);
+                        }
+                        VecMath.normalize(mat[i], mat[i]);
+                    }
+                }
+                do { if (!(VecMath.det(mat) > .9)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5380 +"): " + "VecMath.det(mat) > .9" + ""); } while (false); // should be 1
+
+                VecMath.copymat(returnUsefulMat, mat);
+            }
+
+            return calcRotationGroupOrder(p, maxPossibleOrder, returnUsefulMat);
+        } // calcRotationGroupOrderDEPRECATED
+
 
 
         // XXX comment me!!
@@ -5458,7 +5576,7 @@ public final class CSG
             {
                 int nContributingHyperplanes = p.contributingHyperplanes.length;
                 int fullDim = sp.p.fullDim;
-                do { if (!(nContributingHyperplanes < fullDim)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5299 +"): " + "nContributingHyperplanes < fullDim" + ""); } while (false);
+                do { if (!(nContributingHyperplanes < fullDim)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5417 +"): " + "nContributingHyperplanes < fullDim" + ""); } while (false);
                 double M[][] = new double[fullDim-1][fullDim];
                 int iRow;
                 for (iRow = 0; (iRow) < (nContributingHyperplanes); ++iRow)
@@ -5499,7 +5617,7 @@ public final class CSG
             }
             else
             {
-                do { if (!(p.dim >= 2)) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5340 +"): " + "p.dim >= 2" + ""); } while (false); // XXX never ask for density of a point
+                do { if (!(p.dim >= 2)) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5458 +"): " + "p.dim >= 2" + ""); } while (false); // XXX never ask for density of a point
                 SPolytope facets[] = p.facets;
                 int nFacets = facets.length;
                 double qoint[] = new double[point.length]; // scratch for loop
@@ -5671,10 +5789,10 @@ public final class CSG
             int k = simplices[0].length-1; // dimension of each simplex
             int n = simplices[0][0].length; // full dimension of space
 
-            do { if (!((sp.p.dim)==(k))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5512 +"): (" + "sp.p.dim" + ")" + "==" + "(" + "k" + ") ("+(sp.p.dim)+" vs. "+(k)+")"); } while (false);
-            do { if (!((sp.p.fullDim)==(n))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5513 +"): (" + "sp.p.fullDim" + ")" + "==" + "(" + "n" + ") ("+(sp.p.fullDim)+" vs. "+(n)+")"); } while (false);
+            do { if (!((sp.p.dim)==(k))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5630 +"): (" + "sp.p.dim" + ")" + "==" + "(" + "k" + ") ("+(sp.p.dim)+" vs. "+(k)+")"); } while (false);
+            do { if (!((sp.p.fullDim)==(n))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5631 +"): (" + "sp.p.fullDim" + ")" + "==" + "(" + "n" + ") ("+(sp.p.fullDim)+" vs. "+(n)+")"); } while (false);
             int nNonRedundantNormals = n-k;
-            do { if (!(nNonRedundantNormals <= nNormals)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5515 +"): " + "nNonRedundantNormals <= nNormals" + ""); } while (false);
+            do { if (!(nNonRedundantNormals <= nNormals)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5633 +"): " + "nNonRedundantNormals <= nNormals" + ""); } while (false);
             double sum = 0.;
             double M[][] = new double[n][n];
             for (int iSimplex = 0; (iSimplex) < (nSimplices); ++iSimplex)
@@ -5706,10 +5824,10 @@ public final class CSG
                 return;
             int k = simplices[0].length-1; // dimension of each simplex
             int n = simplices[0][0].length; // full dimension of space
-            do { if (!((k)==(sp.p.dim))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5547 +"): (" + "k" + ")" + "==" + "(" + "sp.p.dim" + ") ("+(k)+" vs. "+(sp.p.dim)+")"); } while (false);
+            do { if (!((k)==(sp.p.dim))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5665 +"): (" + "k" + ")" + "==" + "(" + "sp.p.dim" + ") ("+(k)+" vs. "+(sp.p.dim)+")"); } while (false);
 
-            do { if (!((k)==(n-1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5549 +"): (" + "k" + ")" + "==" + "(" + "n-1" + ") ("+(k)+" vs. "+(n-1)+")"); } while (false);
-            do { if (!((result.length)==(n))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5550 +"): (" + "result.length" + ")" + "==" + "(" + "n" + ") ("+(result.length)+" vs. "+(n)+")"); } while (false); // make sure they passed in the right dimension result
+            do { if (!((k)==(n-1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5667 +"): (" + "k" + ")" + "==" + "(" + "n-1" + ") ("+(k)+" vs. "+(n-1)+")"); } while (false);
+            do { if (!((result.length)==(n))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5668 +"): (" + "result.length" + ")" + "==" + "(" + "n" + ") ("+(result.length)+" vs. "+(n)+")"); } while (false); // make sure they passed in the right dimension result
             double M[][] = new double[k][n];
             double simplexNormal[] = new double[n];
             for (int iSimplex = 0; (iSimplex) < (nSimplices); ++iSimplex)
@@ -5733,7 +5851,7 @@ public final class CSG
             VecMath.zerovec(result);
             for (int i = 0; (i) < (vertPolytopes.length); ++i)
                 VecMath.vpv(result, result, vertPolytopes[i].getCoords());
-            do { if (!(vertPolytopes.length != 0)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5574 +"): " + "vertPolytopes.length != 0" + ""); } while (false);
+            do { if (!(vertPolytopes.length != 0)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5692 +"): " + "vertPolytopes.length != 0" + ""); } while (false);
             VecMath.vxs(result, result, 1./vertPolytopes.length);
         } // cgOfVerts
 
@@ -5807,8 +5925,8 @@ public final class CSG
             // and also so that, in general, simplices will come out regular.
             int nA = A.p.getAllElements()[0].length;
             int nB = B.p.getAllElements()[0].length;
-            do { if (!((nA)>(0))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5648 +"): (" + "nA" + ")" + ">" + "(" + "0" + ") ("+(nA)+" vs. "+(0)+")"); } while (false);
-            do { if (!((nB)>(0))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5649 +"): (" + "nB" + ")" + ">" + "(" + "0" + ") ("+(nB)+" vs. "+(0)+")"); } while (false);
+            do { if (!((nA)>(0))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5766 +"): (" + "nA" + ")" + ">" + "(" + "0" + ") ("+(nA)+" vs. "+(0)+")"); } while (false);
+            do { if (!((nB)>(0))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5767 +"): (" + "nB" + ")" + ">" + "(" + "0" + ") ("+(nB)+" vs. "+(0)+")"); } while (false);
             double y0 = -2.*nB/(nA+nB);
             double y1 = 2.*nA/(nA+nB);
             if (verboseLevel >= 1) {System.out.print("        "); System.out.println("y0" + " = " + (y0));};
@@ -5868,7 +5986,7 @@ public final class CSG
                 if (verboseLevel >= 1) {System.out.print("        "); System.out.println("yvarianceTarget" + " = " + (yvarianceTarget));};
                 yscale = Math.sqrt(yvarianceTarget / yvariance);
                 if (verboseLevel >= 1) {System.out.print("        "); System.out.println("yscale" + " = " + (yscale));};
-                do { if (!((yscale)==(1.)||Math.abs((yscale)-(1.))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5709 +"): " +"(" + "yscale" + ")==(" + "1." + ")+-" + "1e-6" + "" +" ("+(yscale)+" vs. "+(1.)+" +- "+(1e-6)+")" +" (error = "+((yscale)-(1.))+")" ); } while (false);
+                do { if (!((yscale)==(1.)||Math.abs((yscale)-(1.))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5827 +"): " +"(" + "yscale" + ")==(" + "1." + ")+-" + "1e-6" + "" +" ("+(yscale)+" vs. "+(1.)+" +- "+(1e-6)+")" +" (error = "+((yscale)-(1.))+")" ); } while (false);
             }
             {System.out.print("        "); System.out.println("y0" + " = " + (y0));};
             {System.out.print("        "); System.out.println("y1" + " = " + (y1));};
@@ -5889,15 +6007,15 @@ public final class CSG
                 int yIndex = A.p.fullDim;
                 for (int i = 0; i < A.p.fullDim; ++i)
                 {
-                    do { if (!((bbox[0][i])==(bboxA[0][i])||Math.abs((bbox[0][i])-(bboxA[0][i]))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5730 +"): " +"(" + "bbox[0][i]" + ")==(" + "bboxA[0][i]" + ")+-" + "1e-6" + "" +" ("+(bbox[0][i])+" vs. "+(bboxA[0][i])+" +- "+(1e-6)+")" +" (error = "+((bbox[0][i])-(bboxA[0][i]))+")" ); } while (false);
-                    do { if (!((bbox[1][i])==(bboxA[1][i])||Math.abs((bbox[1][i])-(bboxA[1][i]))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5731 +"): " +"(" + "bbox[1][i]" + ")==(" + "bboxA[1][i]" + ")+-" + "1e-6" + "" +" ("+(bbox[1][i])+" vs. "+(bboxA[1][i])+" +- "+(1e-6)+")" +" (error = "+((bbox[1][i])-(bboxA[1][i]))+")" ); } while (false);
+                    do { if (!((bbox[0][i])==(bboxA[0][i])||Math.abs((bbox[0][i])-(bboxA[0][i]))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5848 +"): " +"(" + "bbox[0][i]" + ")==(" + "bboxA[0][i]" + ")+-" + "1e-6" + "" +" ("+(bbox[0][i])+" vs. "+(bboxA[0][i])+" +- "+(1e-6)+")" +" (error = "+((bbox[0][i])-(bboxA[0][i]))+")" ); } while (false);
+                    do { if (!((bbox[1][i])==(bboxA[1][i])||Math.abs((bbox[1][i])-(bboxA[1][i]))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5849 +"): " +"(" + "bbox[1][i]" + ")==(" + "bboxA[1][i]" + ")+-" + "1e-6" + "" +" ("+(bbox[1][i])+" vs. "+(bboxA[1][i])+" +- "+(1e-6)+")" +" (error = "+((bbox[1][i])-(bboxA[1][i]))+")" ); } while (false);
                 }
-                do { if (!((bbox[0][yIndex])==(((y0)<=(y1)?(y0):(y1)))||Math.abs((bbox[0][yIndex])-(((y0)<=(y1)?(y0):(y1))))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5733 +"): " +"(" + "bbox[0][yIndex]" + ")==(" + "MIN(y0, y1)" + ")+-" + "1e-6" + "" +" ("+(bbox[0][yIndex])+" vs. "+(((y0)<=(y1)?(y0):(y1)))+" +- "+(1e-6)+")" +" (error = "+((bbox[0][yIndex])-(((y0)<=(y1)?(y0):(y1))))+")" ); } while (false);
-                do { if (!((bbox[1][yIndex])==(((y0)>=(y1)?(y0):(y1)))||Math.abs((bbox[1][yIndex])-(((y0)>=(y1)?(y0):(y1))))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5734 +"): " +"(" + "bbox[1][yIndex]" + ")==(" + "MAX(y0, y1)" + ")+-" + "1e-6" + "" +" ("+(bbox[1][yIndex])+" vs. "+(((y0)>=(y1)?(y0):(y1)))+" +- "+(1e-6)+")" +" (error = "+((bbox[1][yIndex])-(((y0)>=(y1)?(y0):(y1))))+")" ); } while (false);
+                do { if (!((bbox[0][yIndex])==(((y0)<=(y1)?(y0):(y1)))||Math.abs((bbox[0][yIndex])-(((y0)<=(y1)?(y0):(y1))))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5851 +"): " +"(" + "bbox[0][yIndex]" + ")==(" + "MIN(y0, y1)" + ")+-" + "1e-6" + "" +" ("+(bbox[0][yIndex])+" vs. "+(((y0)<=(y1)?(y0):(y1)))+" +- "+(1e-6)+")" +" (error = "+((bbox[0][yIndex])-(((y0)<=(y1)?(y0):(y1))))+")" ); } while (false);
+                do { if (!((bbox[1][yIndex])==(((y0)>=(y1)?(y0):(y1)))||Math.abs((bbox[1][yIndex])-(((y0)>=(y1)?(y0):(y1))))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5852 +"): " +"(" + "bbox[1][yIndex]" + ")==(" + "MAX(y0, y1)" + ")+-" + "1e-6" + "" +" ("+(bbox[1][yIndex])+" vs. "+(((y0)>=(y1)?(y0):(y1)))+" +- "+(1e-6)+")" +" (error = "+((bbox[1][yIndex])-(((y0)>=(y1)?(y0):(y1))))+")" ); } while (false);
                 for (int i = 0; i < B.p.fullDim; ++i)
                 {
-                    do { if (!((bbox[0][yIndex+1+i])==(bboxB[0][i])||Math.abs((bbox[0][yIndex+1+i])-(bboxB[0][i]))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5737 +"): " +"(" + "bbox[0][yIndex+1+i]" + ")==(" + "bboxB[0][i]" + ")+-" + "1e-6" + "" +" ("+(bbox[0][yIndex+1+i])+" vs. "+(bboxB[0][i])+" +- "+(1e-6)+")" +" (error = "+((bbox[0][yIndex+1+i])-(bboxB[0][i]))+")" ); } while (false);
-                    do { if (!((bbox[1][yIndex+1+i])==(bboxB[1][i])||Math.abs((bbox[1][yIndex+1+i])-(bboxB[1][i]))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5738 +"): " +"(" + "bbox[1][yIndex+1+i]" + ")==(" + "bboxB[1][i]" + ")+-" + "1e-6" + "" +" ("+(bbox[1][yIndex+1+i])+" vs. "+(bboxB[1][i])+" +- "+(1e-6)+")" +" (error = "+((bbox[1][yIndex+1+i])-(bboxB[1][i]))+")" ); } while (false);
+                    do { if (!((bbox[0][yIndex+1+i])==(bboxB[0][i])||Math.abs((bbox[0][yIndex+1+i])-(bboxB[0][i]))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5855 +"): " +"(" + "bbox[0][yIndex+1+i]" + ")==(" + "bboxB[0][i]" + ")+-" + "1e-6" + "" +" ("+(bbox[0][yIndex+1+i])+" vs. "+(bboxB[0][i])+" +- "+(1e-6)+")" +" (error = "+((bbox[0][yIndex+1+i])-(bboxB[0][i]))+")" ); } while (false);
+                    do { if (!((bbox[1][yIndex+1+i])==(bboxB[1][i])||Math.abs((bbox[1][yIndex+1+i])-(bboxB[1][i]))<=1e-6)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5856 +"): " +"(" + "bbox[1][yIndex+1+i]" + ")==(" + "bboxB[1][i]" + ")+-" + "1e-6" + "" +" ("+(bbox[1][yIndex+1+i])+" vs. "+(bboxB[1][i])+" +- "+(1e-6)+")" +" (error = "+((bbox[1][yIndex+1+i])-(bboxB[1][i]))+")" ); } while (false);
                 }
             }
 
@@ -5947,7 +6065,7 @@ public final class CSG
             if (verboseLevel >= 1) if (A==null||A.dim==0) System.out.println(indentString+"  A="+A);
             if (verboseLevel >= 1) if (B==null||B.dim==0) System.out.println(indentString+"  B="+B);
 
-            do { if (!(A!=null || B!=null)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5788 +"): " + "A!=null || B!=null" + ""); } while (false);
+            do { if (!(A!=null || B!=null)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5906 +"): " + "A!=null || B!=null" + ""); } while (false);
             HashablePair key = new HashablePair(A, B);
             Polytope AvB = ocean.get(key);
             if (AvB == null)
@@ -5963,7 +6081,7 @@ public final class CSG
                 {
                     // a vertex logically has one facet-- the null polytope, of dimension -1,
                     // but our convention is to give it no facets.
-                    do { if (!((nFacets)==(1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5804 +"): (" + "nFacets" + ")" + "==" + "(" + "1" + ") ("+(nFacets)+" vs. "+(1)+")"); } while (false);
+                    do { if (!((nFacets)==(1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5922 +"): (" + "nFacets" + ")" + "==" + "(" + "1" + ") ("+(nFacets)+" vs. "+(1)+")"); } while (false);
                     nFacets = 0;
                 }
                 SPolytope[] facets = new SPolytope[nFacets];
@@ -6000,7 +6118,7 @@ public final class CSG
                         }
                     }
                     if (verboseLevel >= 1) System.out.println(indentString+"  computing hyperplanes...");
-                    do { if (!((y0)!=(y1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5841 +"): (" + "y0" + ")" + "!=" + "(" + "y1" + ") ("+(y0)+" vs. "+(y1)+")"); } while (false);
+                    do { if (!((y0)!=(y1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5959 +"): (" + "y0" + ")" + "!=" + "(" + "y1" + ") ("+(y0)+" vs. "+(y1)+")"); } while (false);
 
                     // For each of A's hyperplanes, lean it against the entire BfullDim space at y=y1.
                     // For each of B's hyperplanes, lean it against the entire AfullDim space at y=y0.
@@ -6099,7 +6217,7 @@ public final class CSG
                             contributingHyperplanes[iPlane++] = new Hyperplane(normal, offset);
                         }
                     }
-                    do { if (!((iPlane)==(contributingHyperplanes.length))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+5940 +"): (" + "iPlane" + ")" + "==" + "(" + "contributingHyperplanes.length" + ") ("+(iPlane)+" vs. "+(contributingHyperplanes.length)+")"); } while (false);
+                    do { if (!((iPlane)==(contributingHyperplanes.length))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6058 +"): (" + "iPlane" + ")" + "==" + "(" + "contributingHyperplanes.length" + ") ("+(iPlane)+" vs. "+(contributingHyperplanes.length)+")"); } while (false);
                 }
                 AvB = new Polytope(dim,
                                    fullDim,
@@ -6175,7 +6293,7 @@ public final class CSG
                         Polytope Ab = _cross(A, b, ocean, subIndentString);
                         facets[iFacet++] = new SPolytope(0,1,Ab); // sign arbitrary, will be fixed later
                     }
-                    do { if (!((iFacet)==(facets.length))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6016 +"): (" + "iFacet" + ")" + "==" + "(" + "facets.length" + ") ("+(iFacet)+" vs. "+(facets.length)+")"); } while (false);
+                    do { if (!((iFacet)==(facets.length))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6134 +"): (" + "iFacet" + ")" + "==" + "(" + "facets.length" + ") ("+(iFacet)+" vs. "+(facets.length)+")"); } while (false);
                 }
 
                 Hyperplane contributingHyperplanes[] = new Hyperplane[A.contributingHyperplanes.length + B.contributingHyperplanes.length];
@@ -6204,7 +6322,7 @@ public final class CSG
                         // XXX need to look up zero_b in the ocean to see if it already exists! although it's probably not a functional problem if hyperplane lists get duplicated... maybe
                         contributingHyperplanes[iPlane++] = zero_b;
                     }
-                    do { if (!((iPlane)==(contributingHyperplanes.length))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6045 +"): (" + "iPlane" + ")" + "==" + "(" + "contributingHyperplanes.length" + ") ("+(iPlane)+" vs. "+(contributingHyperplanes.length)+")"); } while (false);
+                    do { if (!((iPlane)==(contributingHyperplanes.length))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6163 +"): (" + "iPlane" + ")" + "==" + "(" + "contributingHyperplanes.length" + ") ("+(iPlane)+" vs. "+(contributingHyperplanes.length)+")"); } while (false);
                 }
 
                 AB = new Polytope(A.dim+B.dim,
@@ -6297,7 +6415,7 @@ public final class CSG
                 subIndentString = indentString + "        ";
                 System.out.println(indentString+"");
             }
-            do { if (!(eltDim < slicee.p.dim)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6138 +"): " + "eltDim < slicee.p.dim" + ""); } while (false); // otherwise answer could have more than one SPolytope... caller should just use slice directly in that case
+            do { if (!(eltDim < slicee.p.dim)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6256 +"): " + "eltDim < slicee.p.dim" + ""); } while (false); // otherwise answer could have more than one SPolytope... caller should just use slice directly in that case
             SPolytope newFacets[] = null;
 
             if (eltDim == slicee.p.dim-1)
@@ -6399,7 +6517,7 @@ public final class CSG
                         else
                         {
                             // any other case would require replacing sps[nFinal-1] with a new SPolytope with the summed sign.  I'm not prepared to test this...
-                            do { if (!(false)) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6240 +"): " + "false" + ""); } while (false);
+                            do { if (!(false)) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6358 +"): " + "false" + ""); } while (false);
                         }
                     }
                     else
@@ -6509,14 +6627,14 @@ public final class CSG
                         {System.out.print("        "); System.out.println("totalSignOn" + " = " + (totalSignOn));};
                         {System.out.print("        "); System.out.println("totalSignAbove" + " = " + (totalSignAbove));};
                     }
-                    do { if (!((totalSignBelow + totalSignOn + totalSignAbove)==(0))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6350 +"): (" + "totalSignBelow + totalSignOn + totalSignAbove" + ")" + "==" + "(" + "0" + ") ("+(totalSignBelow + totalSignOn + totalSignAbove)+" vs. "+(0)+")"); } while (false);
+                    do { if (!((totalSignBelow + totalSignOn + totalSignAbove)==(0))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6468 +"): (" + "totalSignBelow + totalSignOn + totalSignAbove" + ")" + "==" + "(" + "0" + ") ("+(totalSignBelow + totalSignOn + totalSignAbove)+" vs. "+(0)+")"); } while (false);
 
                     if (nVertsAbove > 0 && nVertsBelow == 0)
                     {
                         above = slicee.p;
                         if (nVertsOn > 0)
                         {
-                            do { if (!((nVertsOn)==(1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6357 +"): (" + "nVertsOn" + ")" + "==" + "(" + "1" + ") ("+(nVertsOn)+" vs. "+(1)+")"); } while (false);
+                            do { if (!((nVertsOn)==(1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6475 +"): (" + "nVertsOn" + ")" + "==" + "(" + "1" + ") ("+(nVertsOn)+" vs. "+(1)+")"); } while (false);
                             aboveCapFacet = someVertexOnHyperplane;
                         }
                     }
@@ -6525,7 +6643,7 @@ public final class CSG
                         below = slicee.p;
                         if (nVertsOn > 0)
                         {
-                            do { if (!((nVertsOn)==(1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6366 +"): (" + "nVertsOn" + ")" + "==" + "(" + "1" + ") ("+(nVertsOn)+" vs. "+(1)+")"); } while (false);
+                            do { if (!((nVertsOn)==(1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6484 +"): (" + "nVertsOn" + ")" + "==" + "(" + "1" + ") ("+(nVertsOn)+" vs. "+(1)+")"); } while (false);
                             belowCapFacet = someVertexOnHyperplane;
                         }
                     }
@@ -6609,7 +6727,7 @@ public final class CSG
                 }
                 else // slicee.p.dim >= 2
                 {
-                    do { if (!(slicee.p.dim >= 2)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6450 +"): " + "slicee.p.dim >= 2" + ""); } while (false);
+                    do { if (!(slicee.p.dim >= 2)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6568 +"): " + "slicee.p.dim >= 2" + ""); } while (false);
 
 
                     // The following is a huge time savings--
@@ -6758,13 +6876,13 @@ public final class CSG
                         if (facetsAbove[nFacetsAbove] != null) nFacetsAbove++;
                     }
 
-                    do { if (!(nFacetsOn == 0 || nFacetsOn == 1 || nFacetsOn == slicee.p.facets.length)) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6599 +"): " + "nFacetsOn == 0 || nFacetsOn == 1 || nFacetsOn == slicee.p.facets.length" + ""); } while (false)
+                    do { if (!(nFacetsOn == 0 || nFacetsOn == 1 || nFacetsOn == slicee.p.facets.length)) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6717 +"): " + "nFacetsOn == 0 || nFacetsOn == 1 || nFacetsOn == slicee.p.facets.length" + ""); } while (false)
 
                                                                 ;
 
                     if (nFacetsOn == 1)
                     {
-                        do { if (!(nFacetsAbove==0 || nFacetsBelow==0)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6605 +"): " + "nFacetsAbove==0 || nFacetsBelow==0" + ""); } while (false);
+                        do { if (!(nFacetsAbove==0 || nFacetsBelow==0)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6723 +"): " + "nFacetsAbove==0 || nFacetsBelow==0" + ""); } while (false);
                         if (nFacetsAbove == 0)
                         {
                             below = slicee.p;
@@ -6896,8 +7014,8 @@ public final class CSG
                     else
                     {
                         // All zero-- return nothing
-                        do { if (!((nBoundaryRidgesBelow)==(0))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6737 +"): (" + "nBoundaryRidgesBelow" + ")" + "==" + "(" + "0" + ") ("+(nBoundaryRidgesBelow)+" vs. "+(0)+")"); } while (false);
-                        do { if (!((nBoundaryRidgesAbove)==(0))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6738 +"): (" + "nBoundaryRidgesAbove" + ")" + "==" + "(" + "0" + ") ("+(nBoundaryRidgesAbove)+" vs. "+(0)+")"); } while (false);
+                        do { if (!((nBoundaryRidgesBelow)==(0))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6855 +"): (" + "nBoundaryRidgesBelow" + ")" + "==" + "(" + "0" + ") ("+(nBoundaryRidgesBelow)+" vs. "+(0)+")"); } while (false);
+                        do { if (!((nBoundaryRidgesAbove)==(0))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6856 +"): (" + "nBoundaryRidgesAbove" + ")" + "==" + "(" + "0" + ") ("+(nBoundaryRidgesAbove)+" vs. "+(0)+")"); } while (false);
                     }
                 } // slicee.p.dim >= 2
 
@@ -7007,7 +7125,7 @@ public final class CSG
                 System.out.println();
 
             int fullDim = A.p.fullDim;
-            do { if (!((fullDim)==(B.p.fullDim))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6848 +"): (" + "fullDim" + ")" + "==" + "(" + "B.p.fullDim" + ") ("+(fullDim)+" vs. "+(B.p.fullDim)+")"); } while (false);
+            do { if (!((fullDim)==(B.p.fullDim))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6966 +"): (" + "fullDim" + ")" + "==" + "(" + "B.p.fullDim" + ") ("+(fullDim)+" vs. "+(B.p.fullDim)+")"); } while (false);
 
             if (true)
             {
@@ -7108,7 +7226,7 @@ public final class CSG
                     }
                     else
                     {
-                        do { if (!(flotsam == null)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+6949 +"): " + "flotsam == null" + ""); } while (false);
+                        do { if (!(flotsam == null)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7067 +"): " + "flotsam == null" + ""); } while (false);
                         // It was previously computed and came out null.
                         if (verboseLevel >= 1)
                         {
@@ -7379,7 +7497,7 @@ public final class CSG
             if (result == null)
             {
                 int fullDim = A.p.fullDim;
-                do { if (!((fullDim)==(B.p.fullDim))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7220 +"): (" + "fullDim" + ")" + "==" + "(" + "B.p.fullDim" + ") ("+(fullDim)+" vs. "+(B.p.fullDim)+")"); } while (false);
+                do { if (!((fullDim)==(B.p.fullDim))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7338 +"): (" + "fullDim" + ")" + "==" + "(" + "B.p.fullDim" + ") ("+(fullDim)+" vs. "+(B.p.fullDim)+")"); } while (false);
                 int dim = fullDim - ((fullDim-A.p.dim)
                                    + (fullDim-B.p.dim));
                 result = new SPolytope(0,1,
@@ -7621,7 +7739,7 @@ public final class CSG
                         Polytope initialVertexOnContour = null; // initialization not necessary, but to shut up compiler
                         if (contourStart < nEdges)
                         {
-                            do { if (!(edges[contourStart].p.facets.length >= 2)) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7462 +"): " + "edges[contourStart].p.facets.length >= 2" + ""); } while (false); // XXX can't we have an edge that's all of the line!? think about this (also same below)
+                            do { if (!(edges[contourStart].p.facets.length >= 2)) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7580 +"): " + "edges[contourStart].p.facets.length >= 2" + ""); } while (false); // XXX can't we have an edge that's all of the line!? think about this (also same below)
                             initialVertexOnContour = edges[contourStart].p.facets[((edges[contourStart].sign)==1?0:1)].p;
                         }
 
@@ -7650,9 +7768,9 @@ public final class CSG
                         {
                             SPolytope sedgeI = edges[iEdge];
                             Polytope edgeI = sedgeI.p;
-                            do { if (!((edgeI.facets.length)==(2))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7491 +"): (" + "edgeI.facets.length" + ")" + "==" + "(" + "2" + ") ("+(edgeI.facets.length)+" vs. "+(2)+")"); } while (false);
-                            do { if (!((edgeI.facets[0].sign)==(-1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7492 +"): (" + "edgeI.facets[0].sign" + ")" + "==" + "(" + "-1" + ") ("+(edgeI.facets[0].sign)+" vs. "+(-1)+")"); } while (false);
-                            do { if (!((edgeI.facets[1].sign)==(1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7493 +"): (" + "edgeI.facets[1].sign" + ")" + "==" + "(" + "1" + ") ("+(edgeI.facets[1].sign)+" vs. "+(1)+")"); } while (false);
+                            do { if (!((edgeI.facets.length)==(2))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7609 +"): (" + "edgeI.facets.length" + ")" + "==" + "(" + "2" + ") ("+(edgeI.facets.length)+" vs. "+(2)+")"); } while (false);
+                            do { if (!((edgeI.facets[0].sign)==(-1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7610 +"): (" + "edgeI.facets[0].sign" + ")" + "==" + "(" + "-1" + ") ("+(edgeI.facets[0].sign)+" vs. "+(-1)+")"); } while (false);
+                            do { if (!((edgeI.facets[1].sign)==(1))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7611 +"): (" + "edgeI.facets[1].sign" + ")" + "==" + "(" + "1" + ") ("+(edgeI.facets[1].sign)+" vs. "+(1)+")"); } while (false);
                             Polytope finalVertexOnEdgeI = edgeI.facets[((sedgeI.sign)==1?1:0)].p;
                             if (finalVertexOnEdgeI
                              == initialVertexOnContour)
@@ -7661,7 +7779,7 @@ public final class CSG
                                 contourStart = iEdge+1;
                                 if (contourStart < nEdges)
                                 {
-                                    do { if (!(edges[contourStart].p.facets.length >= 2)) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7502 +"): " + "edges[contourStart].p.facets.length >= 2" + ""); } while (false); // XXX can't we have an edge that's all of the line!? think about this. (also same above)
+                                    do { if (!(edges[contourStart].p.facets.length >= 2)) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7620 +"): " + "edges[contourStart].p.facets.length >= 2" + ""); } while (false); // XXX can't we have an edge that's all of the line!? think about this. (also same above)
                                     initialVertexOnContour = edges[contourStart].p.facets[((edges[contourStart].sign)==1?0:1)].p;
                                 }
                             }
@@ -7678,7 +7796,7 @@ public final class CSG
                                     if (initialVertexOnEdgeJ == finalVertexOnEdgeI)
                                         break; // found next
                                 }
-                                do { if (!(jEdge < nEdges)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7519 +"): " + "jEdge < nEdges" + ""); } while (false); // found next
+                                do { if (!(jEdge < nEdges)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7637 +"): " + "jEdge < nEdges" + ""); } while (false); // found next
                                 if (jEdge > iEdge+1)
                                 {
                                     SPolytope temp;
@@ -7756,7 +7874,7 @@ public final class CSG
                                     farthestDistSqrd = thisDistSqrd;
                                 }
                             }
-                            do { if (!(farthest != null)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7597 +"): " + "farthest != null" + ""); } while (false);
+                            do { if (!(farthest != null)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7715 +"): " + "farthest != null" + ""); } while (false);
                         }
                         b = farthest;
                         from = b;
@@ -7772,7 +7890,7 @@ public final class CSG
                                     farthestDistSqrd = thisDistSqrd;
                                 }
                             }
-                            do { if (!(farthest != null)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7613 +"): " + "farthest != null" + ""); } while (false);
+                            do { if (!(farthest != null)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7731 +"): " + "farthest != null" + ""); } while (false);
                         }
                         a = farthest;
                     }
@@ -7842,7 +7960,7 @@ public final class CSG
                         }
                     }
                 }
-                do { if (!((firstFacetContainingRidge.size())==(0))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7683 +"): (" + "firstFacetContainingRidge.size()" + ")" + "==" + "(" + "0" + ") ("+(firstFacetContainingRidge.size())+" vs. "+(0)+")"); } while (false); // everything matched XXX change this assert to failure I think
+                do { if (!((firstFacetContainingRidge.size())==(0))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7801 +"): (" + "firstFacetContainingRidge.size()" + ")" + "==" + "(" + "0" + ") ("+(firstFacetContainingRidge.size())+" vs. "+(0)+")"); } while (false); // everything matched XXX change this assert to failure I think
             } // facetNeighbors
 
             int signOfFirstFacet = 1; // arbitrarily XXX is there a better choice?
@@ -7892,7 +8010,7 @@ public final class CSG
                                 //  = - facets[iNeighbor].sign
                                 //          * ridgesNeighborFacet[iRidgeNeighborFacet].sign.
                                 int signOfRidgeOnNeighbor = ridgesNeighborFacet[iRidgeNeighborFacet].sign;
-                                do { if (!(signOfRidgeOnNeighbor == 1 || signOfRidgeOnNeighbor == -1)) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7733 +"): " + "signOfRidgeOnNeighbor == 1 || signOfRidgeOnNeighbor == -1" + ""); } while (false)
+                                do { if (!(signOfRidgeOnNeighbor == 1 || signOfRidgeOnNeighbor == -1)) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7851 +"): " + "signOfRidgeOnNeighbor == 1 || signOfRidgeOnNeighbor == -1" + ""); } while (false)
                                                                     ; // otherwise should be / instead of * below, and I'm not sure what it means if it doesn't divide evenly, have to think about it some day
 
                                 neighborFacet.sign = -facet.sign
@@ -7912,7 +8030,7 @@ public final class CSG
                 }
             } // for contourStart
             for (int iFacet = 0; (iFacet) < (nFacets); ++iFacet)
-                do { if (!(isSigned[iFacet])) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7753 +"): " + "isSigned[iFacet]" + ""); } while (false);
+                do { if (!(isSigned[iFacet])) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7871 +"): " + "isSigned[iFacet]" + ""); } while (false);
 
             //
             // Make temporary SPolytopes out of the contours...
@@ -8000,7 +8118,7 @@ public final class CSG
                                     tol,
                                     densityMinMax);
                         int density = densityMinMax[0];
-                        do { if (!(density == densityMinMax[1])) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7841 +"): " + "density == densityMinMax[1]" + ""); } while (false); // must be unambiguous
+                        do { if (!(density == densityMinMax[1])) throw new Error("Assumption failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7959 +"): " + "density == densityMinMax[1]" + ""); } while (false); // must be unambiguous
                         boolean isContainedInNode = (density&1) == 1;
                         if (isContainedInNode)
                         {
@@ -8147,7 +8265,7 @@ public final class CSG
                 if (iB == nB) // A[iA] was not in B
                     return A[iA];
             }
-            do { if (!(false)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+7988 +"): " + "false" + ""); } while (false);
+            do { if (!(false)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8106 +"): " + "false" + ""); } while (false);
             return null;
         } // itemOfAThatsNotInB
 
@@ -8201,8 +8319,8 @@ public final class CSG
                 // E.g. for octahedron {3,4}, we store 4 hyperplanes (not 3) at each vertex;
                 // and a vertex coord can be found by intersecting the 4 hyperplanes,
                 // (which is an overconstrained system, for which we return the least-squares solution).
-                do { if (!((hyperplanes[i].normal.length)==(hyperplanes[0].normal.length))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8042 +"): (" + "hyperplanes[i].normal.length" + ")" + "==" + "(" + "hyperplanes[0].normal.length" + ") ("+(hyperplanes[i].normal.length)+" vs. "+(hyperplanes[0].normal.length)+")"); } while (false);
-                do { if (!((nHyperplanes)>=(hyperplanes[i].normal.length))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8043 +"): (" + "nHyperplanes" + ")" + ">=" + "(" + "hyperplanes[i].normal.length" + ") ("+(nHyperplanes)+" vs. "+(hyperplanes[i].normal.length)+")"); } while (false);
+                do { if (!((hyperplanes[i].normal.length)==(hyperplanes[0].normal.length))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8160 +"): (" + "hyperplanes[i].normal.length" + ")" + "==" + "(" + "hyperplanes[0].normal.length" + ") ("+(hyperplanes[i].normal.length)+" vs. "+(hyperplanes[0].normal.length)+")"); } while (false);
+                do { if (!((nHyperplanes)>=(hyperplanes[i].normal.length))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8161 +"): (" + "nHyperplanes" + ")" + ">=" + "(" + "hyperplanes[i].normal.length" + ") ("+(nHyperplanes)+" vs. "+(hyperplanes[i].normal.length)+")"); } while (false);
             }
             int iHyperplane;
             for (iHyperplane = 0; (iHyperplane) < (nHyperplanes); ++iHyperplane)
@@ -8218,7 +8336,7 @@ public final class CSG
                 // We just need to find the one point
                 // that is in the spanning set of all of them.
                 //
-                do { if (!(nHyperplanes > 0)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8059 +"): " + "nHyperplanes > 0" + ""); } while (false); // we would have returned early above
+                do { if (!(nHyperplanes > 0)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8177 +"): " + "nHyperplanes > 0" + ""); } while (false); // we would have returned early above
                 int iSpanningPoint, nSpanningPoints = hyperplanes[0].spanningPoints.length;
                 for (iSpanningPoint = 0; (iSpanningPoint) < (nSpanningPoints); ++iSpanningPoint)
                 {
@@ -8232,7 +8350,7 @@ public final class CSG
                         return point;
                     }
                 }
-                do { if (!(false)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8073 +"): " + "false" + ""); } while (false); // XXX not sure if this can happen or not, so flag it for now and think about it if it goes off
+                do { if (!(false)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8191 +"): " + "false" + ""); } while (false); // XXX not sure if this can happen or not, so flag it for now and think about it if it goes off
             }
 
             //
@@ -8700,7 +8818,7 @@ public final class CSG
                 // Make a cross polytope {3,3,...,3,4}
                 // and slice it on the equator.
                 // This is a minimal test of when vertices lie on the cutting plane.
-                do { if (!(dim >= 2)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8541 +"): " + "dim >= 2" + ""); } while (false);
+                do { if (!(dim >= 2)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8659 +"): " + "dim >= 2" + ""); } while (false);
                 String schlafli = "{";
                 for (int i = 0; (i) < (dim-2); ++i)
                     schlafli += "3,";
@@ -8721,7 +8839,7 @@ public final class CSG
             if (true)
             {
                 // Make a hypercube {4,3,3,...,3}
-                do { if (!(dim >= 2)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8562 +"): " + "dim >= 2" + ""); } while (false);
+                do { if (!(dim >= 2)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8680 +"): " + "dim >= 2" + ""); } while (false);
                 SPolytope sp = makeHypercube(dim);
                 if (true)
                 {
@@ -8814,7 +8932,7 @@ public final class CSG
                     {System.out.print("        "); System.out.println("sliced.p.getAllElements().length" + " = " + (sliced.p.getAllElements().length));};
                     for (int i = 0; (i) < (sliced.p.getAllElements().length); ++i)
                         System.out.println("    sliced.p.getAllElements()["+i+"] = "+sliced.p.getAllElements()[i].length);
-                    do { if (!(isOrientedDeep(sliced.p))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8655 +"): " + "isOrientedDeep(sliced.p)" + ""); } while (false);
+                    do { if (!(isOrientedDeep(sliced.p))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8773 +"): " + "isOrientedDeep(sliced.p)" + ""); } while (false);
                     if (true) // XXX probably no longer needed
                     {
                         System.out.println("calling orientDeep...");
@@ -8822,8 +8940,8 @@ public final class CSG
                         orientDeepCosmetic(sliced);
                         {System.out.print("        "); System.out.println("sliced" + " = " + (sliced));};
                     }
-                    do { if (!(isOrientedDeep(sliced.p))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8663 +"): " + "isOrientedDeep(sliced.p)" + ""); } while (false);
-                    do { if (!(isBinaryDensityDeep(sliced))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8664 +"): " + "isBinaryDensityDeep(sliced)" + ""); } while (false);
+                    do { if (!(isOrientedDeep(sliced.p))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8781 +"): " + "isOrientedDeep(sliced.p)" + ""); } while (false);
+                    do { if (!(isBinaryDensityDeep(sliced))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CSG.prejava"+"("+8782 +"): " + "isBinaryDensityDeep(sliced)" + ""); } while (false);
                 }
                 System.out.println("=============================================");
                 System.out.println("finished: "+description);
@@ -8841,7 +8959,7 @@ public final class CSG
         SPolytope C = makeHypercube(VecMath.fillvec(dim, 0.), 2.);
         //SPolytope simplex = makeSimplex(dim);
         SPolytope simplex = A; // XXX not ready yet
-// 8845 # 8727 "com/donhatchsw/util/CSG.prejava"
+// 8963 # 8845 "com/donhatchsw/util/CSG.prejava"
         if (args.length >= 2)
         {
             //

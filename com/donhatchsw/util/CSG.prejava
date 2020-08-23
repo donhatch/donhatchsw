@@ -5267,6 +5267,124 @@ public final class CSG
             return 1;
         } // calcRotationGroupOrder
 
+        /**
+        * DEPRECATED.  This is currently retained
+        * as a backwards-compatibility shim for superliminal/magiccube4d,
+        * until it updates to a new version of PolytopePuzzleDescription
+        * that figures out usefulMat itself and calls calcRotationGroupOrder() directly.
+        *
+        * calculates the order of the group of symmetries
+        * that are rotations in the 3-space containing cell3d,
+        * about the axis through cell3d's center and subCell's center.
+        * subCell's center must be different from cell3d's center
+        * (which rules out some non-convex uniform polyhedra
+        * that have faces or edges crossing the origin).
+        *
+        * returnUsefulMat is filled in with an orthogonal matrix
+        * the last two rows of which are in the plane of the rotation.
+        * So a rotation of any angle in that plane can be computed as:
+        *        Take the rows of mat to the canonical basis vectors e[0]..e[n-1]
+        *        rotate e[n-2] towards e[n-1]
+        *        take the canonical basis vectors back to the original rows
+        * I.e. rotMat = VecMath.mxmxm(VecMath.transpose(mat),
+        *                             VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, angle,
+        *                             mat);
+        * XXX isn't there a version of makeRowRotMat that does something like this?  check it out.  it looks overly complicated though, and assumes nDims==3 which is lame, should have a look at it
+        *
+        * Returns 0 when subCell is cell3d itself (and zeros out returnUselMat).
+        */
+        public static int calcRotationGroupOrderDEPRECATED(Polytope p,
+                                                 Polytope cell3d,
+                                                 Polytope subCell,
+                                                 double returnUsefulMat[][])
+        {
+            int nDims = p.fullDim;
+            CHECK(cell3d.dim == 3);
+
+            Polytope cell3dAllElements[][] = cell3d.getAllElements();
+
+            int maxPossibleOrder;
+            {
+                if (subCell.dim == 0)
+                {
+                    // number of edges in cell3d that are incident on this vertex
+                    maxPossibleOrder = 0; // and counting
+                    Polytope edges[] = cell3dAllElements[1];
+                    for (int iEdge = 0; (iEdge) < (edges.length); ++iEdge)
+                    {
+                        Polytope edge = edges[iEdge];
+                        for (int iVertOnEdge = 0; (iVertOnEdge) < (edge.facets.length); ++iVertOnEdge)
+                            if (edge.facets[iVertOnEdge].p == subCell)
+                                maxPossibleOrder++;
+                    }
+                }
+                else if (subCell.dim == 1)
+                    maxPossibleOrder = 2; // assumes two faces meet here, and two vertices
+                else if (subCell.dim == 2)
+                    maxPossibleOrder = subCell.facets.length; // gonality of the face
+                else
+                {
+                    VecMath.zeromat(returnUsefulMat); // nothing better to do
+                    return 0; // no rotation possible here at all
+                }
+            }
+
+            // Figure out returnUsefulMat.
+            {
+                double pCenter[] = new double[nDims]; cgOfVerts(pCenter, p);
+                double cell3dCenter[] = new double[nDims]; cgOfVerts(cell3dCenter, cell3d);
+                double subCellCenter[] = new double[nDims]; cgOfVerts(subCellCenter, subCell);
+                // Make the centers relative (so they are now vectors)
+                VecMath.vmv(subCellCenter, subCellCenter, cell3dCenter);
+                VecMath.vmv(cell3dCenter, cell3dCenter, pCenter);
+
+                //
+                // We want two orthogonal unit vectors
+                // in the 3-space of cell3d
+                // that are orthogonal to the line between
+                // cell3d's center and CGsubCell's center.
+                // We can get this by taking two random vectors
+                // and gram-schmidting them against the normals
+                // of all the hyperplanes defining cell3d's space,
+                // and then against that line,
+                // and then against each other.
+                // XXX should try to do this without randomization!
+                double mat[][] = new double[nDims][nDims];
+                int iRow = 0;
+                for (iRow = 0; (iRow) < (cell3d.contributingHyperplanes.length); ++iRow)
+                    VecMath.copyvec(mat[iRow], cell3d.contributingHyperplanes[iRow].normal);
+                VecMath.copyvec(mat[iRow++], subCellCenter);
+                java.util.Random generator = new java.util.Random(3); // same every time
+                VecMath.random(mat[iRow++], generator);
+                VecMath.random(mat[iRow++], generator);
+                CHECK(iRow == mat.length);
+                if (VecMath.det(mat) < 0.)
+                    VecMath.vxs(mat[mat.length-1], mat[mat.length-1], -1.);
+
+                // Gram-Schmidt (XXX should be a function)
+                {
+                    for (int i = 0; (i) < (mat.length); ++i)
+                    {
+                        for (int j = 0; (j) < (i); ++j)
+                        {
+                            // mat[j] is already unit length...
+                            // mat[i] -= (mat[i] dot mat[j])*mat[j]
+                            VecMath.vpsxv(mat[i],
+                                          mat[i],
+                                          -VecMath.dot(mat[i],mat[j]),
+                                          mat[j]);
+                        }
+                        VecMath.normalize(mat[i], mat[i]);
+                    }
+                }
+                CHECK(VecMath.det(mat) > .9);  // should be 1
+
+                VecMath.copymat(returnUsefulMat, mat);
+            }
+
+            return calcRotationGroupOrder(p, maxPossibleOrder, returnUsefulMat);
+        } // calcRotationGroupOrderDEPRECATED
+
 
 
         // XXX comment me!!
