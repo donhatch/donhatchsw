@@ -4,21 +4,22 @@ Current (very fiddly) recipe for updating the java6..java11 branches (all the sa
 ```
 git checkout master
 
-git status -uno  (should be no modified files)
+git status -uno  # should be no modified files
 make clean
 git checkout java6
 git merge master
-# It will make a commit with "Merge branch 'master' into java1.6".  Commit it.
+# It will make a commit with "Merge branch 'master' into java6".  Commit it.
 make clean
 make  # .java files that disappeared wrt last time will get deleted during the following git commit -a
-git add */*/*/*.java{,.lines}  # makes it so new .java files will get added
-git commit -a --amend  # change to "add (currently same as java7...java11), and update precompiled .java files"
+git status -uno  # and make sure it looks as expected
+git add */*/*/*.java{,.lines}  # makes it so any new .java files will get added
+git commit -a --amend  # change to "add (currently same as java7...11), and update precompiled .java files"
 
-git push . java6:java7
-git push . java6:java8
-git push . java6:java9
-git push . java6:java10
-git push . java6:java11
+git fetch . java6:java7
+git fetch . java6:java8
+git fetch . java6:java9
+git fetch . java6:java10
+git fetch . java6:java11
 
 git push origin java6 java7 java8 java9 java10 java11
 ```
