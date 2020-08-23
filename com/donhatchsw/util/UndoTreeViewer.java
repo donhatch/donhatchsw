@@ -1325,6 +1325,7 @@ public class UndoTreeViewer
 
 
         nViewersAlive[0]++;
+        @SuppressWarnings("serial")
         final javax.swing.JPanel jpanel = new javax.swing.JPanel() {
             // PAINT (the surrounding example)
             @Override public void paintComponent(java.awt.Graphics g)

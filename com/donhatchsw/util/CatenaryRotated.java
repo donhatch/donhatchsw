@@ -1681,6 +1681,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     public static void interactiveDemo1()
     {
         final int eventVerbose = 0; // set to something else to debug
+        @SuppressWarnings("serial")
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
             // Make it so we get keyboard focus on startup,
@@ -1750,7 +1751,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                //System.out.println("got line: "+line);
                                com.donhatchsw.compat.regex.Matcher matcher = pattern.matcher(line);
                                //PRINT(matcher.matches());
-                               do { if (!(matcher.matches())) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1591 +"): " + "matcher.matches()" + ""); } while (false);
+                               do { if (!(matcher.matches())) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1592 +"): " + "matcher.matches()" + ""); } while (false);
                                /*
                                PRINT(matcher.group(1));
                                PRINT(matcher.group(2));
@@ -1775,20 +1776,20 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                //PRINT(y1);
                                //PRINT(xMoment);
                                //PRINT(yMoment);
-                               do { if (!(((((x1)-(0.)) <= (1e-12)) && (((0.)-(x1)) <= (1e-12))))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1616 +"): " + "EQ(x1,0.,1e-12)" + ""); } while (false);
-                               do { if (!(((((y1)-(0.)) <= (1e-12)) && (((0.)-(y1)) <= (1e-12))))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1617 +"): " + "EQ(y1,0.,1e-12)" + ""); } while (false);
-                               do { if (!(((((y0)-(0.)) <= (1e-12)) && (((0.)-(y0)) <= (1e-12))))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1618 +"): " + "EQ(y0,0.,1e-12)" + ""); } while (false);
-                               do { if (!(((-1.0001 <=(x0))&&((x0)<= 0.)))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1619 +"): " + "INRANGE(-1.0001 <=, x0, <= 0.)" + ""); } while (false);
+                               do { if (!(((((x1)-(0.)) <= (1e-12)) && (((0.)-(x1)) <= (1e-12))))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1617 +"): " + "EQ(x1,0.,1e-12)" + ""); } while (false);
+                               do { if (!(((((y1)-(0.)) <= (1e-12)) && (((0.)-(y1)) <= (1e-12))))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1618 +"): " + "EQ(y1,0.,1e-12)" + ""); } while (false);
+                               do { if (!(((((y0)-(0.)) <= (1e-12)) && (((0.)-(y0)) <= (1e-12))))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1619 +"): " + "EQ(y0,0.,1e-12)" + ""); } while (false);
+                               do { if (!(((-1.0001 <=(x0))&&((x0)<= 0.)))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1620 +"): " + "INRANGE(-1.0001 <=, x0, <= 0.)" + ""); } while (false);
                                if (x0 == 0.)
                                {
                                    // can't normalize-- but we don't get errors on this case anyway
-                                   do { if (!(goodOrError.equals("GOOD"))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1623 +"): " + "goodOrError.equals(\"GOOD\")" + ""); } while (false);
+                                   do { if (!(goodOrError.equals("GOOD"))) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1624 +"): " + "goodOrError.equals(\"GOOD\")" + ""); } while (false);
                                    continue;
                                }
-                               do { if (!(x0 < 0.)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1626 +"): " + "x0 < 0." + ""); } while (false);
+                               do { if (!(x0 < 0.)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1627 +"): " + "x0 < 0." + ""); } while (false);
                                // normize to space in which x0,y0 = 0,0  x1,y1=1,0
                                double size = -x0;
-                               do { if (!(size > 0.)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1629 +"): " + "size > 0." + ""); } while (false);
+                               do { if (!(size > 0.)) throw new Error("CHECK failed at "+"com/donhatchsw/util/CatenaryRotated.prejava"+"("+1630 +"): " + "size > 0." + ""); } while (false);
                                double xMomentNormalized = -xMoment / ((size)*(size));
                                double yMomentNormalized = yMoment / ((size)*(size));
                                /*

@@ -12289,6 +12289,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
     {
         final int eventVerbose = 0; // set to something else to debug
 
+        @SuppressWarnings("serial")
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
             // Make it so we get keyboard focus on startup,
@@ -13512,6 +13513,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
     {
         final int eventVerbose = 0; // set to something else to debug
 
+        @SuppressWarnings("serial")
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
             class Model
@@ -13843,6 +13845,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
     {
         final int eventVerbose = 0; // set to something else to debug
 
+        @SuppressWarnings("serial")
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
             // Make it so we get keyboard focus on startup,

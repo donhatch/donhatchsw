@@ -228,6 +228,7 @@ public class LayoutExample
         }
     } // randomlyColorize
 
+    @SuppressWarnings("serial")
     public static void main(String args[])
     {
         {
