@@ -1001,7 +1001,9 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         boolean suspicious = false;
         //double tol = 1e-12;
         double tol = 1e-9;  // was 1e-12, loosened for asin_difference(1, -1e-20) or acosh_difference(1, 1e-20), which have error approx sqrt(2)*1e-10
-        double answer, fT, fTplust;
+        // NOTE: The following three initializations aren't logically necessary,
+        // but Eclipse warns without them (opensdk doesn't), so doing this to shut it up.
+        double answer = 0., fT = 0., fTplust = 0.;
         {
             try
             {
