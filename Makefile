@@ -129,7 +129,7 @@
 # ubuntu, using alternative older compiler, from package openjdk-8-jdk
 #JAVAROOT=/usr/lib/jvm/java-1.8.0-openjdk-amd64
 #JAVACPPFLAGS=-DOVERRIDE=@Override
-#JAVAC=${JAVAROOT}/bin/javac -source 1.5 -target 1.5 -deprecation -Xlint:all -Xlint:-options -bootclasspath ${JAVAROOT}/jre/lib/rt.jar
+#JAVAC=${JAVAROOT}/bin/javac -source 1.6 -target 1.6 -deprecation -Xlint:all -Xlint:-options -bootclasspath ${JAVAROOT}/jre/lib/rt.jar
 #JAR=${JAVAROOT}/bin/jar
 #JAVADOC=${JAVAROOT}/bin/javadoc
 
@@ -141,7 +141,7 @@
 
 # ubuntu, newest at the moment using default installed (11) compiler, from package openjdk-11-jdk
 JAVACPPFLAGS=-DOVERRIDE=@Override
-JAVAC=/usr/bin/javac -source 11 -target 11 -deprecation -Xlint:all
+JAVAC=/usr/bin/javac -source 6 -target 6 -deprecation -Xlint:all
 JAR=/usr/bin/jar
 JAVADOC=/usr/bin/javadoc
 

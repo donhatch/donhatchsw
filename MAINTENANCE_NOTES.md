@@ -27,11 +27,19 @@ git push origin java6 java7 java8 java9 java10 java11
 
 TODO: when I make clean and then git checkout master, and make,
 I get some weird error about shims_for_deprecated files not existing? weird.
-It was some sequence like the following, but I can't reproduce it at the moment:
+It was some sequence like the following, but I can't reproduce it at the moment.
+(oh, I think the problem is that, when I check out master, the .java files disappear, but make still thinks up to date, which is a weird state to be in)
 ```
 git checkout java6
 make clean
 make
 git checkout master
 make
+# then what?
 ```
+
+Note on what Melinda is using at this moment:
+  Win 10
+  JSE 1.6
+  JDK 1.8 she thinks
+  eclipse
