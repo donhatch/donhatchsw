@@ -300,6 +300,20 @@ public class GenericPipelineUtils
             scale4d = 1.f/(float)Math.sqrt(maxDist2);
             //System.out.println("maxDist = "+Math.sqrt(maxDist2));
             //System.out.println("scale4d = "+scale4d);
+
+            // HORRIBLE HACK: we should have done that based on
+            // the verts *untwisted* (and shrunk), so that the scale won't
+            // vary all over the place during a twist if the polytope is nonuniform.
+            // But we don't have access to that, so we used the twisted-and-shrunk
+            // verts instead.  That works fine if the polytope is uniform
+            // (since in that case the circumradius stays constant during a twist),
+            // but completely sucks for nonuniform polytopes, e.g. frucht and "5v() 3".
+            // So, disable "smart" 4d scale if we think it might be one of these.
+            if (puzzleDescription.getPrescription().contains("rucht")
+             || puzzleDescription.getPrescription().contains("v"))  // join
+            {
+                scale4d = 1.f;
+            }
         }
 
         //

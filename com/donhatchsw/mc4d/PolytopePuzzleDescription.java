@@ -490,7 +490,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     public static boolean forceFuttableXXX = false;  // temporary
 
     private String prescription; // what was originally passed to the constructor. we are an immutable object that is completely a function of this string, so an identical clone of ourself can be constructed using this string in any future lifetime.
-    public String getPrescription() { return prescription; }
+    @Override public String getPrescription() { return prescription; }
 
     private CSG.SPolytope originalPolytope;
     private CSG.SPolytope slicedPolytope;
