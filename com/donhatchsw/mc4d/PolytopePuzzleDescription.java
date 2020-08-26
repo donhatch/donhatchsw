@@ -572,6 +572,36 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
           return Double.parseDouble(s);
     }  // parseDoubleFraction
 
+    // Callbacks provided by the caller to the PolytopePuzzleDescription
+    // constructor, so that the contructor may inform the caller of progress,
+    // and the caller may reply whether the constructor should keep going.
+    // NOTE: if the constructor is cancelled (by one of these callbacks returning false),
+    // the constructed polytope will be in a bad state, and should not be used.
+    public static interface ProgressCallbacks {
+        /**
+         * Called to initialize progress bar (or equivalent) in determinate mode;
+         * return false to cancel.
+         */
+        public boolean subtaskInit(String string, int max);
+        /**
+         * Called to initialize the progress bar (or equivalent) in indeterminate mode;
+         * return false to cancel.
+         */
+        public boolean subtaskInit(String string);
+
+        /**
+         * Called to update progress (out of max previously given to subtaskInit());
+         * return false to cancel.
+         */
+        public boolean updateProgress(int progress);
+
+        /**
+         * Called when done with subtask;
+         * return false to cancel.
+         */
+        public boolean subtaskDone();
+    }
+
 
     /**
     * The constructor that is required by the factory.
@@ -623,8 +653,15 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     * (Using '*' instead of 'x' can help here, in some cases.)
     *
     * TODO: that doc is extensive but not complete.
+    *
+    * progressWriter and progressCallbacks are two different methods
+    * of reporting progress back to the caller; progressCallbacks
+    * provides the ability for the caller to cancel the construction,
+    * in which case the polytope will be in a bad state and should not be used.
     */
-    public PolytopePuzzleDescription(String prescription, java.io.PrintWriter progressWriter)
+    public PolytopePuzzleDescription(String prescription,
+                                     java.io.PrintWriter progressWriter,
+                                     ProgressCallbacks progressCallbacks)
     {
         prescription = prescription.replaceAll("Grand Antiprism",
                                                "Grand_Antiprism");
@@ -692,8 +729,15 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             doubleLengths[i] = doubleLength;
         }
 
-        init(schlafliProductString, intLengths, doubleLengths, progressWriter);
-        this.prescription = prescription;
+        if (init(schlafliProductString, intLengths, doubleLengths, progressWriter, progressCallbacks))
+        {
+            this.prescription = prescription;
+        }
+        else
+        {
+            // CBB: should maybe null out everything?
+            this.prescription = "(cancelled)";
+        }
     } // ctor that takes just a string
 
     private int intpow(int a, int b) { return b==0 ? 1 : intpow(a,b-1) * a; }  // simple, slow
@@ -933,10 +977,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         return true;
     }  // decideWhetherFuttable
 
-    private void init(String schlafliProduct,
-                      int[] intLengths, // number of segments per edge, possibly per-face
-                      double[] doubleLengths, // edge length / length of first edge segment, possibly per-face
-                      java.io.PrintWriter progressWriter)
+    // returns true if succeeded, false if cancelled.
+    private boolean init(String schlafliProduct,
+                         int[] intLengths, // number of segments per edge, possibly per-face
+                         double[] doubleLengths, // edge length / length of first edge segment, possibly per-face
+                         java.io.PrintWriter progressWriter,
+                         ProgressCallbacks progressCallbacks)
     {
         CHECK(intLengths.length == doubleLengths.length);
         for (int i = 0; i < intLengths.length; ++i) {
@@ -955,6 +1001,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             progressWriter.print("    Constructing polytope...");
             progressWriter.flush();
         }
+        if (progressCallbacks != null && !progressCallbacks.subtaskInit("Constructing polytope")) return false;
         this.originalPolytope = CSG.makeRegularStarPolytopeProductJoinFromString(schlafliProduct);
 
         if (this.originalPolytope.p.dim < 2)
@@ -962,6 +1009,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             throw new IllegalArgumentException("PolytopePuzzleDescription can't do puzzles of dimension "+this.originalPolytope.p.dim+" (< 2)");
         }
 
+        if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Constructing polytope"
         if (progressWriter != null)
         {
             progressWriter.println(" done ("+originalPolytope.p.facets.length+" facet"+(originalPolytope.p.facets.length==1?"":"s")+").");
@@ -1281,6 +1329,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 progressWriter.print("("+nTotalCuts+" cuts)");
                 progressWriter.flush();
             }
+            if (progressCallbacks != null && !progressCallbacks.subtaskInit("Slicing", nTotalCuts)) return false;
 
             int iTotalCut = 0;
             for (int iFacet = 0; iFacet < nFacets; ++iFacet)
@@ -1316,6 +1365,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                         progressWriter.flush();
                     }
+                    if (progressCallbacks != null && !progressCallbacks.updateProgress(iTotalCut+1)) return false;
                 }
             }
             CHECK(iTotalCut == nTotalCuts);
@@ -1326,6 +1376,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 progressWriter.println(" done ("+slicedPolytope.p.facets.length+" stickers) ("+millisToSecsString(endTimeMillis-startTimeMillis)+" seconds)");
                 progressWriter.flush();
             }
+            if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Slicing"
 
             //
             // Have to compute the shrink-to points here
@@ -1343,12 +1394,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     progressWriter.print("    Computing alternate sticker shrink-to points on facet boundaries... ");
                     progressWriter.flush();
                 }
+                if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing alternate sticker shrink-to points on facet boundaries")) return false;
                 this.stickerAltCentersF = computeStickerAltCentersF(
                                               slicedPolytope,
                                               facet2OppositeFacet,
                                               intLengths,
                                               doubleLengths,
                                               whichLengthToUseForFacet);
+                if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing alternate sticker shrink-to points on facet boundaries"
                 if (progressWriter != null)
                 {
                     progressWriter.println(" done.");
@@ -1382,6 +1435,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     progressWriter.print("    Further slicing for grips("+slicedPolytope.p.getAllElements()[2].length+" polygons)");
                     progressWriter.flush();
                 }
+                if (progressCallbacks != null && !progressCallbacks.subtaskInit("Further slicing for grips", nFacets)) return false;
                 for (int iFacet = 0; iFacet < nFacets; ++iFacet)
                 {
                     if (facetCutOffsets[iFacet].length < 2)
@@ -1416,7 +1470,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             progressWriter.flush();
                         }
                     }
+                    if (progressCallbacks != null && !progressCallbacks.updateProgress(iFacet+1)) return false;
                 }
+                if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Further slicing for grips"
                 if (progressWriter != null)
                 {
                     progressWriter.println(" done ("+slicedPolytope.p.getAllElements()[2].length+" polygons).");
@@ -1445,6 +1501,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     progressWriter.print("    Fixing facet orderings... ");
                     progressWriter.flush();
                 }
+                if (progressCallbacks != null && !progressCallbacks.subtaskInit("Fixing facet orderings")) return false;
                 startTimeMillis = System.currentTimeMillis();
                 CSG.orientDeepCosmetic(slicedPolytope);
                 endTimeMillis = System.currentTimeMillis();
@@ -1453,6 +1510,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     progressWriter.println(" done ("+millisToSecsString(endTimeMillis-startTimeMillis)+" seconds)");
                     progressWriter.flush();
                 }
+                if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Fixing facet orderings"
             }
         } // slice
 
@@ -1904,7 +1962,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         this.vertsF = VecMath.doubleToFloat(restVerts);
 
+        if (progressCallbacks != null && !progressCallbacks.subtaskInit("Deciding whether futtable")) return false;
         this.futtable = decideWhetherFuttable(intLengths, progressWriter);
+        if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Deciding whether futtable"
         if (progressWriter != null)
         {
             progressWriter.println("    Polytope is "+(this.futtable ? "futtable! (but need to enable futting in UI as well in order to futt)." : "not futtable."));
@@ -1941,6 +2001,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 progressWriter.print("    Thinking about possible twists...");
                 progressWriter.flush();
             }
+            if (progressCallbacks != null && !progressCallbacks.subtaskInit("Thinking about possible twists", nFacets)) return false;
             long startTimeMillis = System.currentTimeMillis();
             if (nDims <= 4)
             {
@@ -2127,6 +2188,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 }
                             }
                         }
+                        if (progressCallbacks != null && !progressCallbacks.updateProgress(iFacet+1)) return false;
                     }
                     //System.out.println("nGrips = "+nGrips);
                     //System.out.println("iGrip = "+iGrip);
@@ -2278,6 +2340,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 this.grip2face = new int[0];
             }
             long endTimeMillis = System.currentTimeMillis();
+            if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Thinking about possible twists"
             if (progressWriter != null)
             {
                 progressWriter.print(" ("+this.grip2face.length+" grips)");
@@ -2314,6 +2377,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             progressWriter.println("Done.");
             progressWriter.flush();
         }
+
+        return true;  // success (not cancelled)
     } // init from schlafli and length
 
     // XXX figure out a good public interface for something that shows stats
@@ -3802,13 +3867,63 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                              new java.io.BufferedWriter(
                                              new java.io.OutputStreamWriter(
                                              System.err)));
+        final boolean[] cancelledHolder = {false};
+	ProgressCallbacks progressCallbacks = new ProgressCallbacks() {
+	    private long initTimeNanos = 0;
+	    @Override public boolean subtaskInit(String string, int max) {
+		System.out.print(string+" ("+max+") ...");
+		initTimeNanos = System.nanoTime();
+		return true;  // keep going
+	    }
+	    @Override public boolean subtaskInit(String string) {
+		System.out.println(string+"...");
+		initTimeNanos = System.nanoTime();
+		return true;  // keep going
+	    }
+	    @Override public boolean updateProgress(int progress) {
+		System.out.print("..."+progress);
+		System.out.flush();
+		// Silly and disruptive exercise of the cancellation feature
+		if (progress == 1000) {
+		    System.out.println();
+		    System.out.print("This is taking a while.  Want to keep going? (y/n)[Y] ");
+		    System.out.flush();
+		    try {
+			char c = (char)System.in.read();
+			if (c == 'n') {
+			    cancelledHolder[0] = true;
+			    return false;  // cancel
+			}
+		    } catch (java.io.IOException e) {
+			System.out.println("Caught: "+e);
+			cancelledHolder[0] = true;
+			return false;  // cancel
+		    }
+		}
+		return true;  // keep going
+	    }
+	    @Override public boolean subtaskDone() {
+		long doneTimeNanos = System.nanoTime();
+		System.out.printf("  done (%.4gs).\n", (doneTimeNanos-initTimeNanos)/1e9);
+		return true;  // keep going (done with subtask)
+	    }
+	};
 
         String puzzleDescriptionString = args[0];
         GenericPuzzleDescription descr = new PolytopePuzzleDescription(puzzleDescriptionString,
-                                                                       progressWriter);
-        System.out.println("short description (prescription) = "+descr.toString());
-        System.out.println("verbose-ish description = "+((PolytopePuzzleDescription)descr).toString(false));
-        //System.out.println("verbose description = "+((PolytopePuzzleDescription)descr).toString(true));
+                                                                       // CBB: both?  weird output
+                                                                       progressWriter,
+                                                                       progressCallbacks);
+        if (cancelledHolder[0])
+        {
+            System.out.println("Cancelled!");
+        }
+        else
+        {
+            System.out.println("short description (prescription) = "+descr.toString());
+            System.out.println("verbose-ish description = "+((PolytopePuzzleDescription)descr).toString(false));
+            //System.out.println("verbose description = "+((PolytopePuzzleDescription)descr).toString(true));
+        }
 
         System.out.println("out main");
     } // main

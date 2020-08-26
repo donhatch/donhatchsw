@@ -785,8 +785,7 @@ public class GenericGlue
                                 GenericPuzzleDescription newPuzzle = null;
                                 try
                                 {
-                                    //newPuzzle = new PolytopePuzzleDescription(schlafli+" "+intLength+"("+doubleLength+")", progressWriter);
-                                    newPuzzle = new PolytopePuzzleDescription(schlafli+" "+lengthString, progressWriter);
+                                    newPuzzle = new PolytopePuzzleDescription(schlafli+" "+lengthString, progressWriter, /*progressCallbacks=*/null);
                                 }
                                 catch (Throwable t)
                                 {
@@ -937,8 +936,7 @@ public class GenericGlue
                             GenericPuzzleDescription newPuzzle = null;
                             try
                             {
-                                //newPuzzle = new PolytopePuzzleDescription(schlafli+" "+intLength+"("+doubleLength+")", progressWriter);
-                                newPuzzle = new PolytopePuzzleDescription(schlafli+" "+lengthString, progressWriter);
+                                newPuzzle = new PolytopePuzzleDescription(schlafli+" "+lengthString, progressWriter, /*progressCallbacks=*/null);
                             }
                             catch (Throwable t)
                             {
