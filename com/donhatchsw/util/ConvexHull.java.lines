@@ -1,14 +1,9 @@
 // 102 # 1 "com/donhatchsw/util/ConvexHull.prejava"
 // 103 # 1 "<built-in>"
 // 104 # 1 "<command-line>"
-// 105 # 1 "/usr/include/stdc-predef.h" 1 3 4
-// 107 # 1 "/usr/include/stdc-predef.h" 3 4
-// 142 # 52 "/usr/include/stdc-predef.h" 3 4
-// 149 # 1 "<command-line>" 2
-// 150 # 1 "com/donhatchsw/util/ConvexHull.prejava"
-// 152 # 1 "com/donhatchsw/util/ConvexHull.prejava"
-// 154 # 1 "com/donhatchsw/util/macros.h" 1
-// 158 # 14 "com/donhatchsw/util/macros.h"
-// 160 # 30 "com/donhatchsw/util/macros.h"
-// 163 # 67 "com/donhatchsw/util/macros.h"
-// 165 # 3 "com/donhatchsw/util/ConvexHull.prejava" 2
+// 105 # 1 "com/donhatchsw/util/ConvexHull.prejava"
+// 107 # 1 "com/donhatchsw/util/macros.h" 1
+// 111 # 14 "com/donhatchsw/util/macros.h"
+// 113 # 30 "com/donhatchsw/util/macros.h"
+// 116 # 67 "com/donhatchsw/util/macros.h"
+// 118 # 3 "com/donhatchsw/util/ConvexHull.prejava" 2
