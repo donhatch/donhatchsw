@@ -12,8 +12,9 @@ git merge master
 make clean
 make  # .java files that disappeared wrt last time will get deleted during the following git commit -a
 git status -uno  # and make sure it looks as expected
+git diff  # and make sure it looks as expected
 git add */*/*/*.java{,.lines}  # makes it so any new .java files will get added
-git commit -a --amend  # change to "add (currently same as java7...11), and update precompiled .java files"
+git commit -a --amend  # add " (currently same as java7...11), and update precompiled .java files"
 
 git fetch . java6:java7
 git fetch . java6:java8

@@ -25,6 +25,13 @@ package com.donhatchsw.mc4d;
  */
 public interface GenericPuzzleDescription {
 
+    /**
+    * The prescription string originally passed to the constructor.
+    * The puzzle is an immutable object that is completely a function of this string,
+    * so an identical clone of itself can be constructed using this string in any future lifetime.
+    */
+    public String getPrescription();
+
     /** Number of dimensions of the abstract puzzle. */
     public int nDims();
     /** Number of dimensions of the physical representation (for PolytopePuzzleDescription this is always 4; we make prisms out of smaller dimensional puzzles). */

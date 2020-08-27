@@ -200,7 +200,8 @@ public class MC4DModel
                                                  System.err)));
             this.genericPuzzleDescription = new PolytopePuzzleDescription(
                                                     prescription,
-                                                    progressWriter);
+                                                    progressWriter,
+                                                    /*progressCallbacks=*/null);
             this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
             this.controllerUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel(); // new tree
             this.animationUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel(controllerUndoTreeSquirrel); // same tree
