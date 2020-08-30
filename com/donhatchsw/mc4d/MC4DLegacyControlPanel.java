@@ -826,7 +826,7 @@ public class MC4DLegacyControlPanel
                 "causes the face to retain its 3d shape as it shrinks.",
             });
         addFloatSliderRow(
-            "3d Sticker Shrink",
+            "3d Sticker Shrink (CURRENTLY BROKEN)",
             viewParams.stickerShrink3d,
             new String[] {
                 "Specifies how much each sticker should be shrunk towards its center in 3d",
