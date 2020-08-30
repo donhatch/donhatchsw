@@ -927,16 +927,22 @@ public class MC4DViewGuts
 
         if (true) // XXX not ready for prime time-- need to figure out whether moving in any way, not just twisting
         {
-            if (!System.getProperty("java.version").startsWith("1.1.") // have to check to avoid Graphics2D class not found error under 1.1
-             && g instanceof Graphics2D) {
-                boolean okToAntialias = true
-                                      // && allowAntiAliasing && lastDrag==null && spindelta==null // XXX need to do something like this!
-                                      && (viewParams.antialias.get() == 2 ||
-                                          (viewParams.antialias.get() == 1 && !wasMoving));
-                ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                    okToAntialias ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
-            }
+	    boolean okToAntialias = true
+				  // && allowAntiAliasing && lastDrag==null && spindelta==null // XXX need to do something like this!
+				  && (viewParams.antialias.get() == 2 ||
+				      (viewParams.antialias.get() == 1 && !wasMoving));
+	    ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+		okToAntialias ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
         }
+
+	// Voodoo to remove 1/2 pixel lower-right bias so that all four modes match up:
+	// [antialiased,non-antialiased] x [fill,outlines].  Note that this works only
+	// when rendering directly to a visible Component (not a BufferedImage).
+	// For details, see:
+        //   https://github.com/cutelyaware/magiccube4d/issues/138
+	//   https://stackoverflow.com/questions/7701097/java-graphics-fillpolygon-how-to-also-render-right-and-bottom-edges/63645061#answer-63645061
+	((Graphics2D)g).setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+
 
         MC4DModel.Twist twist = new MC4DModel.Twist(-1,-1,-1,false);
         int puzzleState[] = new int[model.genericPuzzleDescription.nStickers()];
