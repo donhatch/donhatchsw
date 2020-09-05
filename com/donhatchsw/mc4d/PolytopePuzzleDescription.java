@@ -1163,8 +1163,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // In fact, we can cause similar problems even for odd numbers of slices on standard puzzles:
                 //      "{4,3,3} 7(6)"
                 //      "{4,3,3} 7(4)"
-                // Given that, what we do is as follows: make the list of cuts (even though nNearCuts
-                // may be too many), then sort and remove dups (and near dups) at the end.
+                // Given that, what we do is as follows: make the list of cuts (even though nFarCuts may
+                // may be too many at this point), then sort and remove dups (and near dups) at the end.
 
                 facetCutOffsets[iFacet] = new double[nNearCuts + nFarCuts];
 
@@ -1210,12 +1210,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
                 int iOppositeFacet = facet2OppositeFacet[iFacet];
-                if (iOppositeFacet > iFacet)
+                if (iOppositeFacet > iFacet)  // so we do this only once per pair, and only if there is an opposite
                 {
                     int nCuts = facetCutOffsets[iFacet].length;
                     CHECK(nCuts == facetCutOffsets[iOppositeFacet].length); // careful analysis of the deduping probably would show this can't fail, but check anyway
                     for (int iCut = 0; iCut < nCuts; ++iCut) {
-                        CHECK(Math.abs(facetCutOffsets[iOppositeFacet][nCuts-1-iCut] - -facetCutOffsets[iFacet][iCut]) < 1e-3);  // rough check, much coarser than the dedup tolerance that was used
+                        CHECK(Math.abs(facetCutOffsets[iOppositeFacet][nCuts-1-iCut] - -facetCutOffsets[iFacet][iCut]) < 1e-3);  // rough sanity check, much coarser than the dedup tolerance that was used
                         facetCutOffsets[iOppositeFacet][nCuts-1-iCut] = -facetCutOffsets[iFacet][iCut];
                     }
                 }
