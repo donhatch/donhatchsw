@@ -12,7 +12,7 @@ This is simple and robust, as long as no twist is in progress.
 If a twist *is* in progress, we have to think harder.
 
 Let's say the currently in-progress twist
-involves parallel slices 0,1,2,3,4.
+involves parallel slices 0,1,2,3.
 Label slice 0's stickers 0a,0b,0c,... and slice 1's stickers 1a,1b,... etc.
 In the most general scenario, each of the slices is being twisted
 independently, so imagine each slice having a slightly different twist,
@@ -300,12 +300,6 @@ public class VeryCleverPaintersSortingOfStickers
             while (eyeSlice < cutOffsets.length
                 && eyeOffset > cutOffsets[eyeSlice])
                 eyeSlice++;
-        }
-        if (false) {  // XXX GET RID when finished debugging problem with "{5,3} 3" when flattened
-            if (eyeSlice != nCompressedSlices-1) {
-                System.out.println("FUDGING eyeSlice from "+eyeSlice+" to "+(nCompressedSlices-1));
-                eyeSlice = nCompressedSlices-1;
-            }
         }
         if (localVerboseLevel >= 1) System.out.println("      eyeSlice = "+eyeSlice+"/"+nCompressedSlices);
 
