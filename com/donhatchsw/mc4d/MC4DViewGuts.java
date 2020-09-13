@@ -206,7 +206,7 @@ public class MC4DViewGuts
         public Listenable.Boolean highlightByGrip = new Listenable.Boolean(true); // if possible; it gets turned into highlight by sticker automatically if there is no grip info, which there isn't unless it's a 2x2x2x2 currently.  XXX get rid of this?
         public Listenable.Boolean showShadows = new Listenable.Boolean(true);
 
-        public Listenable.Int antialias = new Listenable.Int(0,2,0); // 0=never, 1=when still, 2=always  XXX not ready for prime time-- not checking whether still properly, also the transition completely sucks; it moves the picture by 1/2 pixel
+        public Listenable.Int antialias = new Listenable.Int(0,2,0); // 0=never, 1=when still, 2=always  XXX not ready for prime time-- not checking whether still properly, and antialias-when-still + large puzzles is really offensively bad
 
         public Listenable.Boolean drawNonShrunkFaceOutlines = new Listenable.Boolean(false);
         public Listenable.Boolean drawShrunkFaceOutlines = new Listenable.Boolean(false);
@@ -302,6 +302,7 @@ public class MC4DViewGuts
 
         //
         // Two scratch Frames to use for computing and painting.
+        // (And twistingFrame isn't even being used, as of this writing)
         //
         public GenericPipelineUtils.Frame untwistedFrame = new GenericPipelineUtils.Frame();
         public GenericPipelineUtils.Frame twistingFrame = new GenericPipelineUtils.Frame();
@@ -925,23 +926,24 @@ public class MC4DViewGuts
             //System.out.println("model says it's still afterwards");
         }
 
-        if (true) // XXX not ready for prime time-- need to figure out whether moving in any way, not just twisting
+        if (true) // XXX not really ready for prime time-- need to figure out whether moving in any way, not just twisting
         {
-	    boolean okToAntialias = true
-				  // && allowAntiAliasing && lastDrag==null && spindelta==null // XXX need to do something like this!
-				  && (viewParams.antialias.get() == 2 ||
-				      (viewParams.antialias.get() == 1 && !wasMoving));
-	    ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-		okToAntialias ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
+            boolean okToAntialias = true
+                                  // && allowAntiAliasing && lastDrag==null && spindelta==null // XXX need to do something like this!
+                                  && (viewParams.antialias.get() == 2 ||
+                                      (viewParams.antialias.get() == 1 && !wasMoving));
+            ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                okToAntialias ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
         }
 
-	// Voodoo to remove 1/2 pixel lower-right bias so that all four modes match up:
-	// [antialiased,non-antialiased] x [fill,outlines].  Note that this works only
-	// when rendering directly to a visible Component (not a BufferedImage).
-	// For details, see:
+        ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        // Voodoo to remove 1/2 pixel lower-right bias so that all four modes match up:
+        // [antialiased,non-antialiased] x [fill,outlines].  Note that this works only
+        // when rendering directly to a visible Component (not a BufferedImage).
+        // For details, see:
         //   https://github.com/cutelyaware/magiccube4d/issues/138
-	//   https://stackoverflow.com/questions/7701097/java-graphics-fillpolygon-how-to-also-render-right-and-bottom-edges/63645061#answer-63645061
-	((Graphics2D)g).setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        //   https://stackoverflow.com/questions/7701097/java-graphics-fillpolygon-how-to-also-render-right-and-bottom-edges/63645061#answer-63645061
+        ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
 
         MC4DModel.Twist twist = new MC4DModel.Twist(-1,-1,-1,false);
@@ -1012,7 +1014,7 @@ public class MC4DViewGuts
         float scaleFudge3d = 1.f;
         float scaleFudge2d = 4.7f;
 
-        // XXX probably doing this more than necessary... when it's a rest frame that hasn't changed
+        // XXX probably doing this more than necessary... when it's a rest frame that hasn't changed, and we just need to update sticker highlighting or something
         GenericPipelineUtils.computeFrame(
             frameToDrawInto,
 
@@ -1078,7 +1080,7 @@ public class MC4DViewGuts
             }
         }
 
-        if (frameToDrawInto.puzzleDescription != null)
+        if (frameToDrawInto.puzzleDescription != null) {  // XXX what exactly is the intent here? should it be "if (frameToDrawInto.puzzleDescription == model.genericPuzzleDescription)" ?
             GenericPipelineUtils.paintFrame(
                 frameToDrawInto,
                 model.genericPuzzleState, // XXX what if model.puzzleDescription is out of sync with frame.puzzleDescription??
@@ -1099,6 +1101,7 @@ public class MC4DViewGuts
                 viewParams.jitterRadius.get(),
                 viewParams.drawLabels.get(),
                 viewParams.showPartialOrder.get());
+        }
 
         com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, viewSize, 0,W,H,0);
 

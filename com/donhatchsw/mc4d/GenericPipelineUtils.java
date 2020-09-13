@@ -101,6 +101,7 @@ public class GenericPipelineUtils
     * Compute a frame of animation.
     * Attempts to avoid doing any new memory allocations
     * when called repeatedly on a given puzzleDescription.
+    * (Currently does not succeed.)
     */
     public static void computeFrame(Frame frame, // return into here
 
