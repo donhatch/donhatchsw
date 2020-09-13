@@ -958,8 +958,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         for (int i = 0; i < intLengths.length; ++i) {
           if (intLengths[i] < 1)
               throw new IllegalArgumentException("PolytopePuzzleDescription called with intLength="+intLengths[i]+", min legal intLength is 1");
-          if (doubleLengths[i] <= 0)
-              throw new IllegalArgumentException("PolytopePuzzleDescription called with doubleLength="+doubleLengths[i]+", doubleLength must be positive");
+          if (doubleLengths[i] < 0)
+              throw new IllegalArgumentException("PolytopePuzzleDescription called with doubleLength="+doubleLengths[i]+", doubleLength must be nonnegative");
         }
 
         if (progressWriter != null)
@@ -1133,7 +1133,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 CHECK(fullThickness != 0.); // XXX actually this fails if puzzle dimension <= 1, maybe should disallow
 
-                double sliceThickness = fullThickness / doubleLength;
+                // Interpret doubleLength==0 as infinity, i.e. sliceLength==0, because there's nothing else it could mean.
+                double sliceThickness = doubleLength==0. ? 0. : fullThickness / doubleLength;
 
                 /*
                    Think about what's appropriate for simplex...
