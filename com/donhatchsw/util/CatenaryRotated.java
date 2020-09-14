@@ -1127,7 +1127,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
     public String toString()
     {
-       StringBuffer sb = new StringBuffer();
+       StringBuilder sb = new StringBuilder();
        sb.append("{cos=");
        sb.append(this.cosRotation);
        sb.append(", sin=");

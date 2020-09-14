@@ -2656,11 +2656,11 @@ public class Arrows
         // XXX wtf? jikes chokes on both of these using 1.5 libraries
         public static String arrayToString(Object array)
         {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             appendArrayToString(array, sb);
             return sb.toString();
         }
-        public static void appendArrayToString(Object array, StringBuffer sb)
+        public static void appendArrayToString(Object array, StringBuilder sb)
         {
             if (array == null)
                 sb.append("null");

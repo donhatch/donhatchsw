@@ -558,7 +558,7 @@ public abstract class Listenable
             {
                 // Special case hack to make identity matrix more concise...
                 // omit ".0" from the ends of numbers.
-                StringBuffer sb = new StringBuffer();
+                StringBuilder sb = new StringBuilder();
                 sb.append('{');
                 for (int i = 0; i < value.length; ++i)
                 {

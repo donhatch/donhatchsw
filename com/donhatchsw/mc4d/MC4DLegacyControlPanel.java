@@ -826,7 +826,7 @@ public class MC4DLegacyControlPanel
                 "causes the face to retain its 3d shape as it shrinks.",
             });
         addFloatSliderRow(
-            "3d Sticker Shrink",
+            "3d Sticker Shrink (CURRENTLY BROKEN)",
             viewParams.stickerShrink3d,
             new String[] {
                 "Specifies how much each sticker should be shrunk towards its center in 3d",
@@ -1151,12 +1151,17 @@ public class MC4DLegacyControlPanel
         if (true) {
             addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(java.awt.Color.black);}}); // Totally lame separator
             addSingleLabelRow(new BigBoldLabel("Experimental"));
+            addCheckboxRow("Use topological sort for depth sorting",
+                viewParams.useTopsort,
+                new String[] {
+                    "Whether to use topological sorting of stickers rather than simple depth sorting of polygons.",
+                });
             addCheckboxRow(
-                "Use newest depth sort algorithm (ctrl-alt-P to toggle viz)",
+                "Use newest topological sort algorithm (ctrl-alt-P to toggle viz)",
                 viewParams.topsortUsesBoldNewWay,
                 new String[] {
                     "If this option is checked,",
-                    "the depth sorting willl use an experimental new bleeding edge algorithm.",
+                    "the topological sorting willl use an experimental new bleeding edge algorithm.",
                 });
         }
 

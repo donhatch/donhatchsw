@@ -1296,9 +1296,9 @@ public class UndoTreeSquirrel
         //
         // Put annotations into the annotation buffer.
         //
-        StringBuffer annotations[] = new StringBuffer[buf.length];
+        StringBuilder annotations[] = new StringBuilder[buf.length];
         for (int i = 0; i < annotations.length; ++i)
-            annotations[i] = new StringBuffer();
+            annotations[i] = new StringBuilder();
         for (int iNode = 0; iNode < nNodes; ++iNode)
         {
             UndoTree.Node node = (UndoTree.Node)model.nodes.get(iNode);
@@ -1316,11 +1316,11 @@ public class UndoTreeSquirrel
 
         //
         // Put the rectangular buffer on the left,
-        // with annotations on the right, into a StringBuffer
+        // with annotations on the right, into a StringBuilder
         // in preparation for final output.
         //
         String nl = System.getProperty("line.separator");
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
 
         sb.append("+"+repeat("-", buf[0].length+2)+"+"+nl);
 
@@ -1525,7 +1525,7 @@ public class UndoTreeSquirrel
          || itemMatcher.reset("(10)").matches())
             throw new IllegalArgumentException("UndoTreeSquirrel.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches a parenthesized number something like (2), can't do that because it's special!");
 
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         sb.append("{");
         sb.append(separatorSpaces);
         int nNodes = model.nodes.size();
@@ -1790,7 +1790,7 @@ public class UndoTreeSquirrel
 
         private static String repeat(String s, int n)
         {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             for (int i = 0; i < n; ++i)
                 sb.append(s);
             return sb.toString();

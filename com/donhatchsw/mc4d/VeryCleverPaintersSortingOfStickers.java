@@ -12,7 +12,7 @@ This is simple and robust, as long as no twist is in progress.
 If a twist *is* in progress, we have to think harder.
 
 Let's say the currently in-progress twist
-involves parallel slices 0,1,2,3,4.
+involves parallel slices 0,1,2,3.
 Label slice 0's stickers 0a,0b,0c,... and slice 1's stickers 1a,1b,... etc.
 In the most general scenario, each of the slices is being twisted
 independently, so imagine each slice having a slightly different twist,
@@ -227,7 +227,7 @@ public class VeryCleverPaintersSortingOfStickers
     private static void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
     private static String $(Object obj) { return com.donhatchsw.util.Arrays.toStringCompact(obj); }  // convenience
     private static String $(Object obj,int i0, int n) { return $(com.donhatchsw.util.Arrays.subarray(obj,i0,n)); }  // convenience
-    private static String repeat(String s, int n) { StringBuffer sb = new StringBuffer(); for (int i = 0; i < n; ++i) sb.append(s); return sb.toString(); }
+    private static String repeat(String s, int n) { StringBuilder sb = new StringBuilder(); for (int i = 0; i < n; ++i) sb.append(s); return sb.toString(); }
 
     // Function return value is number of stickers to draw
     public static int sortStickersBackToFront(
@@ -301,12 +301,6 @@ public class VeryCleverPaintersSortingOfStickers
                 && eyeOffset > cutOffsets[eyeSlice])
                 eyeSlice++;
         }
-        if (false) {  // XXX GET RID when finished debugging problem with "{5,3} 3" when flattened
-            if (eyeSlice != nCompressedSlices-1) {
-                System.out.println("FUDGING eyeSlice from "+eyeSlice+" to "+(nCompressedSlices-1));
-                eyeSlice = nCompressedSlices-1;
-            }
-        }
         if (localVerboseLevel >= 1) System.out.println("      eyeSlice = "+eyeSlice+"/"+nCompressedSlices);
 
         if (boldNewWay) {
@@ -361,7 +355,7 @@ public class VeryCleverPaintersSortingOfStickers
             final int[] sticker2localIndex = VecMath.fillvec(nStickers, -1);
 
             abstract class Node {
-                public abstract int traverse(int answer[], int answerSizeSoFar, StringBuffer tracebuffer, int recursionLevel);
+                public abstract int traverse(int answer[], int answerSizeSoFar, StringBuilder tracebuffer, int recursionLevel);
                 protected abstract String shortLabel();
                 public abstract int totalSize();  // for debugging
 
@@ -438,7 +432,7 @@ public class VeryCleverPaintersSortingOfStickers
                     return "SF("+iSlice+","+iFace+")";
                 }
                 @Override public int totalSize() { return visibleStickers.size(); }
-                @Override public int traverse(int answer[], int answerSizeSoFar, StringBuffer tracebuffer, int recursionLevel) {
+                @Override public int traverse(int answer[], int answerSizeSoFar, StringBuilder tracebuffer, int recursionLevel) {
                     if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            in SliceFaceNode(iSlice="+iSlice+" iFace="+iFace+").traverse, answerSizeSoFar="+answerSizeSoFar);
 
                     for (int i = 0; i < this.visibleStickers.size(); ++i)
@@ -690,7 +684,7 @@ public class VeryCleverPaintersSortingOfStickers
                     }
                     return answer;
                 }
-                @Override public int traverse(int answer[], int answerSizeSoFar, StringBuffer tracebuffer, int recursionLevel) {
+                @Override public int traverse(int answer[], int answerSizeSoFar, StringBuilder tracebuffer, int recursionLevel) {
                     if (localVerboseLevel >= 3) System.out.println(repeat("    ",recursionLevel)+"            in SliceNode(iSlice="+iSlice+").traverse, answerSizeSoFar="+answerSizeSoFar);
                     int nChildren = this.children.size();
                     for (int i = 0; i < nChildren; ++i) {
@@ -886,11 +880,11 @@ public class VeryCleverPaintersSortingOfStickers
                         }
                     }
 
-                    StringBuffer tracebufferAux = null;
+                    StringBuilder tracebufferAux = null;
                     if (tracebuffer != null) {
                         // Compose information about the partial order into a local aux tracebuffer, before we recurse and destroy the partial order buffer
                         if (true) {
-                            tracebufferAux = new StringBuffer();
+                            tracebufferAux = new StringBuilder();
                             if (nComponents < nChildren) {
                                 tracebufferAux.append("(XXX THERE ARE CYCLES HERE)");
                             }
@@ -1155,7 +1149,7 @@ public class VeryCleverPaintersSortingOfStickers
                 }
             }
 
-            StringBuffer tracebuffer = localVerboseLevel >= 2 ? new StringBuffer() : null;
+            StringBuilder tracebuffer = localVerboseLevel >= 2 ? new StringBuilder() : null;
             int nStickersEmitted = root.traverse(returnStickerSortOrder, 0, tracebuffer, /*recursionLevel=*/0);
 
             if (returnPartialOrderInfoOptionalForDebugging != null) {

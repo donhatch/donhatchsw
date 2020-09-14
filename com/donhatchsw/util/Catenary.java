@@ -711,7 +711,7 @@ public class Catenary
 
     @Override public String toString()
     {
-       StringBuffer sb = new StringBuffer();
+       StringBuilder sb = new StringBuilder();
        sb.append("{");
        sb.append("s=");
        sb.append(sNumerator);
@@ -786,7 +786,7 @@ public class Catenary
         }
         @Override public String toString()
         {
-           StringBuffer sb = new StringBuffer();
+           StringBuilder sb = new StringBuilder();
            sb.append("{");
            sb.append("flipped=");
            sb.append(this.leftRightFlipped);

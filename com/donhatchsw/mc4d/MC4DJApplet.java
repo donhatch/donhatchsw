@@ -29,7 +29,7 @@ public class MC4DJApplet
     public boolean doDoubleBuffer = true; // XXX get this from viewing params? currently this must match viewing params' default value
     public boolean futtIfPossible = false; // XXX get this from viewing params? currently this must match viewing params' default value
     public boolean forceFuttableXXX = false;
-    public int nControlPanelsAtStartup = 0; // can set this to more, to experiment... they should all stay in sync
+    public int nControlPanelsAtStartup = 1; // can set this to more, to experiment... they should all stay in sync
     public String modelStateString = null;
     private final static String parameterInfo[][] = {
         {"puzzleDescription", "string", "puzzle description, e.g. \"{4,3,3} 3\""},

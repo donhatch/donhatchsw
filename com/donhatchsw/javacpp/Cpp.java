@@ -63,7 +63,7 @@ public class Cpp
         }
         private static String escapify(String s)
         {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             int n = s.length();
             for (int i = 0; i < n; ++i)
                 sb.append(escapify(s.charAt(i), '"'));
@@ -586,7 +586,7 @@ public class Cpp
         // For debug printing
         public String toString()
         {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             sb.append("new Macro("
                      +this.numParams
                      +", ");
@@ -1903,7 +1903,7 @@ public class Cpp
                             Token expressionStartToken = tokenAllocator.refToken(nextToken);
                             // gather rest of line (with macro substitution and defined() evaluation)
                             // into a string...
-                            StringBuffer sb = new StringBuffer();
+                            StringBuilder sb = new StringBuilder();
                             while (nextToken.type != Token.NEWLINE)
                             {
                                 if (nextToken.type == Token.COMMENT_START)
@@ -2258,7 +2258,7 @@ public class Cpp
     {
         java.util.Vector<String> inFileNamesVector = new java.util.Vector<String>();
         java.util.Vector<String> includePathVector = new java.util.Vector<String>();
-        StringBuffer commandLineFakeInputBuffer = new StringBuffer();
+        StringBuilder commandLineFakeInputBuffer = new StringBuilder();
         String language = "java";
         for (int iArg = 0; iArg < args.length; ++iArg)
         {

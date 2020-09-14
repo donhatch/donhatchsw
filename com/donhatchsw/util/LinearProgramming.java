@@ -669,7 +669,7 @@ public final class LinearProgramming
     //
         private static String repeat(char s, int n)
         {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             for (int i = 0; i < n; ++i)
                 sb.append(s);
             return sb.toString();
@@ -703,7 +703,7 @@ public final class LinearProgramming
             int nAfter = s.length() - (indexOfDecimalPoint+1);
             return repeat(' ', lWidth-nBefore) + s + repeat(' ', rWidth-nAfter);
         }
-        private static void appendSeparatorRow(StringBuffer sb,
+        private static void appendSeparatorRow(StringBuilder sb,
                                                int n,
                                                int colWidths[],
                                                char primaryChar,
@@ -738,7 +738,7 @@ public final class LinearProgramming
                                           int izrov[/*1+n*/],
                                           int iposv[/*1+m*/])
     {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
 
         //
         // Sanity check the arrays...

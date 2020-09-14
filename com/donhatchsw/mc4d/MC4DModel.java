@@ -477,7 +477,7 @@ public class MC4DModel
         {
             String nl = System.getProperty("line.separator"); // XXX ACK! this will mess up everything on the mac!!!  I think maybe I should just use '\n'!
 
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             sb.append("{"+nl);
             sb.append("    genericPuzzleDescription = "+genericPuzzleDescription+","+nl);
             sb.append("    genericPuzzleState = ");

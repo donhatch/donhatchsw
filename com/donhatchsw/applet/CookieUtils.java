@@ -212,7 +212,7 @@ public class CookieUtils
     private static String urlencode(String in)
     {
         char[] inArray = in.toCharArray();
-        StringBuffer outBuf = new StringBuffer();
+        StringBuilder outBuf = new StringBuilder();
         for (int i = 0; i < inArray.length; ++i)
         {
             char c = inArray[i];
@@ -244,7 +244,7 @@ public class CookieUtils
     private static String urldecode(String in)
     {
         char[] inArray = in.toCharArray();
-        StringBuffer outBuf = new StringBuffer();
+        StringBuilder outBuf = new StringBuilder();
         for (int i = 0; i < inArray.length; ++i)
         {
             char c = inArray[i];

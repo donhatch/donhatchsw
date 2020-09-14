@@ -492,8 +492,18 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private String prescription; // what was originally passed to the constructor. we are an immutable object that is completely a function of this string, so an identical clone of ourself can be constructed using this string in any future lifetime.
     @Override public String getPrescription() { return prescription; }
 
+    @Override public String getTopologicalFingerprintHumanReadable() { return overallTopologicalFingerprintHumanReadable; }
+    @Override public String getTopologicalFingerprintDigest() { return overallTopologicalFingerprintDigest; }
+
     private CSG.SPolytope originalPolytope;
     private CSG.SPolytope slicedPolytope;
+
+    private String originalPolytopeHumanReadableTopologicalFingerprint;  // currently not exposed
+    private String originalPolytopeTopologicalFingerprintDigest;  // currently not exposed
+    private String slicedPolytopeHumanReadableTopologicalFingerprint;  // currently not exposed
+    private String slicedPolytopeTopologicalFingerprintDigest;  // currently not exposed
+    private String overallTopologicalFingerprintHumanReadable;  // exposed via getTopologicalFingerprintHumanReadable()
+    private String overallTopologicalFingerprintDigest;  // exposed via getTopologicalFingerprintDigest()
 
     private int _nDisplayDims = 4; // never tried anything else, it will probably crash
     private float _circumRadius;
@@ -571,36 +581,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
       else
           return Double.parseDouble(s);
     }  // parseDoubleFraction
-
-    // Callbacks provided by the caller to the PolytopePuzzleDescription
-    // constructor, so that the contructor may inform the caller of progress,
-    // and the caller may reply whether the constructor should keep going.
-    // NOTE: if the constructor is cancelled (by one of these callbacks returning false),
-    // the constructed polytope will be in a bad state, and should not be used.
-    public static interface ProgressCallbacks {
-        /**
-         * Called to initialize progress bar (or equivalent) in determinate mode;
-         * return false to cancel.
-         */
-        public boolean subtaskInit(String string, int max);
-        /**
-         * Called to initialize the progress bar (or equivalent) in indeterminate mode;
-         * return false to cancel.
-         */
-        public boolean subtaskInit(String string);
-
-        /**
-         * Called to update progress (out of max previously given to subtaskInit());
-         * return false to cancel.
-         */
-        public boolean updateProgress(int progress);
-
-        /**
-         * Called when done with subtask;
-         * return false to cancel.
-         */
-        public boolean subtaskDone();
-    }
 
 
     /**
@@ -977,6 +957,17 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         return true;
     }  // decideWhetherFuttable
 
+    private static String indented(String indent, String text) {
+        String[] lines = text.split("\n");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < lines.length; ++i) {
+            sb.append(indent);
+            sb.append(lines[i]);
+            if (i != lines.length-1) sb.append("\n");
+        }
+        return sb.toString();
+    }
+
     // returns true if succeeded, false if cancelled.
     private boolean init(String schlafliProduct,
                          int[] intLengths, // number of segments per edge, possibly per-face
@@ -988,8 +979,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         for (int i = 0; i < intLengths.length; ++i) {
           if (intLengths[i] < 1)
               throw new IllegalArgumentException("PolytopePuzzleDescription called with intLength="+intLengths[i]+", min legal intLength is 1");
-          if (doubleLengths[i] <= 0)
-              throw new IllegalArgumentException("PolytopePuzzleDescription called with doubleLength="+doubleLengths[i]+", doubleLength must be positive");
+          if (doubleLengths[i] < 0)
+              throw new IllegalArgumentException("PolytopePuzzleDescription called with doubleLength="+doubleLengths[i]+", doubleLength must be nonnegative");
         }
 
         if (progressWriter != null)
@@ -1004,16 +995,38 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         if (progressCallbacks != null && !progressCallbacks.subtaskInit("Constructing polytope")) return false;
         this.originalPolytope = CSG.makeRegularStarPolytopeProductJoinFromString(schlafliProduct);
 
-        if (this.originalPolytope.p.dim < 2)
-        {
-            throw new IllegalArgumentException("PolytopePuzzleDescription can't do puzzles of dimension "+this.originalPolytope.p.dim+" (< 2)");
-        }
-
         if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Constructing polytope"
         if (progressWriter != null)
         {
             progressWriter.println(" done ("+originalPolytope.p.facets.length+" facet"+(originalPolytope.p.facets.length==1?"":"s")+").");
             progressWriter.flush();
+        }
+
+
+        {
+            {
+                if (progressWriter != null) {
+                    progressWriter.print("    Computing fingerprint of polytope... ");
+                    progressWriter.flush();
+                }
+                if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing fingerprint of polytope")) return false;
+                long t0millis = System.currentTimeMillis();
+                this.originalPolytopeHumanReadableTopologicalFingerprint = CSG.computeHumanReadableTopologicalFingerprint(this.originalPolytope.p);
+                this.originalPolytopeTopologicalFingerprintDigest = CSG.sha1(this.originalPolytopeHumanReadableTopologicalFingerprint);
+                long t1millis = System.currentTimeMillis();
+                if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing fingerprint of polytope"
+                if (progressWriter != null) {
+                    progressWriter.println(this.originalPolytopeTopologicalFingerprintDigest+" ("+millisToSecsString(t1millis-t0millis)+" seconds)");
+                    progressWriter.flush();
+                    progressWriter.println("    Human readable topological fingerprint of polytope:");
+                    progressWriter.println(indented("        ", this.originalPolytopeHumanReadableTopologicalFingerprint));
+                }
+            }
+        }
+
+        if (this.originalPolytope.p.dim < 2)
+        {
+            throw new IllegalArgumentException("PolytopePuzzleDescription can't do puzzles of dimension "+this.originalPolytope.p.dim+" (< 2)");
         }
 
         int nDims = originalPolytope.p.dim;  // == originalPolytope.fullDim
@@ -1025,7 +1038,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
 
         // Mark each original facet with its facet index.
-        // These marks will persist even aver we slice up into stickers,
+        // These marks will persist even after we slice up into stickers,
         // so that will give us the sticker-to-original-facet-index mapping.
         // Also mark each vertex with its vertex index... etc.
         {
@@ -1163,7 +1176,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 CHECK(fullThickness != 0.); // XXX actually this fails if puzzle dimension <= 1, maybe should disallow
 
-                double sliceThickness = fullThickness / doubleLength;
+                // Interpret doubleLength==0 as infinity, i.e. sliceLength==0, because there's nothing else it could mean.
+                double sliceThickness = doubleLength==0. ? 0. : fullThickness / doubleLength;
 
                 /*
                    Think about what's appropriate for simplex...
@@ -1193,8 +1207,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // In fact, we can cause similar problems even for odd numbers of slices on standard puzzles:
                 //      "{4,3,3} 7(6)"
                 //      "{4,3,3} 7(4)"
-                // Given that, what we do is as follows: make the list of cuts (even though nNearCuts
-                // may be too many), then sort and remove dups (and near dups) at the end.
+                // Given that, what we do is as follows: make the list of cuts (even though nFarCuts may
+                // may be too many at this point), then sort and remove dups (and near dups) at the end.
 
                 facetCutOffsets[iFacet] = new double[nNearCuts + nFarCuts];
 
@@ -1240,12 +1254,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
                 int iOppositeFacet = facet2OppositeFacet[iFacet];
-                if (iOppositeFacet > iFacet)
+                if (iOppositeFacet > iFacet)  // so we do this only once per pair, and only if there is an opposite
                 {
                     int nCuts = facetCutOffsets[iFacet].length;
                     CHECK(nCuts == facetCutOffsets[iOppositeFacet].length); // careful analysis of the deduping probably would show this can't fail, but check anyway
                     for (int iCut = 0; iCut < nCuts; ++iCut) {
-                        CHECK(Math.abs(facetCutOffsets[iOppositeFacet][nCuts-1-iCut] - -facetCutOffsets[iFacet][iCut]) < 1e-3);  // rough check, much coarser than the dedup tolerance that was used
+                        CHECK(Math.abs(facetCutOffsets[iOppositeFacet][nCuts-1-iCut] - -facetCutOffsets[iFacet][iCut]) < 1e-3);  // rough sanity check, much coarser than the dedup tolerance that was used
                         facetCutOffsets[iOppositeFacet][nCuts-1-iCut] = -facetCutOffsets[iFacet][iCut];
                     }
                 }
@@ -1513,6 +1527,33 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Fixing facet orderings"
             }
         } // slice
+
+        {
+            {
+                if (progressWriter != null) {
+                    progressWriter.print("    Computing fingerprint of sliced polytope... ");
+                    progressWriter.flush();
+                }
+                if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing fingerprint of sliced polytope")) return false;
+                long t0millis = System.currentTimeMillis();
+                this.slicedPolytopeHumanReadableTopologicalFingerprint = CSG.computeHumanReadableTopologicalFingerprint(this.slicedPolytope.p);
+                this.slicedPolytopeTopologicalFingerprintDigest = CSG.sha1(this.slicedPolytopeHumanReadableTopologicalFingerprint);
+                long t1millis = System.currentTimeMillis();
+                if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing fingerprint of sliced polytope"
+                if (progressWriter != null) {
+                    progressWriter.println(this.slicedPolytopeTopologicalFingerprintDigest+" ("+millisToSecsString(t1millis-t0millis)+" seconds)");
+                    progressWriter.flush();
+                    progressWriter.println("    Human readable topological fingerprint of sliced polytope:");
+                    progressWriter.println(indented("        ", this.slicedPolytopeHumanReadableTopologicalFingerprint));
+                }
+                this.overallTopologicalFingerprintHumanReadable =
+                    "original polytope:\n" +
+                    indented("    ", this.originalPolytopeHumanReadableTopologicalFingerprint) + "\n" +
+                    "sliced polytope:\n" +
+                    indented("    ", this.slicedPolytopeHumanReadableTopologicalFingerprint);
+                this.overallTopologicalFingerprintDigest = CSG.sha1(this.overallTopologicalFingerprintHumanReadable);
+            }
+        }
 
 
         CSG.Polytope[] stickers = slicedPolytope.p.getAllElements()[nDims-1];
@@ -2369,6 +2410,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                       eltCenter);
             }
             CHECK(iNicePoint == nNicePoints);
+        }
+
+        if (progressWriter != null)
+        {
+            progressWriter.println("    Puzzle fingerprint human readable =");
+            progressWriter.println(indented("        ", getTopologicalFingerprintHumanReadable()));
+            progressWriter.println("    Puzzle fingerprint digest = "+getTopologicalFingerprintDigest());
         }
 
 

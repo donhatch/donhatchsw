@@ -92,7 +92,7 @@ public class CppOld
         }
         private static String escapify(String s)
         {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             int n = s.length();
             for (int i = 0; i < n; ++i)
                 sb.append(escapify(s.charAt(i), '"'));
@@ -353,7 +353,7 @@ public class CppOld
         // For debug printing
         public String toString()
         {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             sb.append("new Macro("
                      +this.numParams
                      +", ");
@@ -412,7 +412,7 @@ public class CppOld
         private LineAndColumnNumberReaderWithLookahead reader;
         String fileName;
         private boolean returnedEOF;
-        private StringBuffer scratch = new StringBuffer();
+        private StringBuilder scratch = new StringBuilder();
 
         public TokenReader(java.io.Reader in, String fileName)
         {
@@ -1088,7 +1088,7 @@ public class CppOld
                         {
                             // replace what we added to resultsVector
                             // with a single string token consisting of all the text concatenated together
-                            StringBuffer sb = new StringBuffer();
+                            StringBuilder sb = new StringBuilder();
                             for (int j = resultsVectorSizeBefore; j < resultsVector.size(); ++j)
                                 sb.append(((Token)resultsVector.get(j)).text);
                             while (resultsVector.size() > resultsVectorSizeBefore)
@@ -1315,7 +1315,7 @@ public class CppOld
 
                     // gather rest of line (with macro substitution and defined() evaluation)
                     // into a string...
-                    StringBuffer sb = new StringBuffer();
+                    StringBuilder sb = new StringBuilder();
                     while (nextToken.type != Token.NEWLINE_UNESCAPED
                         && nextToken.type != Token.EOF)
                     {
@@ -1781,7 +1781,7 @@ public class CppOld
                     {
                         delimiter = '<';
                         // turn it into a string
-                        StringBuffer sb = new StringBuffer();
+                        StringBuilder sb = new StringBuilder();
                         sb.append(nextToken.text);
                         while (true)
                         {
@@ -1794,7 +1794,7 @@ public class CppOld
                              && nextToken.text.equals(">"))
                                 break;
                         }
-                        fileNameToken = new Token(Token.STRING_LITERAL, sb.toString(), fileNameToken.fileName, fileNameToken.lineNumber, fileNameToken.columnNumber); // XXX this is a bit weird, we've made a string literal that's not delimited by quotes and that doesn't follow usual backslash stuff, maybe it's misnamed... but actually we shouldn't be parsing as string_literal at all, just use a StringBuffer even when delimited by quotes?
+                        fileNameToken = new Token(Token.STRING_LITERAL, sb.toString(), fileNameToken.fileName, fileNameToken.lineNumber, fileNameToken.columnNumber); // XXX this is a bit weird, we've made a string literal that's not delimited by quotes and that doesn't follow usual backslash stuff, maybe it's misnamed... but actually we shouldn't be parsing as string_literal at all, just use a StringBuilder even when delimited by quotes?
                     }
                     if (fileNameToken.type != Token.STRING_LITERAL)
                         throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\" or <FILENAME>");
@@ -1903,7 +1903,7 @@ public class CppOld
                     // into a string...
                     // XXX TODO: comments?
                     Token nextToken = in.readTokenDiscardingEscapedNewlines();
-                    StringBuffer sb = new StringBuffer();
+                    StringBuilder sb = new StringBuilder();
                     sb.append(token.text);
                     while (nextToken.type != Token.NEWLINE_UNESCAPED
                         && nextToken.type != Token.EOF)
@@ -3616,7 +3616,7 @@ public class CppOld
         {
             // behave like actual cpp
             String inFileName = null;
-            StringBuffer commandLineFakeInput = new StringBuffer();
+            StringBuilder commandLineFakeInput = new StringBuilder();
             java.util.Vector<String> includePathVector = new java.util.Vector<String>();
             String language = "java";
 

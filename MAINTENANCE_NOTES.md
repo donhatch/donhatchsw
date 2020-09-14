@@ -23,6 +23,8 @@ git fetch . java6:java10
 git fetch . java6:java11
 
 git push origin java6 java7 java8 java9 java10 java11
+
+git checkout master
 ```
 
 

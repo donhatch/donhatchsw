@@ -43,13 +43,13 @@ public class GenericPuzzleFactory
             theClass = classForNameOrNull("com.donhatchsw.mc4d."+className);
         if (theClass == null)
             throw new IllegalArgumentException("GenericPuzzleFactor.construct failed to find a class called either "+className+" or com.donhatchsw.mc4d."+className+"");
-        java.lang.reflect.Constructor<?> constructor = getConstructorOrNull(theClass, new Class<?>[]{String.class, java.io.PrintWriter.class});
+        java.lang.reflect.Constructor<?> constructor = getConstructorOrNull(theClass, new Class<?>[]{String.class, java.io.PrintWriter.class, GenericPuzzleDescription.ProgressCallbacks.class});
         if (constructor == null)
-            throw new IllegalArgumentException("GenericPuzzleFactory.construct: "+theClass.getName()+" has no constructor that takes a String and a PrintWriter!");
+            throw new IllegalArgumentException("GenericPuzzleFactory.construct: "+theClass.getName()+" has no constructor that takes a String and a PrintWriter and a ProgressCallbacks!");
         Object object = null;
         try
         {
-            object = constructor.newInstance(new Object[]{arg, progressWriter});
+            object = constructor.newInstance(new Object[]{arg, progressWriter, /*progressCallbacks=*/null});
         }
         catch (InstantiationException e)
         {

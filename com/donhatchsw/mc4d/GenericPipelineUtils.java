@@ -101,6 +101,7 @@ public class GenericPipelineUtils
     * Compute a frame of animation.
     * Attempts to avoid doing any new memory allocations
     * when called repeatedly on a given puzzleDescription.
+    * (Currently does not succeed.)
     */
     public static void computeFrame(Frame frame, // return into here
 
@@ -282,8 +283,11 @@ public class GenericPipelineUtils
             perStickerFaceCenters,
         };
         
+        boolean adjustSoShrunkCircumradiusIs1 = true;  // TODO: provide interface for this?
+
         // Choose 4d scale.
-        float scale4d;
+        float scale4d = 1.f;
+        if (adjustSoShrunkCircumradiusIs1)
         {
             // Make it so circumradius (of shrunk puzzle!) is 1.
             // CBB: this incorporates only the 4d shrinks, since we haven't

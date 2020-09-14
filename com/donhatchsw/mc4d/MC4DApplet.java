@@ -27,7 +27,7 @@ public class MC4DApplet
     public boolean doDoubleBuffer = true; // XXX get this from viewing params? currently this must match viewing params' default value
     public boolean futtIfPossible = false; // XXX get this from viewing params? currently this must match viewing params' default value
     public boolean forceFuttableXXX = false;
-    public int nControlPanelsAtStartup = 0; // can set this to more, to experiment... they should all stay in sync
+    public int nControlPanelsAtStartup = 1; // can set this to more, to experiment... they should all stay in sync
     public String modelStateString = null;
     private final static String parameterInfo[][] = {
         {"puzzleDescription", "string", "puzzle description, e.g. \"{4,3,3} 3\""},
@@ -968,7 +968,7 @@ public class MC4DApplet
 
         @Override public String toString()
         {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             sb.append("applet = {\n");
             {
                 sb.append("    puzzleDescriptionsAndUndoTrees = {\n");
