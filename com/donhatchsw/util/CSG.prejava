@@ -1045,6 +1045,7 @@ public final class CSG
 
         } // class SPolytope
 
+    // End of data structures.
 
 
     //
@@ -1206,6 +1207,7 @@ public final class CSG
             return answer;
         } // makeHypercube
 
+    // End of Some primitive SPolytopes.
 
         /**
         * Makes a regular polytope of edge length 2, centered at the origin,
@@ -8145,6 +8147,7 @@ public final class CSG
         } // unionOfHyperplanesAndSort
 
         // return the point that is the intersection of n hyperplanes in n dimensions.
+        // used by Polytope ctor and Polytope.toString and _intersect.
         private static double[] intersectHyperplanes(Hyperplane hyperplanes[])
         {
             int nHyperplanes = hyperplanes.length;
@@ -8225,6 +8228,295 @@ public final class CSG
             return c;
         } // intersectHyperplanes
 
+
+        //  Thoughts:
+        //  - a vert is just a vert
+        //  - an edge is just an edge
+        //  - a poly is characterized by its gonality
+        //  - a 3-cell is characterized by its: nVerts, nEdges, nPolys of each size.
+        //    E.g a truncated simplex could be:
+        //     {20 verts,
+        //      40 edges,
+        //      30 polys (20 3-gons,
+        //                10 6-gons),
+        //      10 3-cells (5*{4 verts, 6 edges, 4 3-gons},
+        //                  5*{12 verts, 18 edges, 8 polys (4 3-gons,
+        //                                                  4 6-gons)})}
+        //
+        //  - if all the polys were the same, that part would have just said:
+        //      30 3-gons
+        public static String experimentalTopologicalishDescriptionString(Polytope p) {
+          int verboseLevel = 0;
+          if (verboseLevel >= 1) System.out.println("in experimentalTopologicalishDescriptionString");
+          java.util.HashMap<Long,String> descriptions = new java.util.HashMap<Long,String>();
+          int dim = p.dim;
+          Polytope[/*dim+1*/][] allElements = p.getAllElements();
+          int[/*dim+1*/][][/*dim+1*/][] allIncidences = p.getAllIncidences();
+          if (verboseLevel >= 1) System.out.println("  dim = "+dim);
+          if (verboseLevel >= 1) System.out.println("  p.id = "+p.id);
+          StringBuilder description = new StringBuilder();  // scratch for loop
+          for (int iDim = 0; iDim <= dim; ++iDim) {
+            if (verboseLevel >= 1) System.out.println("      iDim = "+iDim);
+            for (int iEltOfDim = 0; iEltOfDim < allElements[iDim].length; ++iEltOfDim) {
+              Polytope elt = allElements[iDim][iEltOfDim];
+              if (verboseLevel >= 1) System.out.println("          got elt "+elt.id+" of dim "+iDim);
+              CHECK_EQ(description.length(), 0);
+              if (iDim == 0) {
+                description.append("vert");
+              } else if (iDim == 1) {
+                if (elt.aux != null && elt.aux instanceof Integer) {
+                  // Special case hack for vertex figure
+                  int gonality = ((Integer)elt.aux).intValue();
+                  description.append(gonality);
+                  description.append("-chord");
+                } else {
+                  description.append("edge");
+                }
+              } else if (iDim == 2) {
+                int gonality = elt.facets.length;
+                if (gonality == 2) {
+                  description.append("digon");
+                } else if (gonality == 3) {
+                  description.append("triangle");
+                } else if (gonality == 4) {
+                  description.append("quad");
+                } else if (gonality == 5) {
+                  description.append("pentagon");
+                } else if (gonality == 6) {
+                  description.append("hexagon");
+                } else if (gonality == 8) {
+                  description.append("octagon");
+                } else if (gonality == 10) {
+                  description.append("decagon");
+                } else {
+                  description.append(elt.facets.length);
+                  description.append("-gon");
+                }
+              } else {
+                Polytope[][] eltElts = elt.getAllElements();
+                for (int jDim = 0; jDim < iDim; ++jDim) {
+                  if (jDim==0) {
+                    description.append(eltElts[jDim].length);
+                    description.append(" vert");
+                    description.append((eltElts[jDim].length==1?"":"s"));
+                  } else {
+                    description.append(", ");
+                    // Need to classify these elements-of-elements
+                    java.util.HashMap<String,int[/*1*/]> histogram = new java.util.HashMap<String,int[]>();
+                    for (Polytope eltElt : eltElts[jDim]) {
+                      if (verboseLevel >= 1) System.out.println("              looking for eltelt "+eltElt.id+" of dim "+eltElt.dim);
+                      String eltEltDescription = descriptions.get(eltElt.id);
+                      CHECK(eltEltDescription != null);
+                      int[] countHolder = histogram.get(eltEltDescription);
+                      if (countHolder == null) {
+                        histogram.put(eltEltDescription, new int[] {1});
+                      } else {
+                        countHolder[0]++;
+                      }
+                    }
+
+                    String[] sortedKeys = new String[histogram.size()];
+                    int nSortedKeys = 0;
+                    for (String key : histogram.keySet()) {
+                      sortedKeys[nSortedKeys++] = key;
+                    }
+                    // CBB: should have a better sorting criterion
+                    java.util.Arrays.sort(sortedKeys, 0, nSortedKeys);
+                    // Cases:
+                    //   All one type:
+                    //     "4 3-gons"
+                    //     "4 3-cells: {10 verts, 2 edges, 3 4 3-gons}"
+                    //   Multiple types needing breakdown:
+                    //     "18 polygons (12 6-gons, 6 3-gons)"
+                    //     "10 3-cells (5*{...}, 5*{...})"
+                    if (histogram.size() == 1) {
+                      // Just print the one count and thing,
+                      // no need for a breakdown.
+                      String key = sortedKeys[0];
+                      int count = histogram.get(key)[0];
+                      description.append(count);
+                      description.append(" ");
+                      if (jDim >= 3) {
+                        description.append(jDim);
+                        description.append("-cell");
+                        description.append((count==1?"":"s"));
+                        description.append(": {");
+                      }
+                      description.append(key);
+                      if (jDim >= 3) description.append("}");
+                      else description.append((count==1?"":"s"));
+                    } else {
+                      // Need a breakdown.  First total, then breakdown in parens.
+                      int totalCount = eltElts[jDim].length;
+                      description.append(totalCount);
+                      description.append(" ");
+                      if (jDim==2) {
+                        description.append("polygon");
+                      } else {
+                        description.append(jDim);
+                        description.append("-cell");
+                      }
+                      description.append((totalCount==1?"":"s"));
+                      description.append(" (");
+                      for (int i = 0; i < sortedKeys.length; ++i) {
+                        String key = sortedKeys[i];
+                        if (i > 0) description.append(", ");
+                        int count = histogram.get(key)[0];
+                        description.append(count);
+                        if (jDim >= 3) description.append("*{");
+                        else description.append(" ");
+                        description.append(key);
+                        if (jDim >= 3) description.append("}");
+                        else description.append((count==1?"":"s"));
+                      }
+                      description.append(")");
+                    }  // histogram.size() != 1
+                  }  // jDim >= 2
+                }  // for jDim
+              }  // iDim >= 3
+              if (verboseLevel >= 1) System.out.println("              description = "+description);
+              descriptions.put(elt.id, description.toString());
+              description.setLength(0);  // clear
+            }  // for iEltOfDim
+          }  // for iDim
+          String answer = descriptions.get(p.id);
+          CHECK(answer != null);
+          if (verboseLevel >= 1) System.out.println("out experimentalTopologicalishDescriptionString");
+          return answer;
+        }  // experimentalTopologicalishDescriptionString
+
+
+        // The vertex figure of a vertex v of p is formed as follows.
+        // Each k-dimensional element incident on v in p
+        // produces a k-1 dimensional element in the vertex figure:
+        //    - each edge incident on v yeilds the neighbor vertex
+        //    - each polygon incident on v yields the chord
+        //    - each 3-cell incident on v yields the chord-like probably-skew polygon
+        //    - etc.
+        // XXX should answer be signed? should p be signed?
+        public static Polytope computeVertexFigure(Polytope p, int iVert) {
+          int verboseLevel = 2;  // 1: in/out and constant. 2: print answer stats.  3: and p stats. 4: and progress details
+          if (verboseLevel >= 1) OUT("        in CSG.computeVertexFigure(p, iVert="+iVert+")");
+          if (verboseLevel >= 1) OUT("          p.dim = "+p.dim);
+          if (verboseLevel >= 3) OUT("          p = "+p);
+          if (verboseLevel >= 2) OUT("          experimentalTopologicalishDescriptionString(p) = "+experimentalTopologicalishDescriptionString(p));
+
+          int dim = p.dim;
+          Polytope[/*dim+1*/][] allElements = p.getAllElements();
+          int[/*dim+1*/][][/*dim+1*/][] allIncidences = p.getAllIncidences();
+
+          java.util.HashMap<Long, Polytope> oldIncidentElt2newChordElt = new java.util.HashMap<Long, Polytope>();
+          for (int iNewSmallerDim = 0; iNewSmallerDim <= dim-1; ++iNewSmallerDim) {
+            int iOldLargerDim = iNewSmallerDim + 1;
+            if (verboseLevel >= 4) OUT("              constructing elts of new smaller dim "+iNewSmallerDim+" from old larger dim "+iOldLargerDim);
+            int nEltsThisTime = allIncidences[0][iVert][iOldLargerDim].length;
+            for (int iIncidentEltOldLargerDim = 0; iIncidentEltOldLargerDim < nEltsThisTime; ++iIncidentEltOldLargerDim) {
+              int iEltOldLargerDim = allIncidences[0][iVert][iOldLargerDim][iIncidentEltOldLargerDim];
+              int nFacetsThisEltOldLargerDim = allIncidences[iOldLargerDim][iEltOldLargerDim][iOldLargerDim-1].length;
+              if (iNewSmallerDim == 0) {
+                // We're looking at an edge incident to v,
+                // and finding the neighbor vertex.
+                int iEdge = iEltOldLargerDim;
+                int nVertsThisEdge = nFacetsThisEltOldLargerDim;
+                CHECK_EQ(nVertsThisEdge, 2);
+                int nNeighborsFound = 0;
+                for (int iVertThisEdge = 0; iVertThisEdge < nVertsThisEdge; ++iVertThisEdge) {
+                  int jVert = allIncidences[1][iEdge][0][iVertThisEdge];
+                  if (jVert != iVert) {
+                    Polytope vertNeighbor = allElements[0][jVert];
+                    if (verboseLevel >= 4) OUT("                  iEdge="+iEdge+" -> jVert = "+jVert);
+                    oldIncidentElt2newChordElt.put(allElements[1][iEdge].id, vertNeighbor);
+                    nNeighborsFound++;
+                  }
+                }
+                CHECK_EQ(nNeighborsFound, 1);
+              } else {
+                // Say iOldLargerDim=2, iNewSmallerDim=1.
+                // Then we're looking at a polygon incident to v,
+                // and constructing its chord edge,
+                // whose two vertices will be the two neighbor vertices we already found.
+
+                // Or, say iOldLargerDim=3, iNewSmallerDim=2.
+                // Then we're looking at a 3-cell incident to v,
+                // and constructing its chord polygon,
+                // whose facets will be the chord edges we already created.
+                if (verboseLevel >= 4) OUT("                  looking at a "+iOldLargerDim+"-cell incident on iVert="+iVert);
+                java.util.ArrayList<SPolytope> facetChordsList = new java.util.ArrayList<SPolytope>();
+                for (int iFacetThisEltOldLargerDim = 0; iFacetThisEltOldLargerDim < nFacetsThisEltOldLargerDim; ++iFacetThisEltOldLargerDim) {
+                  if (verboseLevel >= 4) OUT("                      looking at a facet of this "+iOldLargerDim+"-cell have we made a chord for it?");
+                  int iFacet = allIncidences[iOldLargerDim][iEltOldLargerDim][iNewSmallerDim][iFacetThisEltOldLargerDim];
+                  Polytope facet = allElements[iOldLargerDim-1][iFacet];
+                  Polytope facetChord = oldIncidentElt2newChordElt.get(facet.id);
+                  if (facetChord != null) {
+                    if (verboseLevel >= 4) OUT("                          yes!");
+                    facetChordsList.add(new SPolytope(/*initialDensity=*/0,
+                                        /*sign=*/1,  // we'll correct later maybe
+                                        facetChord));
+                  } else {
+                    if (verboseLevel >= 4) OUT("                          no!");
+                  }
+                }
+                SPolytope[] facetChords = new SPolytope[facetChordsList.size()];
+                facetChordsList.toArray(facetChords);
+                Object aux = null;
+                if (iNewSmallerDim == 1) {
+                  CHECK_EQ(facetChords.length, 2);
+                  aux = Integer.valueOf(nFacetsThisEltOldLargerDim);  // the gonality of the polygon of which this edge is a chord
+                }
+                Polytope chord = new Polytope(iNewSmallerDim,
+                                              p.fullDim,
+                                              facetChords,
+                                              ///*contributingHyperplanes=*/null,  // blowing it off
+                                              /*contributingHyperplanes=*/new Hyperplane[0],  // no, I guess this is the way to blow it off
+                                              /*aux=*/aux);
+                if (verboseLevel >= 4) OUT("                  storing newly made chord for this "+iOldLargerDim+"-cell at id="+allElements[iOldLargerDim][iEltOldLargerDim].id);
+                oldIncidentElt2newChordElt.put(allElements[iOldLargerDim][iEltOldLargerDim].id, chord);
+              }
+            }
+          }
+          Polytope answer = oldIncidentElt2newChordElt.get(p.id);
+          CHECK(answer != null);
+
+          if (verboseLevel >= 4) OUT("          answer = "+answer);
+          if (verboseLevel >= 2) OUT("          experimentalTopologicalishDescriptionString(answer) = "+experimentalTopologicalishDescriptionString(answer));
+          if (verboseLevel >= 1) OUT("        out CSG.computeVertexFigure(p, iVert="+iVert+")");
+          return answer;
+        }  // computeVertexFigure
+
+        // WORK IN PROGRESS
+        public static String computeTopologicalFingerprint(Polytope p) {
+            OUT("    in CSG.topologicalFingerprint(p)");
+
+            /*
+               Thoughts:
+               - one building block we will need is vertex figure.
+                 the vertex figure of a given vertex v in a polytope will be a dim-1 dimensional polytope:
+                 - verts = neighbors of v
+                 - edges = chords of polygons incident on v
+                 - faces = chord-like possibly-skew polygons, of 3-cells incident on v
+                 - etc.
+            */
+            String question = "foo";
+            int nVerts = p.getAllElements()[0].length;
+            for (int iVert = 0; iVert < nVerts; ++iVert) {
+                Polytope vertexFigure = computeVertexFigure(p, iVert);
+            }
+
+            String answer = null;
+            try {
+              java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-1");
+              md.reset();
+              md.update(question.getBytes("UTF-8"));
+              answer = String.format("%040x", new java.math.BigInteger(1, md.digest()));
+            } catch (java.security.NoSuchAlgorithmException e) {
+              throw new Error(e);
+            } catch (java.io.UnsupportedEncodingException e) {
+              throw new Error(e);
+            }
+
+            OUT("    out CSG.topologicalFingerprint(p), returning "+Arrays.toStringCompact(answer));
+            return answer;
+        }  // topologicalFingerprint
 
 
         //
