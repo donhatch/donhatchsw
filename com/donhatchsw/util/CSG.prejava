@@ -8229,6 +8229,52 @@ public final class CSG
         } // intersectHyperplanes
 
 
+        // The usual HashMap-as-counter thing, smoothing out some rough edges.
+        @SuppressWarnings("serial")
+        private static class HashCounter<K> extends java.util.HashMap<K,int[]> {
+          public int count(K key) {
+            int[] countHolder = this.get(key);
+            return countHolder==null ? 0 : countHolder[0];
+          }
+          public void incr(K key) {
+            int[] countHolder = this.get(key);
+            if (countHolder == null) {
+              this.put(key, new int[] {1});
+            } else {
+              countHolder[0]++;
+            }
+          }
+        }  // HashCounter
+        // This should be part of HashCounter, but can't because "new String[10]" gives "error: generic array creation"
+        @SuppressWarnings("serial")
+        private static class StringHashCounter extends HashCounter<String> {
+          // if I knew Collections better I'd probably do something else
+          public String[] sortedKeys() {
+            String[] answer = new String[this.size()];
+            int n = 0;
+            for (String key : this.keySet()) {
+              answer[n++] = key;
+            }
+            java.util.Arrays.sort(answer, 0, n);
+            return answer;
+          }
+          public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("{");
+            String[] sortedKeys = this.sortedKeys();
+            for (int i = 0; i < sortedKeys.length; ++i) {
+              if (i > 0) sb.append(", ");
+              String key = sortedKeys[i];
+              sb.append(Arrays.toStringCompact(key));
+              sb.append(":");
+              sb.append(this.count(key));
+            }
+            sb.append("}");
+            return sb.toString();
+          }
+        }  // StringHashCounter
+
+
         //  Thoughts:
         //  - a vert is just a vert
         //  - an edge is just an edge
@@ -8245,9 +8291,12 @@ public final class CSG
         //
         //  - if all the polys were the same, that part would have just said:
         //      30 3-gons
-        public static String experimentalTopologicalishDescriptionString(Polytope p) {
+        // If isVertexFigure is true, an Integer aux is treated as a chord length and printed as such;
+        // if false, auxes are ignored.
+        private static String experimentalTopologicalishSummary(Polytope p,
+                                                                boolean isVertexFigure) {
           int verboseLevel = 0;
-          if (verboseLevel >= 1) System.out.println("in experimentalTopologicalishDescriptionString");
+          if (verboseLevel >= 1) System.out.println("in experimentalTopologicalishSummary");
           java.util.HashMap<Long,String> descriptions = new java.util.HashMap<Long,String>();
           int dim = p.dim;
           Polytope[/*dim+1*/][] allElements = p.getAllElements();
@@ -8261,10 +8310,22 @@ public final class CSG
               Polytope elt = allElements[iDim][iEltOfDim];
               if (verboseLevel >= 1) System.out.println("          got elt "+elt.id+" of dim "+iDim);
               CHECK_EQ(description.length(), 0);
+
+              boolean hasChord = false;
+              if (isVertexFigure) {
+                for (int iEdge : allIncidences[iDim][iEltOfDim][1]) {
+                  Polytope edge = allElements[1][iEdge];
+                  if (edge.aux != null && edge.aux instanceof Integer) {  // TODO: turn this into something private!
+                    hasChord = true;
+                    break;
+                  }
+                }
+              }
+
               if (iDim == 0) {
                 description.append("vert");
               } else if (iDim == 1) {
-                if (elt.aux != null && elt.aux instanceof Integer) {
+                if (hasChord) {  // then is chord
                   // Special case hack for vertex figure
                   int gonality = ((Integer)elt.aux).intValue();
                   description.append(gonality);
@@ -8272,7 +8333,8 @@ public final class CSG
                 } else {
                   description.append("edge");
                 }
-              } else if (iDim == 2) {
+              } else if (iDim == 2 && !hasChord) {  // TODO: when has chord, it says "3 1-cells (1 3-chord, 1 5-chord, 1 7-chord)", should say edges instead of 1-cells
+                // TODO: even worse: for 4,4,3,  vertex figure comes out "4 verts, 6 4-chords, 4 3 verts, 3 4-chordss"
                 int gonality = elt.facets.length;
                 if (gonality == 2) {
                   description.append("digon");
@@ -8302,26 +8364,16 @@ public final class CSG
                   } else {
                     description.append(", ");
                     // Need to classify these elements-of-elements
-                    java.util.HashMap<String,int[/*1*/]> histogram = new java.util.HashMap<String,int[]>();
+                    StringHashCounter histogram = new StringHashCounter();
                     for (Polytope eltElt : eltElts[jDim]) {
                       if (verboseLevel >= 1) System.out.println("              looking for eltelt "+eltElt.id+" of dim "+eltElt.dim);
                       String eltEltDescription = descriptions.get(eltElt.id);
                       CHECK(eltEltDescription != null);
-                      int[] countHolder = histogram.get(eltEltDescription);
-                      if (countHolder == null) {
-                        histogram.put(eltEltDescription, new int[] {1});
-                      } else {
-                        countHolder[0]++;
-                      }
+                      histogram.incr(eltEltDescription);
                     }
 
-                    String[] sortedKeys = new String[histogram.size()];
-                    int nSortedKeys = 0;
-                    for (String key : histogram.keySet()) {
-                      sortedKeys[nSortedKeys++] = key;
-                    }
                     // CBB: should have a better sorting criterion
-                    java.util.Arrays.sort(sortedKeys, 0, nSortedKeys);
+                    String[] sortedKeys = histogram.sortedKeys();
                     // Cases:
                     //   All one type:
                     //     "4 3-gons"
@@ -8329,22 +8381,31 @@ public final class CSG
                     //   Multiple types needing breakdown:
                     //     "18 polygons (12 6-gons, 6 3-gons)"
                     //     "10 3-cells (5*{...}, 5*{...})"
+                    //   Polygon needing to be expanded because it has chords:
+                    //     "4 triangles {3 verts, 3 4-chords}"
+
                     if (histogram.size() == 1) {
                       // Just print the one count and thing,
                       // no need for a breakdown.
                       String key = sortedKeys[0];
-                      int count = histogram.get(key)[0];
+                      int count = histogram.count(key);
                       description.append(count);
                       description.append(" ");
                       if (jDim >= 3) {
                         description.append(jDim);
                         description.append("-cell");
                         description.append((count==1?"":"s"));
-                        description.append(": {");
+                        description.append(": ");
+                      }
+                      if (jDim >= 3 || (jDim>=2 && hasChord)) {
+                        description.append("{");
                       }
                       description.append(key);
-                      if (jDim >= 3) description.append("}");
-                      else description.append((count==1?"":"s"));
+                      if (jDim >= 3 || (jDim>=2 && hasChord)) {
+                        description.append("}");
+                      } else {
+                        description.append((count==1?"":"s"));
+                      }
                     } else {
                       // Need a breakdown.  First total, then breakdown in parens.
                       int totalCount = eltElts[jDim].length;
@@ -8361,12 +8422,12 @@ public final class CSG
                       for (int i = 0; i < sortedKeys.length; ++i) {
                         String key = sortedKeys[i];
                         if (i > 0) description.append(", ");
-                        int count = histogram.get(key)[0];
+                        int count = histogram.count(key);
                         description.append(count);
-                        if (jDim >= 3) description.append("*{");
+                        if (jDim >= 3 || (jDim>=2 && hasChord)) description.append("*{");
                         else description.append(" ");
                         description.append(key);
-                        if (jDim >= 3) description.append("}");
+                        if (jDim >= 3 || (jDim>=2 && hasChord)) description.append("}");
                         else description.append((count==1?"":"s"));
                       }
                       description.append(")");
@@ -8381,25 +8442,25 @@ public final class CSG
           }  // for iDim
           String answer = descriptions.get(p.id);
           CHECK(answer != null);
-          if (verboseLevel >= 1) System.out.println("out experimentalTopologicalishDescriptionString");
+          if (verboseLevel >= 1) System.out.println("out experimentalTopologicalishSummary");
           return answer;
-        }  // experimentalTopologicalishDescriptionString
+        }  // experimentalTopologicalishSummary
 
-
-        // The vertex figure of a vertex v of p is formed as follows.
-        // Each k-dimensional element incident on v in p
+        // The vertex figure of a vertex v of p is a polytope
+        // whose vertices are the neighbors of v and whose edges are the neighbor-chords
+        // of polygons incident on v.
+        // In more detail: each k-dimensional element incident on v in p
         // produces a k-1 dimensional element in the vertex figure:
-        //    - each edge incident on v yeilds the neighbor vertex
+        //    - each edge incident on v yields the neighbor vertex
         //    - each polygon incident on v yields the chord
         //    - each 3-cell incident on v yields the chord-like probably-skew polygon
         //    - etc.
-        // XXX should answer be signed? should p be signed?
+        // CBB: doesn't do any orientation; all signs of internal SPolytopes are 1.
         public static Polytope computeVertexFigure(Polytope p, int iVert) {
-          int verboseLevel = 2;  // 1: in/out and constant. 2: print answer stats.  3: and p stats. 4: and progress details
-          if (verboseLevel >= 1) OUT("        in CSG.computeVertexFigure(p, iVert="+iVert+")");
+          int verboseLevel = 0;  // 1: in/out and constant. 2: print answer stats.  3: and p stats. 4: and progress details
+          if (verboseLevel >= 1) OUT("        in CSG.computeVertexFigure(p, iVert="+iVert+"/"+p.getAllElements()[0].length+")");
           if (verboseLevel >= 1) OUT("          p.dim = "+p.dim);
-          if (verboseLevel >= 3) OUT("          p = "+p);
-          if (verboseLevel >= 2) OUT("          experimentalTopologicalishDescriptionString(p) = "+experimentalTopologicalishDescriptionString(p));
+          if (verboseLevel >= 3) OUT("          experimentalTopologicalishSummary(p) = "+experimentalTopologicalishSummary(p, /*isVertexFigure=*/false));
 
           int dim = p.dim;
           Polytope[/*dim+1*/][] allElements = p.getAllElements();
@@ -8478,45 +8539,51 @@ public final class CSG
           CHECK(answer != null);
 
           if (verboseLevel >= 4) OUT("          answer = "+answer);
-          if (verboseLevel >= 2) OUT("          experimentalTopologicalishDescriptionString(answer) = "+experimentalTopologicalishDescriptionString(answer));
-          if (verboseLevel >= 1) OUT("        out CSG.computeVertexFigure(p, iVert="+iVert+")");
+          if (verboseLevel >= 2) OUT("          experimentalTopologicalishSummary(answer) = "+experimentalTopologicalishSummary(answer, /*isVertexFigure=*/true));
+          if (verboseLevel >= 1) OUT("        out CSG.computeVertexFigure(p, iVert="+iVert+"/"+p.getAllElements()[0].length+")");
           return answer;
         }  // computeVertexFigure
 
-        // WORK IN PROGRESS
-        public static String computeTopologicalFingerprint(Polytope p) {
-            OUT("    in CSG.topologicalFingerprint(p)");
-
-            /*
-               Thoughts:
-               - one building block we will need is vertex figure.
-                 the vertex figure of a given vertex v in a polytope will be a dim-1 dimensional polytope:
-                 - verts = neighbors of v
-                 - edges = chords of polygons incident on v
-                 - faces = chord-like possibly-skew polygons, of 3-cells incident on v
-                 - etc.
-            */
-            String question = "foo";
+        public static String computeHumanReadableTopologicalFingerprint(Polytope p) {
+            int verboseLevel = 0;
+            if (verboseLevel >= 1) OUT("    in CSG.topologicalFingerprint(p)");
+            StringHashCounter vertexFigureTopologicalishDescriptionString2count = new StringHashCounter();
             int nVerts = p.getAllElements()[0].length;
             for (int iVert = 0; iVert < nVerts; ++iVert) {
                 Polytope vertexFigure = computeVertexFigure(p, iVert);
+                String vertexFigureFingerprint = experimentalTopologicalishSummary(vertexFigure, /*isVertexFigure=*/true);
+                vertexFigureTopologicalishDescriptionString2count.incr(vertexFigureFingerprint);
             }
+            if (verboseLevel >= 1) OUT("      vertexFigureTopologicalishDescriptionString2count.size() = "+vertexFigureTopologicalishDescriptionString2count.size());
+            if (verboseLevel >= 1) OUT("      vertexFigureTopologicalishDescriptionString2count = "+vertexFigureTopologicalishDescriptionString2count);
+            String wholeThingString = experimentalTopologicalishSummary(p, /*isVertexFigure=*/false);  // for good measure
+            if (verboseLevel >= 1) OUT("      wholeThingString = "+wholeThingString);
 
+            StringBuilder sb = new StringBuilder();
+            sb.append("structure summary: ");
+            sb.append(wholeThingString);
+            sb.append("\n");
+            sb.append("vertex figures histogram: ");
+            sb.append(vertexFigureTopologicalishDescriptionString2count.toString());
+            String answer = sb.toString();
+            if (verboseLevel >= 1) OUT("    out CSG.topologicalFingerprint(p), returning "+Arrays.toStringCompact(answer));
+            return answer;
+        }  // computeHumanReadableTopologicalFingerprint
+
+
+        // General utility, computes the 40-hex-digit SHA-1 fingerprint of a string.
+        public static String sha1(String s) {
             String answer = null;
             try {
               java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-1");
-              md.reset();
-              md.update(question.getBytes("UTF-8"));
-              answer = String.format("%040x", new java.math.BigInteger(1, md.digest()));
+              md.update(s.getBytes("UTF-8"));
+              return String.format("%040x", new java.math.BigInteger(1, md.digest()));
             } catch (java.security.NoSuchAlgorithmException e) {
               throw new Error(e);
             } catch (java.io.UnsupportedEncodingException e) {
               throw new Error(e);
             }
-
-            OUT("    out CSG.topologicalFingerprint(p), returning "+Arrays.toStringCompact(answer));
-            return answer;
-        }  // topologicalFingerprint
+        }  // sha1
 
 
         //

@@ -981,8 +981,29 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             progressWriter.flush();
         }
 
-        if (progressWriter != null) {
-            String topologicalFingerprint = CSG.computeTopologicalFingerprint(this.originalPolytope.p);
+
+        {
+            String humanReadableTopologicalFingerprint;
+            String topologicalFingerprintDigest;
+            {
+                if (progressWriter != null) {
+                    progressWriter.print("    Computing fingerprint of polytope... ");
+                    progressWriter.flush();
+                }
+                if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing fingerprint of polytope")) return false;
+                long t0millis = System.currentTimeMillis();
+                humanReadableTopologicalFingerprint = CSG.computeHumanReadableTopologicalFingerprint(this.originalPolytope.p);
+                topologicalFingerprintDigest = CSG.sha1(humanReadableTopologicalFingerprint);
+                long t1millis = System.currentTimeMillis();
+                if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing fingerprint of polytope"
+                if (progressWriter != null) {
+                    progressWriter.println(topologicalFingerprintDigest+" ("+millisToSecsString(t1millis-t0millis)+" seconds)");
+                    progressWriter.flush();
+                    progressWriter.println("    Human readable topological fingerprint of polytope:");
+                    progressWriter.println(humanReadableTopologicalFingerprint);
+                }
+
+            }
         }
 
         if (this.originalPolytope.p.dim < 2)
@@ -1488,6 +1509,30 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Fixing facet orderings"
             }
         } // slice
+
+        {
+            String humanReadableTopologicalFingerprint;
+            String topologicalFingerprintDigest;
+            {
+                if (progressWriter != null) {
+                    progressWriter.print("    Computing fingerprint of sliced polytope... ");
+                    progressWriter.flush();
+                }
+                if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing fingerprint of polytope")) return false;
+                long t0millis = System.currentTimeMillis();
+                humanReadableTopologicalFingerprint = CSG.computeHumanReadableTopologicalFingerprint(this.slicedPolytope.p);
+                topologicalFingerprintDigest = CSG.sha1(humanReadableTopologicalFingerprint);
+                long t1millis = System.currentTimeMillis();
+                if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing fingerprint of polytope"
+                if (progressWriter != null) {
+                    progressWriter.println(topologicalFingerprintDigest+" ("+millisToSecsString(t1millis-t0millis)+" seconds)");
+                    progressWriter.flush();
+                    progressWriter.println("    Human readable topological fingerprint of sliced polytope:");
+                    progressWriter.println(humanReadableTopologicalFingerprint);
+                }
+
+            }
+        }
 
 
         CSG.Polytope[] stickers = slicedPolytope.p.getAllElements()[nDims-1];
