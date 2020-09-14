@@ -974,16 +974,20 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         if (progressCallbacks != null && !progressCallbacks.subtaskInit("Constructing polytope")) return false;
         this.originalPolytope = CSG.makeRegularStarPolytopeProductJoinFromString(schlafliProduct);
 
-        if (this.originalPolytope.p.dim < 2)
-        {
-            throw new IllegalArgumentException("PolytopePuzzleDescription can't do puzzles of dimension "+this.originalPolytope.p.dim+" (< 2)");
-        }
-
         if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Constructing polytope"
         if (progressWriter != null)
         {
             progressWriter.println(" done ("+originalPolytope.p.facets.length+" facet"+(originalPolytope.p.facets.length==1?"":"s")+").");
             progressWriter.flush();
+        }
+
+        if (progressWriter != null) {
+            String topologicalFingerprint = CSG.computeTopologicalFingerprint(this.originalPolytope.p);
+        }
+
+        if (this.originalPolytope.p.dim < 2)
+        {
+            throw new IllegalArgumentException("PolytopePuzzleDescription can't do puzzles of dimension "+this.originalPolytope.p.dim+" (< 2)");
         }
 
         int nDims = originalPolytope.p.dim;  // == originalPolytope.fullDim
@@ -995,7 +999,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
 
         // Mark each original facet with its facet index.
-        // These marks will persist even aver we slice up into stickers,
+        // These marks will persist even after we slice up into stickers,
         // so that will give us the sticker-to-original-facet-index mapping.
         // Also mark each vertex with its vertex index... etc.
         {
