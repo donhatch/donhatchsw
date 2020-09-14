@@ -1207,6 +1207,43 @@ public final class CSG
             return answer;
         } // makeHypercube
 
+        // https://polytope.miraheze.org/wiki/Elongated_square_gyrobicupola
+        // or esquigybcu.
+        public static SPolytope makePseudoRhombicuboctahedron() {
+            // rhombicuboctahedron is called sirco
+            String sirco_prescription = "(1)-4-(0)-3-(1)";
+            SPolytope sirco = makeRegularStarPolytopeProductFromString(sirco_prescription);
+            // TODO: twist!
+            int nFaces = sirco.p.facets.length;
+            CHECK_EQ(nFaces, 26);
+            SPolytope answer = makeHypercube(/*center=*/new double[]{0.,0.,0.},
+                                             /*inRadius=*/4.);  // 3 is fine but maybe 4 will be more accurate
+            SPolytope[] returnBelow = new SPolytope[1];  // scratch for loop
+            for (int iFace = 0; iFace < nFaces; ++iFace) {
+                CHECK_EQ(sirco.p.facets[iFace].p.contributingHyperplanes.length, 1);
+                Hyperplane faceHyperplane = sirco.p.facets[iFace].p.contributingHyperplanes[0];
+                if (faceHyperplane.normal[2] > .01) {
+                  // Rotate by 45 degrees in x and y
+                  double q = Math.sqrt(.5);
+                  faceHyperplane = new Hyperplane(
+                      new double[] {
+                          q*faceHyperplane.normal[0]+q*faceHyperplane.normal[1],
+                          q*faceHyperplane.normal[1]-q*faceHyperplane.normal[0],
+                          faceHyperplane.normal[2],
+                      }, faceHyperplane.offset);
+                }
+                slice(answer,
+                      faceHyperplane,
+                      /*aux=*/null,
+                      returnBelow, /*returnBelowIndex=*/0,
+                      /*returnBelowCapFacet=*/null, /*returnAboveCapFacetIndex=*/-1,
+                      /*returnAboveCapFacet=*/null, /*returnAboveCapFacetIndex=*/-1,
+                      /*returnAbove=*/null, /*returnAboveIndex=*/-1);
+                answer = returnBelow[0];
+            }
+            return answer;
+        }
+
     // End of Some primitive SPolytopes.
 
         /**
@@ -1893,6 +1930,14 @@ public final class CSG
                 return makeFruityPolychoron();
             }
 
+            if (schlafli.length == 2
+             && schlafli[0] == 12
+             && schlafli[1] == 0) {
+                // Hack to smuggle a pseudorhombicuboctahedron
+                return makePseudoRhombicuboctahedron();
+            }
+
+
             if (!isLegalSchlafli(schlafli, schlafliDenoms))
             {
                 // hack together a visible representation of it real quick
@@ -2326,6 +2371,11 @@ public final class CSG
 
             // Similarly for fruity, smuggle it in as {7,0,0}.
             s = s.replaceAll("[Ff]ruity", "{7,0,0}");
+
+            // Similarly for esquigybcu or pseudorhombicuboctahedron.
+            s = s.replaceAll("[Ee]squigybcu", "{12,0}");
+            s = s.replaceAll("[Pp]seudorhombicuboctahedron", "{12,0}");
+
 
             String factors[] = s.trim().split("[x*]");
 
