@@ -676,7 +676,7 @@ public class MiniBall
                 String fileContents = null;
                 try {
                     java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(cacheFileName));
-                    StringBuffer sb = new StringBuffer();
+                    StringBuilder sb = new StringBuilder();
                     char buf[] = new char[1024];
                     int numRead = 0;
                     while ((numRead = reader.read(buf)) > -1)

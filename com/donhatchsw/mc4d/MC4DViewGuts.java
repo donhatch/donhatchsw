@@ -241,7 +241,7 @@ public class MC4DViewGuts
         // (but not their mins, maxes, or defaults).
         @Override public String toString()
         {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             sb.append("{");
 
             Class<? extends ViewParams> myClass = this.getClass();

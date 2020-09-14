@@ -643,7 +643,7 @@ public final class CSG
                 if (printedAlready == null)
                     printedAlready = new java.util.HashSet<Object>();
 
-                StringBuffer sb = new StringBuffer();
+                StringBuilder sb = new StringBuilder();
                 if (showGoryDetails)
                 {
                     sb.append("Polytope "+id+" {" + nl);
@@ -963,7 +963,7 @@ public final class CSG
                 if (printedAlready == null)
                     printedAlready = new java.util.HashSet<Object>();
 
-                StringBuffer sb = new StringBuffer();
+                StringBuilder sb = new StringBuilder();
                 if (showGoryDetails)
                 {
                     sb.append("SPolytope "+id+" {" + nl);
@@ -1425,7 +1425,7 @@ public final class CSG
 
         private static String flagToString(Polytope flag[])
         {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             sb.append("(");
             FORI (i, flag.length)
             {
@@ -8678,7 +8678,7 @@ public final class CSG
 
             try {
                 java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(fileName));
-                StringBuffer sb = new StringBuffer();
+                StringBuilder sb = new StringBuilder();
                 char buf[] = new char[1024];
                 int numRead = 0;
                 while ((numRead = reader.read(buf)) > -1)

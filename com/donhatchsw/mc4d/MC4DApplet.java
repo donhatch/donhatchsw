@@ -968,7 +968,7 @@ public class MC4DApplet
 
         @Override public String toString()
         {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             sb.append("applet = {\n");
             {
                 sb.append("    puzzleDescriptionsAndUndoTrees = {\n");
