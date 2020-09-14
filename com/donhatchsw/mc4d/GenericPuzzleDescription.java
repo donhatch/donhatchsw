@@ -32,6 +32,12 @@ public interface GenericPuzzleDescription {
     */
     public String getPrescription();
 
+    /**
+    * A fingerprint digest (40-hex-digit SHA-1 string) of the topology of the puzzle.
+    */
+    public String getTopologicalFingerprintHumanReadable();
+    public String getTopologicalFingerprintDigest();
+
     /** Number of dimensions of the abstract puzzle. */
     public int nDims();
     /** Number of dimensions of the physical representation (for PolytopePuzzleDescription this is always 4; we make prisms out of smaller dimensional puzzles). */
