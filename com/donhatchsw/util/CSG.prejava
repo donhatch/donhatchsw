@@ -1217,21 +1217,13 @@ public final class CSG
             int nFaces = sirco.p.facets.length;
             CHECK_EQ(nFaces, 26);
             SPolytope answer = makeHypercube(/*center=*/new double[]{0.,0.,0.},
-<<<<<<< HEAD
                                              /*inRadius=*/4.);  // 3 is fine but 4 may be more accurate
-=======
-                                             /*inRadius=*/4.);  // 3 is fine but maybe 4 will be more accurate
->>>>>>> 3f910e7822c345987a7f99cdba611ac8c86cd282
             SPolytope[] returnBelow = new SPolytope[1];  // scratch for loop
             for (int iFace = 0; iFace < nFaces; ++iFace) {
                 CHECK_EQ(sirco.p.facets[iFace].p.contributingHyperplanes.length, 1);
                 Hyperplane faceHyperplane = sirco.p.facets[iFace].p.contributingHyperplanes[0];
                 if (faceHyperplane.normal[2] > .01) {
-<<<<<<< HEAD
                   // Rotate the bottom cupola by 45 degrees in x and y
-=======
-                  // Rotate by 45 degrees in x and y
->>>>>>> 3f910e7822c345987a7f99cdba611ac8c86cd282
                   double q = Math.sqrt(.5);
                   faceHyperplane = new Hyperplane(
                       new double[] {
