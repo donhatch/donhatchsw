@@ -492,18 +492,16 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private String prescription; // what was originally passed to the constructor. we are an immutable object that is completely a function of this string, so an identical clone of ourself can be constructed using this string in any future lifetime.
     @Override public String getPrescription() { return prescription; }
 
-    @Override public String getTopologicalFingerprintHumanReadable() { return overallTopologicalFingerprintHumanReadable; }
-    @Override public String getTopologicalFingerprintDigest() { return overallTopologicalFingerprintDigest; }
+    @Override public String getTopologicalFingerprintHumanReadable() { return topologicalFingerprintHumanReadable; }
+    @Override public String getTopologicalFingerprintDigest() { return topologicalFingerprintDigest; }
 
     private CSG.SPolytope originalPolytope;
     private CSG.SPolytope slicedPolytope;
 
     private String originalPolytopeHumanReadableTopologicalFingerprint;  // currently not exposed
     private String originalPolytopeTopologicalFingerprintDigest;  // currently not exposed
-    private String slicedPolytopeHumanReadableTopologicalFingerprint;  // currently not exposed
-    private String slicedPolytopeTopologicalFingerprintDigest;  // currently not exposed
-    private String overallTopologicalFingerprintHumanReadable;  // exposed via getTopologicalFingerprintHumanReadable()
-    private String overallTopologicalFingerprintDigest;  // exposed via getTopologicalFingerprintDigest()
+    private String topologicalFingerprintHumanReadable;  // exposed via getTopologicalFingerprintHumanReadable()
+    private String topologicalFingerprintDigest;  // exposed via getTopologicalFingerprintDigest()
 
     private int _nDisplayDims = 4; // never tried anything else, it will probably crash
     private float _circumRadius;
@@ -1529,36 +1527,21 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
         } // slice
 
-        {
-            {
-                if (progressWriter != null) {
-                    progressWriter.print("    Computing fingerprint of sliced polytope... ");
-                    progressWriter.flush();
-                }
-                if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing fingerprint of sliced polytope")) return false;
-                long t0millis = System.currentTimeMillis();
-                this.slicedPolytopeHumanReadableTopologicalFingerprint = CSG.computeHumanReadableTopologicalFingerprint(this.slicedPolytope.p);
-                this.slicedPolytopeTopologicalFingerprintDigest = CSG.sha1(this.slicedPolytopeHumanReadableTopologicalFingerprint);
-                long t1millis = System.currentTimeMillis();
-                if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing fingerprint of sliced polytope"
-                if (progressWriter != null) {
-                    progressWriter.println(this.slicedPolytopeTopologicalFingerprintDigest+" ("+millisToSecsString(t1millis-t0millis)+" seconds)");
-                    progressWriter.flush();
-                    progressWriter.println("    Human readable topological fingerprint of sliced polytope:");
-                    progressWriter.println(indented("        ", this.slicedPolytopeHumanReadableTopologicalFingerprint));
-                }
-                this.overallTopologicalFingerprintHumanReadable =
-                    "original polytope:\n" +
-                    indented("    ", this.originalPolytopeHumanReadableTopologicalFingerprint) + "\n" +
-                    "sliced polytope:\n" +
-                    indented("    ", this.slicedPolytopeHumanReadableTopologicalFingerprint);
-                this.overallTopologicalFingerprintDigest = CSG.sha1(this.overallTopologicalFingerprintHumanReadable);
-            }
-        }
-
-
         CSG.Polytope[] stickers = slicedPolytope.p.getAllElements()[nDims-1];
         int nStickers = stickers.length;
+
+        {
+            this.topologicalFingerprintHumanReadable =
+                "original polytope:\n" +
+                indented("    ", this.originalPolytopeHumanReadableTopologicalFingerprint) + "\n" +
+                "number of stickers: " + nStickers + "\n" +
+                "floor(intLength/2) = ";
+            for (int i = 0; i < intLengths.length; ++i) {
+              if (i > 0) this.topologicalFingerprintHumanReadable += ",";
+              this.topologicalFingerprintHumanReadable += intLengths[i]/2;
+            }
+            this.topologicalFingerprintDigest = CSG.sha1(this.topologicalFingerprintHumanReadable);
+        }
 
         //
         // Figure out the mapping from sticker to facet.
