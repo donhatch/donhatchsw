@@ -130,8 +130,7 @@ public class GenericPipelineUtils
                                     float groundOffset,
 
                                     boolean useTopsort,
-                                    boolean topsortUsesBoldNewWay,
-                                        boolean showPartialOrder)
+                                    boolean showPartialOrder)
     {
         if (verboseLevel >= 2) System.out.println("    in GenericPipelineUtils.computeFrame(iGripOfTwist="+iGripOfTwist+", twistDir="+twistDir+", twistSliceMask="+twistSliceMask+", fracIntoTwist="+fracIntoTwist+"");
 
@@ -842,7 +841,6 @@ public class GenericPipelineUtils
             String[] cyclesSummaryAddress = new String[1];
 
             int nSortedStickers = VeryCleverPaintersSortingOfStickers.sortStickersBackToFront(
-                    topsortUsesBoldNewWay,
                     nStickersToSort,
                     puzzleDescription.getAdjacentStickerPairs(),
                     stickerVisibilities,

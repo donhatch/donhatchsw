@@ -228,7 +228,6 @@ public class MC4DViewGuts
         // Most of these are settable using secret ctrl-alt key combinations.
         //
         public Listenable.Boolean useTopsort = new Listenable.Boolean(true);
-        public Listenable.Boolean topsortUsesBoldNewWay = new Listenable.Boolean(true);
         public Listenable.Boolean showNumPaintsDone = new Listenable.Boolean(true);
         public Listenable.Int jitterRadius = new Listenable.Int(0,9,0);
         public Listenable.Boolean drawLabels = new Listenable.Boolean(false);
@@ -1047,7 +1046,6 @@ public class MC4DViewGuts
             groundOffset,
             
             viewParams.useTopsort.get(),
-            viewParams.topsortUsesBoldNewWay.get(),
             viewParams.showPartialOrder.get());
 
         if (true)  // TODO: make this a mode; it's useful either way

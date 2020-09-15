@@ -32,10 +32,9 @@ public interface GenericPuzzleDescription {
     */
     public String getPrescription();
 
-    /**
-    * A fingerprint digest (40-hex-digit SHA-1 string) of the topology of the puzzle.
-    */
+    /** A human-readable fingerprint of the topology of the puzzle. */
     public String getTopologicalFingerprintHumanReadable();
+    /** A fingerprint digest (40-hex-digit SHA-1 string) of getTopologicalFingerprintHumanReadable(). */
     public String getTopologicalFingerprintDigest();
 
     /** Number of dimensions of the abstract puzzle. */

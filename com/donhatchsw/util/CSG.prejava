@@ -8363,7 +8363,8 @@ public final class CSG
         //
         //  - if all the polys were the same, that part would have just said:
         //      30 3-gons
-        // If isVertexFigure is true, an Integer aux is treated as a chord length and printed as such;
+        // If isVertexFigure is true, any Integer aux found on an edge
+        // is treated as a chord length and printed as such;
         // if false, auxes are ignored.
         private static String experimentalTopologicalishSummary(Polytope p,
                                                                 String mainSeparator,

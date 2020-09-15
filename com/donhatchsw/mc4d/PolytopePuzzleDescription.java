@@ -957,6 +957,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         return true;
     }  // decideWhetherFuttable
 
+    // split into lines, indent each line, and re-join.
     private static String indented(String indent, String text) {
         String[] lines = text.split("\n");
         StringBuilder sb = new StringBuilder();
