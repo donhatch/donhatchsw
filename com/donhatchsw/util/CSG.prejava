@@ -8379,6 +8379,31 @@ public final class CSG
           }
         }  // appendPolygonName
 
+        private static class StringTable {
+          private java.util.ArrayList<String> index2string = new java.util.ArrayList<String>();
+          private java.util.HashMap<String,Integer> string2index = new java.util.HashMap<String,Integer>();
+          public int string2index(String s) {
+            Integer answerMaybe = string2index.get(s);
+            if (answerMaybe != null) return answerMaybe;
+            CHECK(s != null);
+            int answer = index2string.size();
+            string2index.put(s, answer);
+            index2string.add(s);
+            return answer;
+          }
+          public int stringBuilder2index(StringBuilder sb) {
+            // CBB: would be cool to optimize this so that we don't need to call toString()
+            // unless it's not found
+            return string2index(sb.toString());
+          }
+          public String index2string(int i) {
+            return index2string.get(i);
+          }
+          public int size() {
+            return index2string.size();
+          }
+        }  // StringTable
+
         //  Thoughts:
         //  - a vert is just a vert
         //  - an edge is just an edge
@@ -8405,14 +8430,13 @@ public final class CSG
           if (verboseLevel >= 1) System.out.println("in experimentalTopologicalishSummary");
           long t0 = System.nanoTime();
 
-          // TODO: StringTable?
-          final java.util.ArrayList<String> descriptions = new java.util.ArrayList<String>();
-          java.util.HashMap<String,Integer> description2index = new java.util.HashMap<String,Integer>();
+          final StringTable descriptionsTable = new StringTable();
+
           java.util.HashMap<Long,Integer> id2descriptionIndex = new java.util.HashMap<Long,Integer>();
 
           // Shortcuts for the two most common things
-          descriptions.add("vert");
-          descriptions.add("edge");
+          CHECK_EQ(descriptionsTable.string2index("vert"), 0);
+          CHECK_EQ(descriptionsTable.string2index("edge"), 1);
 
           int dim = p.dim;
           Polytope[/*dim+1*/][] allElements = p.getAllElements();
@@ -8480,8 +8504,6 @@ public final class CSG
                     IntHashCounter histogram = new IntHashCounter();  // mapping from description index to count
                     for (Polytope eltElt : eltElts[jDim]) {
                       if (verboseLevel >= 3) System.out.println("              looking for eltelt "+eltElt.id+" of dim "+eltElt.dim);
-                      String eltEltDescription = descriptions.get(id2descriptionIndex.get(eltElt.id));
-                      CHECK(eltEltDescription != null);
                       histogram.incr(id2descriptionIndex.get(eltElt.id));
                     }
 
@@ -8496,11 +8518,9 @@ public final class CSG
                                    new SortStuff.IntComparator() {
                                        OVERRIDE public int compare(int a, int b)
                                        {
-                                           return descriptions.get(a).compareTo(descriptions.get(b));
+                                           return descriptionsTable.index2string(a).compareTo(descriptionsTable.index2string(b));
                                        }
                                    });
-
-
 
                     // We will need a breakdown if any of the following are true:
                     // - histogram.size() >= 2
@@ -8536,11 +8556,11 @@ public final class CSG
                         sb.append(count);
                         if (jDim>=3 || (jDim>=2 && hasChord)) {
                           sb.append("*{");
-                          sb.append(descriptions.get(key));
+                          sb.append(descriptionsTable.index2string(key));
                           sb.append("}");
                         } else {
                           sb.append(" ");
-                          sb.append(descriptions.get(key));
+                          sb.append(descriptionsTable.index2string(key));
                           if (count != 1) sb.append("s");
                         }
                       }
@@ -8550,32 +8570,16 @@ public final class CSG
                 }  // for jDim
               }  // iDim >= 3 || hasChord
               if (verboseLevel >= 2) System.out.println("              description "+nStringsBuilt+" = "+sb);
-
-              String description = sb.toString();
-              int descriptionIndex;
-              {
-                Integer descriptionIndexInteger = description2index.get(description);
-                if (descriptionIndexInteger == null) {
-                  descriptionIndex = descriptions.size();  // before adding
-                  description2index.put(description, descriptionIndex);
-                  descriptions.add(description);
-                } else {
-                  descriptionIndex = descriptionIndexInteger.intValue();
-                  CHECK(description.equals(descriptions.get(descriptionIndex)));
-                  description = descriptions.get(descriptionIndex);
-                }
-              }
-
-              id2descriptionIndex.put(elt.id, descriptionIndex);
+              id2descriptionIndex.put(elt.id, descriptionsTable.stringBuilder2index(sb));
               nStringsBuilt++;
               sb.setLength(0);  // clear
             }  // for iEltOfDim
           }  // for iDim
-          String answer = descriptions.get(id2descriptionIndex.get(p.id));
+          String answer = descriptionsTable.index2string(id2descriptionIndex.get(p.id));
           CHECK(answer != null);
           long t1 = System.nanoTime();
           if (verboseLevel >= 1) System.out.println("  nStringsBuilt = "+nStringsBuilt);
-          if (verboseLevel >= 1) System.out.println("  descriptions.size() = "+descriptions.size());
+          if (verboseLevel >= 1) System.out.println("  descriptionsTable.size() = "+descriptionsTable.size());
           if (verboseLevel >= 1) System.out.println("  final description = \n"+answer);
           if (verboseLevel >= 1) System.out.println("out experimentalTopologicalishSummary ("+((t1-t0)/1e9)+"s)");
           return answer;
