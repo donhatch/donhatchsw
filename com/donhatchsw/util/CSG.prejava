@@ -8295,7 +8295,8 @@ public final class CSG
             }
           }
         }  // HashCounter
-        // This should be part of HashCounter, but can't because "new String[10]" gives "error: generic array creation"
+
+        // This should be part of HashCounter, but can't because "new K[10]" gives "error: generic array creation"
         @SuppressWarnings("serial")
         private static class StringHashCounter extends HashCounter<String> {
           // if I knew Collections better I'd probably do something else
@@ -8323,6 +8324,37 @@ public final class CSG
             return sb.toString();
           }
         }  // StringHashCounter
+        // This should be part of HashCounter, but can't because "new K[10]" gives "error: generic array creation".
+        // Also the toString is kind of special purpose -- it assumes the ints are indices into an ArrayList of strings.
+        @SuppressWarnings("serial")
+        private static class IntHashCounter extends HashCounter<Integer> {
+          // if I knew Collections better I'd probably do something else
+          public int[] sortedKeys() {
+            int[] answer = new int[this.size()];
+            int n = 0;
+            for (int key : this.keySet()) {
+              answer[n++] = key;
+            }
+            java.util.Arrays.sort(answer, 0, n);
+            return answer;
+          }
+          public String toString(java.util.ArrayList<String> index2string) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("{");
+            int[] sortedKeys = this.sortedKeys();
+            for (int i = 0; i < sortedKeys.length; ++i) {
+              if (i > 0) sb.append(", ");
+              int key = sortedKeys[i];
+              String s = index2string.get(key);
+              CHECK(s != null);
+              sb.append(Arrays.toStringCompact(s));
+              sb.append(":");
+              sb.append(this.count(key));
+            }
+            sb.append("}");
+            return sb.toString();
+          }
+        }  // IntHashCounter
 
 
         // utility used by experimentalTopologicalishSummary
@@ -8371,22 +8403,37 @@ public final class CSG
                                                                 boolean isVertexFigure) {
           int verboseLevel = 0;
           if (verboseLevel >= 1) System.out.println("in experimentalTopologicalishSummary");
-          java.util.HashMap<Long,String> descriptions = new java.util.HashMap<Long,String>();
+          long t0 = System.nanoTime();
+
+          // TODO: StringTable?
+          final java.util.ArrayList<String> descriptions = new java.util.ArrayList<String>();
+          java.util.HashMap<String,Integer> description2index = new java.util.HashMap<String,Integer>();
+          java.util.HashMap<Long,Integer> id2descriptionIndex = new java.util.HashMap<Long,Integer>();
+
+          // Shortcuts for the two most common things
+          descriptions.add("vert");
+          descriptions.add("edge");
+
           int dim = p.dim;
           Polytope[/*dim+1*/][] allElements = p.getAllElements();
           int[/*dim+1*/][][/*dim+1*/][] allIncidences = p.getAllIncidences();
           if (verboseLevel >= 1) System.out.println("  dim = "+dim);
           if (verboseLevel >= 1) System.out.println("  p.id = "+p.id);
-          StringBuilder description = new StringBuilder();  // scratch for loop
+          StringBuilder sb = new StringBuilder();  // scratch for loop
+          int nStringsBuilt = 0;
           for (int iDim = 0; iDim <= dim; ++iDim) {
             if (verboseLevel >= 1) System.out.println("      iDim = "+iDim);
             for (int iEltOfDim = 0; iEltOfDim < allElements[iDim].length; ++iEltOfDim) {
               Polytope elt = allElements[iDim][iEltOfDim];
-              if (verboseLevel >= 1) System.out.println("          got elt "+elt.id+" of dim "+iDim);
-              CHECK_EQ(description.length(), 0);
+              if (verboseLevel >= 2) System.out.println("          got elt "+elt.id+" of dim "+iDim);
+
+              if (iDim == 0) {
+                id2descriptionIndex.put(elt.id, 0);
+                continue;
+              }
 
               boolean hasChord = false;
-              if (isVertexFigure) {
+              if (isVertexFigure && iDim >= 1) {
                 for (int iEdge : allIncidences[iDim][iEltOfDim][1]) {
                   Polytope edge = allElements[1][iEdge];
                   if (edge.aux != null && edge.aux instanceof Integer) {  // TODO: turn this into something private!
@@ -8396,41 +8443,64 @@ public final class CSG
                 }
               }
 
+              if (iDim == 1 && !hasChord) {
+                // save a lot of work
+                id2descriptionIndex.put(elt.id, 1);
+                continue;
+              }
+
+              CHECK_EQ(sb.length(), 0);
               if (iDim == 0) {
-                description.append("vert");
+                CHECK(false);  // we already handled this
+                sb.append("vert");
               } else if (iDim == 1) {
                 if (hasChord) {  // then is chord
                   // Special case hack for vertex figure
                   int gonality = ((Integer)elt.aux).intValue();
-                  description.append(gonality);
-                  description.append("-chord");
+                  sb.append(gonality);
+                  sb.append("-chord");
                 } else {
-                  description.append("edge");
+                  CHECK(false);  // we already handled this
+                  sb.append("edge");
                 }
               } else if (iDim == 2 && !hasChord) {  // TODO: when has chord, it says "3 1-cells (1 3-chord, 1 5-chord, 1 7-chord)", should say edges instead of 1-cells
                 // TODO: even worse: for 4,4,3,  vertex figure comes out "4 verts, 6 4-chords, 4 3 verts, 3 4-chordss"
                 int gonality = elt.facets.length;
-                appendPolygonName(description, gonality);
+                appendPolygonName(sb, gonality);
               } else {
                 Polytope[][] eltElts = elt.getAllElements();
                 for (int jDim = 0; jDim < iDim; ++jDim) {
                   if (jDim==0) {
-                    description.append(eltElts[jDim].length);
-                    description.append(" vert");
-                    description.append((eltElts[jDim].length==1?"":"s"));
+                    sb.append(eltElts[jDim].length);
+                    sb.append(" vert");
+                    sb.append((eltElts[jDim].length==1?"":"s"));
                   } else {
-                    description.append(iDim==dim ? mainSeparator : ", ");
+                    sb.append(iDim==dim ? mainSeparator : ", ");
                     // Need to classify these elements-of-elements
-                    StringHashCounter histogram = new StringHashCounter();
+                    IntHashCounter histogram = new IntHashCounter();  // mapping from description index to count
                     for (Polytope eltElt : eltElts[jDim]) {
-                      if (verboseLevel >= 1) System.out.println("              looking for eltelt "+eltElt.id+" of dim "+eltElt.dim);
-                      String eltEltDescription = descriptions.get(eltElt.id);
+                      if (verboseLevel >= 3) System.out.println("              looking for eltelt "+eltElt.id+" of dim "+eltElt.dim);
+                      String eltEltDescription = descriptions.get(id2descriptionIndex.get(eltElt.id));
                       CHECK(eltEltDescription != null);
-                      histogram.incr(eltEltDescription);
+                      histogram.incr(id2descriptionIndex.get(eltElt.id));
                     }
 
+                    int[] sortedKeys = histogram.sortedKeys();
+
+                    // Oh hell, we can't sort the string indices by string index,
+                    // since that varies from call to call; we need something that gives
+                    // the same fingerprint every time it's called on an equivalent thing.
+                    // So, re-sort by the string value instead.
                     // CBB: should have a better sorting criterion
-                    String[] sortedKeys = histogram.sortedKeys();
+                    SortStuff.sort(sortedKeys,
+                                   new SortStuff.IntComparator() {
+                                       OVERRIDE public int compare(int a, int b)
+                                       {
+                                           return descriptions.get(a).compareTo(descriptions.get(b));
+                                       }
+                                   });
+
+
 
                     // We will need a breakdown if any of the following are true:
                     // - histogram.size() >= 2
@@ -8440,53 +8510,74 @@ public final class CSG
 
                     // First a single count and dimension of these elements.
                     int totalCount = eltElts[jDim].length;
-                    description.append(totalCount);
-                    description.append(" ");
+                    sb.append(totalCount);
+                    sb.append(" ");
                     if (jDim==1) {
-                      description.append("edge");
+                      sb.append("edge");
                     } else if (jDim==2) {
                       if (needBreakdown) {
                         // Just say "polygon" here; we'll elaborate in the breakdown
-                        description.append("polygon");
+                        sb.append("polygon");
                       } else {
-                        appendPolygonName(description, eltElts[jDim][0].facets.length);  // note, this will throw if there were zero elements of this dimension-- that shouldn't be the case in a well-formed polytope
+                        appendPolygonName(sb, eltElts[jDim][0].facets.length);  // note, this will throw if there were zero elements of this dimension-- that shouldn't be the case in a well-formed polytope
                       }
                     } else {
-                      description.append(jDim);
-                      description.append("-cell");
+                      sb.append(jDim);
+                      sb.append("-cell");
                     }
-                    if (totalCount!=1) description.append("s");
+                    if (totalCount!=1) sb.append("s");
 
                     if (needBreakdown) {
-                      description.append(" (");
+                      sb.append(" (");
                       for (int i = 0; i < sortedKeys.length; ++i) {
-                        String key = sortedKeys[i];
-                        if (i > 0) description.append(", ");
+                        int key = sortedKeys[i];
+                        if (i > 0) sb.append(", ");
                         int count = histogram.count(key);
-                        description.append(count);
+                        sb.append(count);
                         if (jDim>=3 || (jDim>=2 && hasChord)) {
-                          description.append("*{");
-                          description.append(key);
-                          description.append("}");
+                          sb.append("*{");
+                          sb.append(descriptions.get(key));
+                          sb.append("}");
                         } else {
-                          description.append(" ");
-                          description.append(key);
-                          if (count != 1) description.append("s");
+                          sb.append(" ");
+                          sb.append(descriptions.get(key));
+                          if (count != 1) sb.append("s");
                         }
                       }
-                      description.append(")");
+                      sb.append(")");
                     }
                   }  // jDim >= 1
                 }  // for jDim
               }  // iDim >= 3 || hasChord
-              if (verboseLevel >= 1) System.out.println("              description = "+description);
-              descriptions.put(elt.id, description.toString());
-              description.setLength(0);  // clear
+              if (verboseLevel >= 2) System.out.println("              description "+nStringsBuilt+" = "+sb);
+
+              String description = sb.toString();
+              int descriptionIndex;
+              {
+                Integer descriptionIndexInteger = description2index.get(description);
+                if (descriptionIndexInteger == null) {
+                  descriptionIndex = descriptions.size();  // before adding
+                  description2index.put(description, descriptionIndex);
+                  descriptions.add(description);
+                } else {
+                  descriptionIndex = descriptionIndexInteger.intValue();
+                  CHECK(description.equals(descriptions.get(descriptionIndex)));
+                  description = descriptions.get(descriptionIndex);
+                }
+              }
+
+              id2descriptionIndex.put(elt.id, descriptionIndex);
+              nStringsBuilt++;
+              sb.setLength(0);  // clear
             }  // for iEltOfDim
           }  // for iDim
-          String answer = descriptions.get(p.id);
+          String answer = descriptions.get(id2descriptionIndex.get(p.id));
           CHECK(answer != null);
-          if (verboseLevel >= 1) System.out.println("out experimentalTopologicalishSummary");
+          long t1 = System.nanoTime();
+          if (verboseLevel >= 1) System.out.println("  nStringsBuilt = "+nStringsBuilt);
+          if (verboseLevel >= 1) System.out.println("  descriptions.size() = "+descriptions.size());
+          if (verboseLevel >= 1) System.out.println("  final description = \n"+answer);
+          if (verboseLevel >= 1) System.out.println("out experimentalTopologicalishSummary ("+((t1-t0)/1e9)+"s)");
           return answer;
         }  // experimentalTopologicalishSummary
 
@@ -8593,18 +8684,22 @@ public final class CSG
             if (verboseLevel >= 1) OUT("    in CSG.topologicalFingerprint(p)");
             StringHashCounter vertexFigureTopologicalishDescriptionString2count = new StringHashCounter();
             int nVerts = p.getAllElements()[0].length;
-            for (int iVert = 0; iVert < nVerts; ++iVert) {
-                Polytope vertexFigure = computeVertexFigure(p, iVert);
-                String vertexFigureFingerprint = experimentalTopologicalishSummary(vertexFigure, /*mainSeparator=*/", ", /*isVertexFigure=*/true);
-                vertexFigureTopologicalishDescriptionString2count.incr(vertexFigureFingerprint);
+            if (true) {  // can set to false to concentrate on the structure for debugging
+              for (int iVert = 0; iVert < nVerts; ++iVert) {
+                  Polytope vertexFigure = computeVertexFigure(p, iVert);
+                  String vertexFigureFingerprint = experimentalTopologicalishSummary(vertexFigure, /*mainSeparator=*/", ", /*isVertexFigure=*/true);
+                  vertexFigureTopologicalishDescriptionString2count.incr(vertexFigureFingerprint);
+              }
+            } else {
+              System.out.println("WARNING: NOT DOING VERTEX FIGURES");
             }
             if (verboseLevel >= 1) OUT("      vertexFigureTopologicalishDescriptionString2count.size() = "+vertexFigureTopologicalishDescriptionString2count.size());
             if (verboseLevel >= 1) OUT("      vertexFigureTopologicalishDescriptionString2count = "+vertexFigureTopologicalishDescriptionString2count);
-            String structureSummary = experimentalTopologicalishSummary(p, /*mainSeparator=*/"\n    ", /*isVertexFigure=*/false);  // for good measure
-            if (verboseLevel >= 1) OUT("      structureSummary = "+structureSummary);
+            String overallStructureSummary = experimentalTopologicalishSummary(p, /*mainSeparator=*/"\n    ", /*isVertexFigure=*/false);  // for good measure
+            if (verboseLevel >= 1) OUT("      overallStructureSummary = "+overallStructureSummary);
             StringBuilder sb = new StringBuilder();
             sb.append("structure summary:\n    ");
-            sb.append(structureSummary);
+            sb.append(overallStructureSummary);
             sb.append("\n");
             sb.append("vertex figures and counts:\n    ");
             sb.append(vertexFigureTopologicalishDescriptionString2count.toString());
