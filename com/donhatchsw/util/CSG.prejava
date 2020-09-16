@@ -372,11 +372,11 @@ public final class CSG
                     return this.aux;
                 else
                 {
-		    // CBB: this instanceof is probably slow.  Would be more efficient to have aux and auxStack be two separate variables.
-		    if (aux instanceof PushedAuxNext)
-			return  ((PushedAuxNext)aux).thisAux;
-		    else
-			return aux;
+                    // CBB: this instanceof is probably slow.  Would be more efficient to have aux and auxStack be two separate variables.
+                    if (aux instanceof PushedAuxNext)
+                        return  ((PushedAuxNext)aux).thisAux;
+                    else
+                        return aux;
                 }
             }
             /** Replaces the value at the top of the aux stack with the new value. */
@@ -388,10 +388,10 @@ public final class CSG
                 }
                 else
                 {
-		    if (aux instanceof PushedAuxNext)
-			((PushedAuxNext)aux).thisAux = newAux;
-		    else
-			aux = newAux;
+                    if (aux instanceof PushedAuxNext)
+                        ((PushedAuxNext)aux).thisAux = newAux;
+                    else
+                        aux = newAux;
                 }
             }
 
@@ -8404,25 +8404,24 @@ public final class CSG
           }
         }  // StringTable
 
-        //  Thoughts:
+        // The principle is:
         //  - a vert is just a vert
-        //  - an edge is just an edge
-        //  - a poly is characterized by its gonality
-        //  - a 3-cell is characterized by its: nVerts, nEdges, nPolys of each size.
-        //    E.g a truncated simplex could be:
-        //     {20 verts,
-        //      40 edges,
-        //      30 polys (20 3-gons,
-        //                10 6-gons),
-        //      10 3-cells (5*{4 verts, 6 edges, 4 3-gons},
-        //                  5*{12 verts, 18 edges, 8 polys (4 3-gons,
-        //                                                  4 6-gons)})}
-        //
-        //  - if all the polys were the same, that part would have just said:
-        //      30 3-gons
+        //  - an edge is just an edge  (unless it's a chord in a vertex figure, in which case there's more to say)
+        //  - a poly is characterized by its gonality  (unless it's part of a vertex figure, in which case it needs to be broken down into its edges which have more to say)
+        //  - a 3-cell is characterized by its: nVerts, nEdges, nPolys of each size
+        //  - etc.
+        // E.g. for omnitruncated 120-cell "(1)5(1)3(1)3(1)":
+        //   14400 verts
+        //   28800 edges
+        //   17040 polygons (1440 decagons, 4800 hexagons, 10800 quads)
+        //   2640 3-cells (1200*{12 verts, 18 edges, 8 polygons (2 hexagons, 6 quads)},
+        //                  120*{120 verts, 180 edges, 62 polygons (12 decagons, 20 hexagons, 30 quads)},
+        //                  720*{20 verts, 30 edges, 12 polygons (2 decagons, 10 quads)},
+        //                  600*{24 verts, 36 edges, 14 polygons (8 hexagons, 6 quads)})
         // If isVertexFigure is true, any Integer aux found on an edge
-        // is treated as a chord length and printed as such;
-        // if false, auxes are ignored.
+        // is treated as a chord length and printed as such; if false, auxes are ignored.
+        // E.g. a vertex figure summary might look like:
+        //     4 verts, 6 edges (1 10-chord, 3 4-chords, 2 6-chords), 4 polygons (1*{3 verts, 3 edges (1 10-chord, 1 4-chord, 1 6-chord)}, 1*{3 verts, 3 edges (1 10-chord, 2 4-chords)}, 1*{3 verts, 3 edges (1 4-chord, 2 6-chords)}, 1*{3 verts, 3 edges (2 4-chords, 1 6-chord)})
         private static String experimentalTopologicalishSummary(Polytope p,
                                                                 String mainSeparator,
                                                                 boolean isVertexFigure) {
