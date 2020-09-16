@@ -8425,12 +8425,17 @@ public final class CSG
         private static String experimentalTopologicalishSummary(Polytope p,
                                                                 String mainSeparator,
                                                                 boolean isVertexFigure) {
+          return computeAllElementTopologicalishSummaries(p, mainSeparator, isVertexFigure)[p.dim][0];
+        }
+        private static String[][] computeAllElementTopologicalishSummaries(Polytope p,
+                                                                           String mainSeparator,
+                                                                           boolean isVertexFigure) {
           int verboseLevel = 0;
           if (verboseLevel >= 1) System.out.println("in experimentalTopologicalishSummary");
           long t0 = System.nanoTime();
 
           final StringTable descriptionsTable = new StringTable();
-
+          // CBB: this really shouldn't need a hashmap at all; should be indexing by index into allElements instead, without regard to polytope id.  the only thing we use the polytopes for is to find gonality in case of polygons, but that can be done through allIncidences
           java.util.HashMap<Long,Integer> id2descriptionIndex = new java.util.HashMap<Long,Integer>();
 
           // Shortcuts for the two most common things
@@ -8574,15 +8579,22 @@ public final class CSG
               sb.setLength(0);  // clear
             }  // for iEltOfDim
           }  // for iDim
-          String answer = descriptionsTable.index2string(id2descriptionIndex.get(p.id));
-          CHECK(answer != null);
+
+          String[][] answer = new String[allElements.length][];
+          for (int i = 0; i < answer.length; ++i) {
+            answer[i] = new String[allElements[i].length];
+            for (int j = 0; j < answer[i].length; ++j) {
+              answer[i][j] = descriptionsTable.index2string(id2descriptionIndex.get(allElements[i][j].id));
+            }
+          }
+
           long t1 = System.nanoTime();
           if (verboseLevel >= 1) System.out.println("  nStringsBuilt = "+nStringsBuilt);
           if (verboseLevel >= 1) System.out.println("  descriptionsTable.size() = "+descriptionsTable.size());
-          if (verboseLevel >= 1) System.out.println("  final description = \n"+answer);
+          if (verboseLevel >= 1) System.out.println("  final description = \n"+answer[p.dim][0]);
           if (verboseLevel >= 1) System.out.println("out experimentalTopologicalishSummary ("+((t1-t0)/1e9)+"s)");
           return answer;
-        }  // experimentalTopologicalishSummary
+        } // computeAllElementTopologicalishSummaries
 
         // The vertex figure of a vertex v of p is a polytope
         // whose vertices are the neighbors of v and whose edges are the neighbor-chords
