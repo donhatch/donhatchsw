@@ -10,7 +10,7 @@ git checkout java6
 git merge master
 # It will make a commit with "Merge branch 'master' into java6".  Commit it.
 make clean
-make  # .java files that disappeared wrt last time will get deleted during the following git commit -a
+make  # .java files that disappeared wrt last time will get deleted from repo during the following git commit -a
 git status -uno  # and make sure it looks as expected
 git diff  # and make sure it looks as expected
 git add */*/*/*.java{,.lines}  # makes it so any new .java files will get added

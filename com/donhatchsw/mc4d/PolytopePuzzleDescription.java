@@ -156,7 +156,7 @@
         - can't fling on laptop (neither macboox nor glinux), and it's sucky even with mouse (glinux)
         - '{4,3} 3(4)' with nonzero stickers-shrink-to-face-boundaries is asymmetric (due to the one-of-opposite-pairs-doing-all-the-cuts-for-both-of-them thing, I think)
         - make && java -jar donhatchsw.jar puzzleDescription="Fruity 3(9)" shouldn't require such a shallow cut specification!  isn't it supposed to be using the edge that would give the shallowest cut?
-        - `java -jar donhatchsw.jar puzzleDescription='{4,3} 2,3,4'`, twisting gives CHECK failure: "CHECK(whereIstickerGoes != null);", 	at com.donhatchsw.mc4d.PolytopePuzzleDescription.applyTwistToState(PolytopePuzzleDescription.java:2402)
+        - `java -jar donhatchsw.jar puzzleDescription='{4,3} 2,3,4'`, twisting gives CHECK failure: "CHECK(whereIstickerGoes != null);",        at com.donhatchsw.mc4d.PolytopePuzzleDescription.applyTwistToState(PolytopePuzzleDescription.java:2402)
         - >=5 dimensional puzzles on command line non-gracefully excepts
         - with multiple windows, animation doesn't go by itself any more
         - doFurtherCuts issues:
@@ -492,18 +492,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private String prescription; // what was originally passed to the constructor. we are an immutable object that is completely a function of this string, so an identical clone of ourself can be constructed using this string in any future lifetime.
     @Override public String getPrescription() { return prescription; }
 
-    @Override public String getTopologicalFingerprintHumanReadable() { return overallTopologicalFingerprintHumanReadable; }
-    @Override public String getTopologicalFingerprintDigest() { return overallTopologicalFingerprintDigest; }
+    @Override public String getTopologicalFingerprintHumanReadable() { return topologicalFingerprintHumanReadable; }
+    @Override public String getTopologicalFingerprintDigest() { return topologicalFingerprintDigest; }
 
     private CSG.SPolytope originalPolytope;
     private CSG.SPolytope slicedPolytope;
 
-    private String originalPolytopeHumanReadableTopologicalFingerprint;  // currently not exposed
-    private String originalPolytopeTopologicalFingerprintDigest;  // currently not exposed
-    private String slicedPolytopeHumanReadableTopologicalFingerprint;  // currently not exposed
-    private String slicedPolytopeTopologicalFingerprintDigest;  // currently not exposed
-    private String overallTopologicalFingerprintHumanReadable;  // exposed via getTopologicalFingerprintHumanReadable()
-    private String overallTopologicalFingerprintDigest;  // exposed via getTopologicalFingerprintDigest()
+    private String topologicalFingerprintHumanReadable;  // exposed via getTopologicalFingerprintHumanReadable()
+    private String topologicalFingerprintDigest;  // exposed via getTopologicalFingerprintDigest()
 
     private int _nDisplayDims = 4; // never tried anything else, it will probably crash
     private float _circumRadius;
@@ -957,6 +953,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         return true;
     }  // decideWhetherFuttable
 
+    // split into lines, indent each line, and re-join.
     private static String indented(String indent, String text) {
         String[] lines = text.split("\n");
         StringBuilder sb = new StringBuilder();
@@ -1003,24 +1000,23 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
 
 
+        String originalPolytopeHumanReadableTopologicalFingerprint;
         {
-            {
-                if (progressWriter != null) {
-                    progressWriter.print("    Computing fingerprint of polytope... ");
-                    progressWriter.flush();
-                }
-                if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing fingerprint of polytope")) return false;
-                long t0millis = System.currentTimeMillis();
-                this.originalPolytopeHumanReadableTopologicalFingerprint = CSG.computeHumanReadableTopologicalFingerprint(this.originalPolytope.p);
-                this.originalPolytopeTopologicalFingerprintDigest = CSG.sha1(this.originalPolytopeHumanReadableTopologicalFingerprint);
-                long t1millis = System.currentTimeMillis();
-                if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing fingerprint of polytope"
-                if (progressWriter != null) {
-                    progressWriter.println(this.originalPolytopeTopologicalFingerprintDigest+" ("+millisToSecsString(t1millis-t0millis)+" seconds)");
-                    progressWriter.flush();
-                    progressWriter.println("    Human readable topological fingerprint of polytope:");
-                    progressWriter.println(indented("        ", this.originalPolytopeHumanReadableTopologicalFingerprint));
-                }
+            if (progressWriter != null) {
+                progressWriter.print("    Computing fingerprint of polytope... ");
+                progressWriter.flush();
+            }
+            if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing fingerprint of polytope")) return false;
+            long t0millis = System.currentTimeMillis();
+            originalPolytopeHumanReadableTopologicalFingerprint = CSG.computeHumanReadableTopologicalFingerprint(this.originalPolytope.p);
+            String originalPolytopeTopologicalFingerprintDigest = CSG.sha1(originalPolytopeHumanReadableTopologicalFingerprint);
+            long t1millis = System.currentTimeMillis();
+            if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing fingerprint of polytope"
+            if (progressWriter != null) {
+                progressWriter.println(originalPolytopeTopologicalFingerprintDigest+" ("+millisToSecsString(t1millis-t0millis)+" seconds)");
+                progressWriter.flush();
+                progressWriter.println("    Human readable topological fingerprint of polytope:");
+                progressWriter.println(indented("        ", originalPolytopeHumanReadableTopologicalFingerprint));
             }
         }
 
@@ -1366,7 +1362,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     {
                         progressWriter.print("."); // one dot per cut
 
-                        // We know we are doing an O(n^2) algorithm
+                        // We know we are doing an O(n^2) algorithm,
                         // so our actual progress fraction is proportional to
                         // the square of the apparent fraction of items done.
                         if ((nTotalCuts-iTotalCut)%10 == 0)
@@ -1528,34 +1524,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
         } // slice
 
-        {
-            {
-                if (progressWriter != null) {
-                    progressWriter.print("    Computing fingerprint of sliced polytope... ");
-                    progressWriter.flush();
-                }
-                if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing fingerprint of sliced polytope")) return false;
-                long t0millis = System.currentTimeMillis();
-                this.slicedPolytopeHumanReadableTopologicalFingerprint = CSG.computeHumanReadableTopologicalFingerprint(this.slicedPolytope.p);
-                this.slicedPolytopeTopologicalFingerprintDigest = CSG.sha1(this.slicedPolytopeHumanReadableTopologicalFingerprint);
-                long t1millis = System.currentTimeMillis();
-                if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing fingerprint of sliced polytope"
-                if (progressWriter != null) {
-                    progressWriter.println(this.slicedPolytopeTopologicalFingerprintDigest+" ("+millisToSecsString(t1millis-t0millis)+" seconds)");
-                    progressWriter.flush();
-                    progressWriter.println("    Human readable topological fingerprint of sliced polytope:");
-                    progressWriter.println(indented("        ", this.slicedPolytopeHumanReadableTopologicalFingerprint));
-                }
-                this.overallTopologicalFingerprintHumanReadable =
-                    "original polytope:\n" +
-                    indented("    ", this.originalPolytopeHumanReadableTopologicalFingerprint) + "\n" +
-                    "sliced polytope:\n" +
-                    indented("    ", this.slicedPolytopeHumanReadableTopologicalFingerprint);
-                this.overallTopologicalFingerprintDigest = CSG.sha1(this.overallTopologicalFingerprintHumanReadable);
-            }
-        }
-
-
         CSG.Polytope[] stickers = slicedPolytope.p.getAllElements()[nDims-1];
         int nStickers = stickers.length;
 
@@ -1647,6 +1615,25 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
             this.facetCentersF = VecMath.doubleToFloat(facetCentersD);
             this.stickerCentersF = VecMath.doubleToFloat(stickerCentersD);
+        }
+
+        if (progressWriter != null) {
+            progressWriter.print("    Computing puzzle fingerprint... ");
+            progressWriter.flush();
+        }
+        if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing fingerprint of polytope")) return false;
+        long t0millis = System.currentTimeMillis();
+        this.topologicalFingerprintHumanReadable = computeTopologicalFingerprintHumanReadable(
+          this.originalPolytope, originalPolytopeHumanReadableTopologicalFingerprint, intLengths, nStickers, this.facetInwardNormals, this.facetCutOffsets, this.stickerCentersD);
+        this.topologicalFingerprintDigest =
+            this.topologicalFingerprintHumanReadable.contains("NOT FINGERPRINTABLE")
+              ? null
+              : CSG.sha1(this.topologicalFingerprintHumanReadable);
+        long t1millis = System.currentTimeMillis();
+        if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing puzzle fingerprint"
+        if (progressWriter != null) {
+            progressWriter.println(this.topologicalFingerprintDigest + " ("+millisToSecsString(t1millis-t0millis)+" seconds)");
+            progressWriter.flush();
         }
 
         //
@@ -2659,7 +2646,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                     if (verboseLevel >= 2) System.out.println("                      cutWeight = "+cutWeight);
                     if (!(cutWeight >= -1e-9 && cutWeight <= 1.))
-                        System.out.println("uh oh, cutWeight = "+cutWeight);  // fails on "(.25)4(2)3 3(1.4)" : cutWeight is -.75  . note that it's in 3d, and
+                        System.out.println("uh oh, cutWeight = "+cutWeight);  // fails on "(.25)4(2)3 3(1.4)" -> uh oh, cutWeight is -.75 . note that it's in 3d!
+                                                                              // fails on "{5,3,3} 2(0.1458980337503153)" -> uh oh, cutWeight = 1.8090169943749477, and the following CHECK fails
                     CHECK(cutWeight >= -1e-9 && cutWeight <= 1.); // I've seen 1e-16 on "{4,3} 7" due to floating point roundoff error
                     if (cutWeight < 0.)
                         cutWeight = 0.;
@@ -2686,6 +2674,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     CSG.Polytope vert = verts[iVert];
                     double vertexWeight = vertexWeights[iVert];
                     if (verboseLevel >= 2) System.out.println("                  iVertThisSticker="+iVertThisSticker+"/"+nVertsThisSticker+": vertexWeight="+vertexWeight);
+                    if (!(vertexWeight >= 0. && vertexWeight <= 1.))
+                        System.out.println("uh oh, vertexWeight = "+vertexWeight);  // fails on "{5,3,3} 2(0.1458980337503153)" -> "uh oh, vertexWeight = 5.92008497187474"
+                                                                                    // fails on "(.25)4(2)3 3(1.4)" -> uh oh, vertexWeight = 1.7499999999999998
                     CHECK(vertexWeight >= 0. && vertexWeight <= 1.);
                     totalWeight += vertexWeight;
                     // stickerAltCenterD += vertexWeight * vertexPosition
@@ -2768,6 +2759,141 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (verboseLevel >= 1) System.out.println("        out computeStickerAltCentersF");
             return stickerAltCentersF;
         } // computeStickerAltCentersF
+
+        // Make the topological fingerprint, consisting of the following:
+        // - fingerprint of original polytope
+        // - "number of cuts" that is, floor(intLength/2).
+        // - nStickers
+        // - for each different type of facet, a histogram of slice-to-number-of-stickers for slices parallel to a facet of that type.
+        // Note that, in particular, this correctly recognizes (even without counts):
+        //     "{5,3,3} 2" == "{5,3,3} 3"
+        //     "{4,3,3} 2" != "{4,3,3} 3"
+        // And furthermore, the face-to-slice-sticker-counts mapping allows correctly recognizing:
+        //     "{3}x{4} 3(2.75)" != "{3}x{4} 3(3.25}"
+        // Note: if ultimately not fingerprintable, this function
+        // still returns a summary of much of the structure,
+        // but it will contain the substring "NOT FINGERPRINTABLE".
+        // In this case the caller should not make the digest of it.
+        private static String computeTopologicalFingerprintHumanReadable(
+            CSG.SPolytope originalPolytope,
+            String originalPolytopeHumanReadableTopologicalFingerprint,
+            int[] intLengths,
+            int nStickers,
+            double[][] facetInwardNormals,
+            double[][] facetCutOffsets,
+            double[][] stickerCentersD)
+        {
+            StringBuilder topologicalFingerprintHumanReadableBuilder = new StringBuilder();
+            topologicalFingerprintHumanReadableBuilder.append("original polytope:\n");
+            topologicalFingerprintHumanReadableBuilder.append(indented("    ", originalPolytopeHumanReadableTopologicalFingerprint) + "\n");
+            topologicalFingerprintHumanReadableBuilder.append("floor(intLength/2) = ");
+            for (int i = 0; i < intLengths.length; ++i) {
+              if (i > 0) topologicalFingerprintHumanReadableBuilder.append(",");
+              topologicalFingerprintHumanReadableBuilder.append(intLengths[i]/2);
+            }
+            topologicalFingerprintHumanReadableBuilder.append("\n");
+            topologicalFingerprintHumanReadableBuilder.append("number of stickers: " + nStickers);
+
+            if (true) {
+              // We need more information,
+              // so that we don't mistakenly think "{3}x{4} 3(2.75)" is the same as "{3}x{4} 3(3.25)".
+              // So, make a mapping from face type to slice sticker counts.
+
+              // First of all, check whether all edges in the original polytope
+              // are the same length. If not, this method won't work, in which case
+              // we just mark the whole thing "NOT FINGERPRINTABLE".
+              // Examples of non-uniform edge lengths:
+              //    "(1.0)3(0)3(2.0) 3"  (3d)
+              //    "(1.0)3(0)3(0)3(2.0) 3"  (4d)
+              //    "frucht 3"  (3d)
+              //    "frucht*{} 3"  (4d)
+              //    "(1.2)x(1.3) 3"  (2d)
+              // Note, it's probably still possible to fool it,
+              // by making a nonuniform polytope with uniform edge lengths.
+              boolean edgeLengthsAreUniform;
+              double minEdgeLength;
+              double maxEdgeLength;
+              {
+                CSG.Polytope[] originalEdges = originalPolytope.p.getAllElements()[1];
+                double minEdgeLength2 = Double.POSITIVE_INFINITY;
+                double maxEdgeLength2 = 0.;
+                for (int iEdge = 0; iEdge < originalEdges.length; ++iEdge) {
+                  double[] v0 = originalEdges[iEdge].facets[0].p.getCoords();
+                  double[] v1 = originalEdges[iEdge].facets[1].p.getCoords();
+                  double thisEdgeLength2 = VecMath.distsqrd(v0, v1);
+                  if (thisEdgeLength2 < minEdgeLength2) minEdgeLength2 = thisEdgeLength2;
+                  if (thisEdgeLength2 > maxEdgeLength2) maxEdgeLength2 = thisEdgeLength2;
+                }
+                minEdgeLength = Math.sqrt(minEdgeLength2);
+                maxEdgeLength = Math.sqrt(maxEdgeLength2);
+                edgeLengthsAreUniform = (maxEdgeLength <= minEdgeLength * (1. + 1e-12));
+              }
+
+              if (intLengths.length > 1) {
+                topologicalFingerprintHumanReadableBuilder.append("\nface type to slice sticker counts: UNKNOWN because intLengths are not uniform: "+com.donhatchsw.util.Arrays.toStringCompact(intLengths));
+                topologicalFingerprintHumanReadableBuilder.append("\nNOT FINGERPRINTABLE!");
+              } else if (!edgeLengthsAreUniform) {
+                topologicalFingerprintHumanReadableBuilder.append("\nface type to slice sticker counts: UNKNOWN because edge lengths are nonuniform: min "+minEdgeLength+", max "+maxEdgeLength);
+                topologicalFingerprintHumanReadableBuilder.append("\nNOT FINGERPRINTABLE!");
+              } else {
+                // TreeMap rather than HashMap, so iterating comes out in sorted order
+                java.util.TreeMap<String,int[]> facetType2Counts = new java.util.TreeMap<String,int[]>();
+                {
+                  // CBB: this re-performs all the analysis done already when computing
+                  // originalPolytopeHumanReadableTopologicalFingerprint.
+                  // At least this part isn't too slow.
+                  String[][] allElementTypes = CSG.computeAllElementTopologicalishSummaries(originalPolytope.p,
+                                                                                            /*mainSeparator=*/",\n",
+                                                                                            /*isVertexFigure=*/false);
+                  String[] allFacetTypes = allElementTypes[originalPolytope.p.dim-1];
+                  for (int iFacet = 0; iFacet < allFacetTypes.length; ++iFacet) {
+                    // NOTE: this assumes our facet ordering is the same as the original polytope's internal ordering.
+                    // This seems to be the case, for now, but we may want to canonicalize it
+                    // so that we aren't at the mercy of whatever arbitrary order the CSG module produces.
+                    String facetType = allFacetTypes[iFacet];
+                    int[] oldCounts = facetType2Counts.get(facetType);
+
+                    boolean sanityCheckMode = false;  // set this to true to confirm that facets of the same type do indeed have the same counts. expensive.
+                    // E.g. for "(1)5(1)3(1)3(1) 3":
+                    //     sanityCheckMode=false: 0.038760642s
+                    //     sanityCheckMode=true: 19.608136629s
+
+                    // CBB: could do at least a half-hearted sanity check mode-- that is, take a small handful (maybe 2) of each type and make sure we get the same answer for each
+
+                    if (oldCounts == null || sanityCheckMode) {
+                       double[] thisFacetInwardNormal = facetInwardNormals[iFacet];
+                       double[] thisFacetCutOffsets = facetCutOffsets[iFacet];
+                       int[] counts = new int[thisFacetCutOffsets.length+1];  // all zeros initially
+                       for (int iSticker = 0; iSticker < nStickers; ++iSticker) {
+                         int whichSlice = whichSlice(stickerCentersD[iSticker],
+                                                     thisFacetInwardNormal,
+                                                     thisFacetCutOffsets);
+                         counts[whichSlice]++;
+                       }
+                       //System.out.println(com.donhatchsw.util.Arrays.toStringCompact(facetType)+" -> "+com.donhatchsw.util.Arrays.toStringCompact(counts));
+                       if (oldCounts == null) {
+                         facetType2Counts.put(facetType, counts);
+                       } else {
+                         CHECK(VecMath.equals(counts, oldCounts));
+                       }
+                    }
+                  }
+                }
+                topologicalFingerprintHumanReadableBuilder.append("\nface type to slice sticker counts:");
+                for (java.util.Map.Entry<String,int[]> kv : facetType2Counts.entrySet()) {
+                  topologicalFingerprintHumanReadableBuilder.append("\n    ");
+                  topologicalFingerprintHumanReadableBuilder.append(com.donhatchsw.util.Arrays.toStringCompact(kv.getKey()));
+                  topologicalFingerprintHumanReadableBuilder.append(": ");
+                  int value[] = kv.getValue();
+                  for (int i = 0; i < value.length; ++i) {
+                    if (i > 0) topologicalFingerprintHumanReadableBuilder.append(",");
+                    topologicalFingerprintHumanReadableBuilder.append(value[i]);
+                  }
+                }
+              }  // edge lengths are uniform
+            }
+            return topologicalFingerprintHumanReadableBuilder.toString();
+        }  // computeTopologicalFingerprintHumanReadable
 
         // magic crap used in a couple of methods below
         private double[][] getTwistMat(int gripIndex, int dir, boolean weWillFutt, double frac)
@@ -3870,11 +3996,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         } // applyTwistToState
 
 
-        // does NOT do the slicemask 0->1 correction
-        private static boolean pointIsInSliceMask(double point[],
-                                                  int slicemask,
-                                                  double cutNormal[],
-                                                  double cutOffsets[])
+        private static int whichSlice(double point[],
+                                      double cutNormal[],
+                                      double cutOffsets[])
         {
             // XXX a binary search would work better if num cuts is big.
             // XXX really need to check offsets only between differing
@@ -3884,7 +4008,16 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             while (iSlice < cutOffsets.length
                 && pointHeight > cutOffsets[iSlice])
                 iSlice++;
-            boolean answer = (slicemask & (1<<iSlice)) != 0;
+            return iSlice;
+        }
+        // does NOT do the slicemask 0->1 correction
+        private static boolean pointIsInSliceMask(double point[],
+                                                  int slicemask,
+                                                  double cutNormal[],
+                                                  double cutOffsets[])
+        {
+            int whichSlice = whichSlice(point, cutNormal, cutOffsets);
+            boolean answer = (slicemask & (1<<whichSlice)) != 0;
             return answer;
         }
     //
@@ -3916,46 +4049,47 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                              new java.io.OutputStreamWriter(
                                              System.err)));
         final boolean[] cancelledHolder = {false};
-	ProgressCallbacks progressCallbacks = new ProgressCallbacks() {
-	    private long initTimeNanos = 0;
-	    @Override public boolean subtaskInit(String string, int max) {
-		System.out.print(string+" ("+max+") ...");
-		initTimeNanos = System.nanoTime();
-		return true;  // keep going
-	    }
-	    @Override public boolean subtaskInit(String string) {
-		System.out.println(string+"...");
-		initTimeNanos = System.nanoTime();
-		return true;  // keep going
-	    }
-	    @Override public boolean updateProgress(int progress) {
-		System.out.print("..."+progress);
-		System.out.flush();
-		// Silly and disruptive exercise of the cancellation feature
-		if (progress == 1000) {
-		    System.out.println();
-		    System.out.print("This is taking a while.  Want to keep going? (y/n)[Y] ");
-		    System.out.flush();
-		    try {
-			char c = (char)System.in.read();
-			if (c == 'n') {
-			    cancelledHolder[0] = true;
-			    return false;  // cancel
-			}
-		    } catch (java.io.IOException e) {
-			System.out.println("Caught: "+e);
-			cancelledHolder[0] = true;
-			return false;  // cancel
-		    }
-		}
-		return true;  // keep going
-	    }
-	    @Override public boolean subtaskDone() {
-		long doneTimeNanos = System.nanoTime();
-		System.out.printf("  done (%.4gs).\n", (doneTimeNanos-initTimeNanos)/1e9);
-		return true;  // keep going (done with subtask)
-	    }
-	};
+        ProgressCallbacks progressCallbacks = new ProgressCallbacks() {
+            private long initTimeNanos = 0;
+            @Override public boolean subtaskInit(String string, int max) {
+                System.out.print(string+" ("+max+") ...");
+                initTimeNanos = System.nanoTime();
+                return true;  // keep going
+            }
+            @Override public boolean subtaskInit(String string) {
+                System.out.println(string+"...");
+                initTimeNanos = System.nanoTime();
+                return true;  // keep going
+            }
+            @Override public boolean updateProgress(int progress) {
+                System.out.print("..."+progress);
+                System.out.flush();
+                // Silly and disruptive exercise of the cancellation feature
+                if (progress == 1000) {
+                    System.out.println();
+                    System.out.print("This is taking a while.  Want to keep going? (y/n)[Y] ");
+                    System.out.flush();
+                    try {
+                        char c = (char)System.in.read();
+                        if (c == 'n') {
+                            cancelledHolder[0] = true;
+                            return false;  // cancel
+                        }
+                    } catch (java.io.IOException e) {
+                        System.out.println("Caught: "+e);
+                        cancelledHolder[0] = true;
+                        return false;  // cancel
+                    }
+                }
+                return true;  // keep going
+            }
+            @Override public boolean subtaskDone() {
+                long doneTimeNanos = System.nanoTime();
+                System.out.printf("  done (%.4gs).\n", (doneTimeNanos-initTimeNanos)/1e9);
+                System.out.flush();
+                return true;  // keep going (done with subtask)
+            }
+        };
 
         String puzzleDescriptionString = args[0];
         GenericPuzzleDescription descr = new PolytopePuzzleDescription(puzzleDescriptionString,

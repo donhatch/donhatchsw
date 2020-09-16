@@ -1405,17 +1405,10 @@ public class MC4DSwingControlPanel
         if (true) {
             addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(java.awt.Color.black);}}); // Totally lame separator
             addSingleLabelRow(new BigBoldJLabel("Experimental"));
-            addCheckboxRow("Use topological sort for depth sorting",
+            addCheckboxRow("Use topological sort for depth sorting (ctrl-alt-P to toggle viz)",
                 viewParams.useTopsort,
                 new String[] {
                     "Whether to use topological sorting of stickers rather than simple depth sorting of polygons.",
-                });
-            addCheckboxRow(
-                "Use newest topological sort algorithm (ctrl-alt-P to toggle viz)",
-                viewParams.topsortUsesBoldNewWay,
-                new String[] {
-                    "If this option is checked,",
-                    "the topological sorting willl use an experimental new bleeding edge algorithm.",
                 });
         }
 
