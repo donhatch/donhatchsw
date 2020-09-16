@@ -1530,6 +1530,17 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         CSG.Polytope[] stickers = slicedPolytope.p.getAllElements()[nDims-1];
         int nStickers = stickers.length;
 
+	// Now that we know the number of stickers,
+	// we can make the topological fingerprint, consisting of the following:
+	// - fingerprint of original polytope
+	// - nStickers
+	// - "number of cuts" that is, floor(intLength/2).
+	// Note that, in particular, this correctly recognizes that:
+	//     "{5,3,3} 2" == "{5,3,3} 3"
+	//     "{4,3,3} 2" != "{4,3,3} 3"
+	// Note: this isn't completely principled;
+	// I bet there are cases where two different puzzles can get the same fingerprint.
+	// But I don't know of any cases like that in practice at the moment.
         {
             this.topologicalFingerprintHumanReadable =
                 "original polytope:\n" +
@@ -2643,7 +2654,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                     if (verboseLevel >= 2) System.out.println("                      cutWeight = "+cutWeight);
                     if (!(cutWeight >= -1e-9 && cutWeight <= 1.))
-                        System.out.println("uh oh, cutWeight = "+cutWeight);  // fails on "(.25)4(2)3 3(1.4)" : cutWeight is -.75  . note that it's in 3d, and
+                        System.out.println("uh oh, cutWeight = "+cutWeight);  // fails on "(.25)4(2)3 3(1.4)" -> uh oh, cutWeight is -.75 . note that it's in 3d!
+                                                                              // fails on "{5,3,3} 2(0.1458980337503153)" -> uh oh, cutWeight = 1.8090169943749477, and the following CHECK fails
                     CHECK(cutWeight >= -1e-9 && cutWeight <= 1.); // I've seen 1e-16 on "{4,3} 7" due to floating point roundoff error
                     if (cutWeight < 0.)
                         cutWeight = 0.;
@@ -2670,6 +2682,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     CSG.Polytope vert = verts[iVert];
                     double vertexWeight = vertexWeights[iVert];
                     if (verboseLevel >= 2) System.out.println("                  iVertThisSticker="+iVertThisSticker+"/"+nVertsThisSticker+": vertexWeight="+vertexWeight);
+                    if (!(vertexWeight >= 0. && vertexWeight <= 1.))
+                        System.out.println("uh oh, vertexWeight = "+vertexWeight);  // fails on "{5,3,3} 2(0.1458980337503153)" -> "uh oh, vertexWeight = 5.92008497187474"
+                                                                                    // fails on "(.25)4(2)3 3(1.4)" -> uh oh, vertexWeight = 1.7499999999999998
                     CHECK(vertexWeight >= 0. && vertexWeight <= 1.);
                     totalWeight += vertexWeight;
                     // stickerAltCenterD += vertexWeight * vertexPosition
