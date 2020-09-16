@@ -8435,7 +8435,7 @@ public final class CSG
           long t0 = System.nanoTime();
 
           final StringTable descriptionsTable = new StringTable();
-          // CBB: this really shouldn't need a hashmap at all; should be indexing by index into allElements instead, without regard to polytope id.  I think we should be able to do this all in terms of allIncidences rather than needing each element's incidences.
+          // CBB: this really shouldn't need a hashmap at all; should be indexing by index into allElements instead, without regard to polytope id.  I think we should be able to do this all in terms of allIncidences, i.e. indices into allElements, rather than needing each element's id.  So, shouldn't even need allElements.  Except for looking at aux, that is.  Hmm.
           java.util.HashMap<Long,Integer> id2descriptionIndex = new java.util.HashMap<Long,Integer>();
 
           // Shortcuts for the two most common things
@@ -8496,19 +8496,20 @@ public final class CSG
                 int gonality = allIncidences[iDim][iEltOfDim][1].length;
                 appendPolygonName(sb, gonality);
               } else {
-                Polytope[][] eltElts = elt.getAllElements();
+                int[][] eltIncidences = allIncidences[iDim][iEltOfDim];
                 for (int jDim = 0; jDim < iDim; ++jDim) {
                   if (jDim==0) {
-                    sb.append(eltElts[jDim].length);
+                    int nVertsHere = eltIncidences[jDim].length;
+                    sb.append(nVertsHere);
                     sb.append(" vert");
-                    sb.append((eltElts[jDim].length==1?"":"s"));
+                    sb.append(nVertsHere==1?"":"s");
                   } else {
                     sb.append(iDim==dim ? mainSeparator : ", ");
                     // Need to classify these elements-of-elements
                     IntHashCounter histogram = new IntHashCounter();  // mapping from description index to count
-                    for (Polytope eltElt : eltElts[jDim]) {
-                      if (verboseLevel >= 3) System.out.println("              looking for eltelt "+eltElt.id+" of dim "+eltElt.dim);
-                      histogram.incr(id2descriptionIndex.get(eltElt.id));
+                    for (int jEltOfDim : eltIncidences[jDim]) {
+                      if (verboseLevel >= 3) System.out.println("              looking for eltelt "+allElements[jDim][jEltOfDim].id+" of dim "+jDim);
+                      histogram.incr(id2descriptionIndex.get(allElements[jDim][jEltOfDim].id));
                     }
 
                     int[] sortedKeys = histogram.sortedKeys();
@@ -8533,7 +8534,7 @@ public final class CSG
                     boolean needBreakdown = histogram.size() >= 2 || jDim >= 3 || hasChord;
 
                     // First a single count and dimension of these elements.
-                    int totalCount = eltElts[jDim].length;
+                    int totalCount = eltIncidences[jDim].length;
                     sb.append(totalCount);
                     sb.append(" ");
                     if (jDim==1) {
