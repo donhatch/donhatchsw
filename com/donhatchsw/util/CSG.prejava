@@ -8435,7 +8435,7 @@ public final class CSG
           long t0 = System.nanoTime();
 
           final StringTable descriptionsTable = new StringTable();
-          // CBB: this really shouldn't need a hashmap at all; should be indexing by index into allElements instead, without regard to polytope id.  the only thing we use the polytopes for is to find gonality in case of polygons, but that can be done through allIncidences
+          // CBB: this really shouldn't need a hashmap at all; should be indexing by index into allElements instead, without regard to polytope id.  I think we should be able to do this all in terms of allIncidences rather than needing each element's incidences.
           java.util.HashMap<Long,Integer> id2descriptionIndex = new java.util.HashMap<Long,Integer>();
 
           // Shortcuts for the two most common things
@@ -8493,7 +8493,7 @@ public final class CSG
                 }
               } else if (iDim == 2 && !hasChord) {  // TODO: when has chord, it says "3 1-cells (1 3-chord, 1 5-chord, 1 7-chord)", should say edges instead of 1-cells
                 // TODO: even worse: for 4,4,3,  vertex figure comes out "4 verts, 6 4-chords, 4 3 verts, 3 4-chordss"
-                int gonality = elt.facets.length;
+                int gonality = allIncidences[iDim][iEltOfDim][1].length;
                 appendPolygonName(sb, gonality);
               } else {
                 Polytope[][] eltElts = elt.getAllElements();
@@ -8543,7 +8543,9 @@ public final class CSG
                         // Just say "polygon" here; we'll elaborate in the breakdown
                         sb.append("polygon");
                       } else {
-                        appendPolygonName(sb, eltElts[jDim][0].facets.length);  // note, this will throw if there were zero elements of this dimension-- that shouldn't be the case in a well-formed polytope
+                        int anyOneOfThePolygonIndices = allIncidences[iDim][iEltOfDim][2][0];
+                        int gonality = allIncidences[2][anyOneOfThePolygonIndices][1].length;
+                        appendPolygonName(sb, gonality);
                       }
                     } else {
                       sb.append(jDim);
