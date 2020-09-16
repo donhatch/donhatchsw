@@ -498,8 +498,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private CSG.SPolytope originalPolytope;
     private CSG.SPolytope slicedPolytope;
 
-    private String originalPolytopeHumanReadableTopologicalFingerprint;  // currently not exposed
-    private String originalPolytopeTopologicalFingerprintDigest;  // currently not exposed
     private String topologicalFingerprintHumanReadable;  // exposed via getTopologicalFingerprintHumanReadable()
     private String topologicalFingerprintDigest;  // exposed via getTopologicalFingerprintDigest()
 
@@ -1002,24 +1000,23 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
 
 
+        String originalPolytopeHumanReadableTopologicalFingerprint;
         {
-            {
-                if (progressWriter != null) {
-                    progressWriter.print("    Computing fingerprint of polytope... ");
-                    progressWriter.flush();
-                }
-                if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing fingerprint of polytope")) return false;
-                long t0millis = System.currentTimeMillis();
-                this.originalPolytopeHumanReadableTopologicalFingerprint = CSG.computeHumanReadableTopologicalFingerprint(this.originalPolytope.p);
-                this.originalPolytopeTopologicalFingerprintDigest = CSG.sha1(this.originalPolytopeHumanReadableTopologicalFingerprint);
-                long t1millis = System.currentTimeMillis();
-                if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing fingerprint of polytope"
-                if (progressWriter != null) {
-                    progressWriter.println(this.originalPolytopeTopologicalFingerprintDigest+" ("+millisToSecsString(t1millis-t0millis)+" seconds)");
-                    progressWriter.flush();
-                    progressWriter.println("    Human readable topological fingerprint of polytope:");
-                    progressWriter.println(indented("        ", this.originalPolytopeHumanReadableTopologicalFingerprint));
-                }
+            if (progressWriter != null) {
+                progressWriter.print("    Computing fingerprint of polytope... ");
+                progressWriter.flush();
+            }
+            if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing fingerprint of polytope")) return false;
+            long t0millis = System.currentTimeMillis();
+            originalPolytopeHumanReadableTopologicalFingerprint = CSG.computeHumanReadableTopologicalFingerprint(this.originalPolytope.p);
+            String originalPolytopeTopologicalFingerprintDigest = CSG.sha1(originalPolytopeHumanReadableTopologicalFingerprint);
+            long t1millis = System.currentTimeMillis();
+            if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing fingerprint of polytope"
+            if (progressWriter != null) {
+                progressWriter.println(originalPolytopeTopologicalFingerprintDigest+" ("+millisToSecsString(t1millis-t0millis)+" seconds)");
+                progressWriter.flush();
+                progressWriter.println("    Human readable topological fingerprint of polytope:");
+                progressWriter.println(indented("        ", originalPolytopeHumanReadableTopologicalFingerprint));
             }
         }
 
@@ -1365,7 +1362,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     {
                         progressWriter.print("."); // one dot per cut
 
-                        // We know we are doing an O(n^2) algorithm
+                        // We know we are doing an O(n^2) algorithm,
                         // so our actual progress fraction is proportional to
                         // the square of the apparent fraction of items done.
                         if ((nTotalCuts-iTotalCut)%10 == 0)
@@ -1620,137 +1617,24 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             this.stickerCentersF = VecMath.doubleToFloat(stickerCentersD);
         }
 
-        // Now that we know the stickers and sticker centers,
-        // we can make the topological fingerprint, consisting of the following:
-        // - fingerprint of original polytope
-        // - "number of cuts" that is, floor(intLength/2).
-        // - nStickers
-        // - for each different type of facet, a histogram of slice-to-number-of-stickers for slices parallel to a facet of that type.
-        // Note that, in particular, this correctly recognizes (even without counts):
-        //     "{5,3,3} 2" == "{5,3,3} 3"
-        //     "{4,3,3} 2" != "{4,3,3} 3"
-        // And furthermore, the counts allow correctly recognizing:
-        //     "{3}x{4} 3(2.75)" != "{3}x{4} 3(3.25}"
-        {
-            StringBuilder topologicalFingerprintHumanReadableBuilder = new StringBuilder();
-            topologicalFingerprintHumanReadableBuilder.append("original polytope:\n");
-            topologicalFingerprintHumanReadableBuilder.append(indented("    ", this.originalPolytopeHumanReadableTopologicalFingerprint) + "\n");
-            topologicalFingerprintHumanReadableBuilder.append("floor(intLength/2) = ");
-            for (int i = 0; i < intLengths.length; ++i) {
-              if (i > 0) topologicalFingerprintHumanReadableBuilder.append(",");
-              topologicalFingerprintHumanReadableBuilder.append(intLengths[i]/2);
-            }
-            topologicalFingerprintHumanReadableBuilder.append("\n");
-            topologicalFingerprintHumanReadableBuilder.append("number of stickers: " + nStickers);
-
-            if (true) {
-              // We need more information,
-              // so that we don't mistakenly think "{3}x{4} 3(2.75)" is the same as "{3}x{4} 3(3.25)".
-              // So, make a mapping from face type to slice sticker counts.
-
-              // First of all, check whether all edges in the original polytope
-              // are the same length. If not, this method won't work, in which case
-              // we just mark the whole thing un-fingerprintable.
-              // Examples of non-uniform edge lengths:
-              //    "(1.0)3(0)3(2.0) 3"  (3d)
-              //    "(1.0)3(0)3(0)3(2.0) 3"  (4d)
-              //    "frucht 3"  (3d)
-              //    "frucht*{} 3"  (4d)
-              //    "(1.2)x(1.3) 3"  (2d)
-              boolean edgeLengthsAreUniform;
-              double minEdgeLength;
-              double maxEdgeLength;
-              {
-                CSG.Polytope[] originalEdges = originalElements[1];
-                double minEdgeLength2 = Double.POSITIVE_INFINITY;
-                double maxEdgeLength2 = 0.;
-                for (int iEdge = 0; iEdge < originalEdges.length; ++iEdge) {
-                  double[] v0 = originalEdges[iEdge].facets[0].p.getCoords();
-                  double[] v1 = originalEdges[iEdge].facets[1].p.getCoords();
-                  double thisEdgeLength2 = VecMath.distsqrd(v0, v1);
-                  if (thisEdgeLength2 < minEdgeLength2) minEdgeLength2 = thisEdgeLength2;
-                  if (thisEdgeLength2 > maxEdgeLength2) maxEdgeLength2 = thisEdgeLength2;
-                }
-                minEdgeLength = Math.sqrt(minEdgeLength2);
-                maxEdgeLength = Math.sqrt(maxEdgeLength2);
-                edgeLengthsAreUniform = (maxEdgeLength <= minEdgeLength * (1. + 1e-12));
-              }
-
-              if (intLengths.length > 1) {
-                topologicalFingerprintHumanReadableBuilder.append("\nface type to slice sticker counts: UNKNOWN because intLengths are not uniform: "+com.donhatchsw.util.Arrays.toStringCompact(intLengths));
-                topologicalFingerprintHumanReadableBuilder.append("\nNOT FINGERPRINTABLE!");
-              } else if (!edgeLengthsAreUniform) {
-                topologicalFingerprintHumanReadableBuilder.append("\nface type to slice sticker counts: UNKNOWN because edge lengths are nonuniform: min "+minEdgeLength+", max "+maxEdgeLength);
-                topologicalFingerprintHumanReadableBuilder.append("\nNOT FINGERPRINTABLE!");
-              } else {
-                // TreeMap rather than HashMap, so iterating comes out in sorted order
-                java.util.TreeMap<String,int[]> facetType2Counts = new java.util.TreeMap<String,int[]>();
-                {
-                  // CBB: this recomputes all the analysis done already when computing
-                  // this.originalPolytopeHumanReadableTopologicalFingerprint.  At least it's not too slow.
-                  String[][] allElementTypes = CSG.computeAllElementTopologicalishSummaries(this.originalPolytope.p,
-                                                                                            /*mainSeparator=*/",\n",
-                                                                                            /*isVertexFigure=*/false);
-                  String[] allFacetTypes = allElementTypes[this.originalPolytope.p.dim-1];
-                  System.out.println("XXX BEGIN");
-                  long t0 = System.nanoTime();
-                  for (int iFacet = 0; iFacet < allFacetTypes.length; ++iFacet) {
-                    // NOTE: this assumes our facet ordering is the same as the original polytope's internal ordering.
-                    // This seems to be the case, for now, but we may want to canonicalize it
-                    // so that we aren't at the mercy of whatever arbitrary order the CSG module produces.
-                    String facetType = allFacetTypes[iFacet];
-                    int[] oldCounts = facetType2Counts.get(facetType);
-
-                    boolean sanityCheckMode = false;  // set this to true to confirm that facets of the same type do indeed have the same counts. expensive.
-                    // E.g. for "(1)5(1)3(1)3(1) 3":
-                    //     sanityCheckMode=false: 0.038760642s
-                    //     sanityCheckMode=true: 19.608136629s
-
-                    // CBB: could do at least a half-hearted sanity check mode-- that is, take a small handful (maybe 2) of each type and make sure we get the same answer for each
-
-                    if (oldCounts == null || sanityCheckMode) {
-                       double[] thisFacetInwardNormal = this.facetInwardNormals[iFacet];
-                       double[] thisFacetCutOffsets = this.facetCutOffsets[iFacet];
-                       int[] counts = new int[thisFacetCutOffsets.length+1];  // all zeros initially
-                       for (int iSticker = 0; iSticker < nStickers; ++iSticker) {
-                         int whichSlice = whichSlice(stickerCentersD[iSticker],
-                                                     thisFacetInwardNormal,
-                                                     thisFacetCutOffsets);
-                         counts[whichSlice]++;
-                       }
-                       //System.out.println(com.donhatchsw.util.Arrays.toStringCompact(facetType)+" -> "+com.donhatchsw.util.Arrays.toStringCompact(counts));
-                       if (oldCounts == null) {
-                         facetType2Counts.put(facetType, counts);
-                       } else {
-                         CHECK(VecMath.equals(counts, oldCounts));
-                       }
-                    }
-                  }
-                  long t1 = System.nanoTime();
-                  System.out.println("XXX END ("+(t1-t0)/1e9+"s)");
-                }
-                topologicalFingerprintHumanReadableBuilder.append("\nface type to slice sticker counts:");
-                for (java.util.Map.Entry<String,int[]> kv : facetType2Counts.entrySet()) {
-                  topologicalFingerprintHumanReadableBuilder.append("\n    ");
-                  topologicalFingerprintHumanReadableBuilder.append(com.donhatchsw.util.Arrays.toStringCompact(kv.getKey()));
-                  topologicalFingerprintHumanReadableBuilder.append(": ");
-                  int value[] = kv.getValue();
-                  for (int i = 0; i < value.length; ++i) {
-                    if (i > 0) topologicalFingerprintHumanReadableBuilder.append(",");
-                    topologicalFingerprintHumanReadableBuilder.append(value[i]);
-                  }
-                }
-              }  // edge lengths are uniform
-            }
-
-            this.topologicalFingerprintHumanReadable = topologicalFingerprintHumanReadableBuilder.toString();
-            this.topologicalFingerprintDigest =
-                this.topologicalFingerprintHumanReadable.contains("NOT FINGERPRINTABLE")
-                  ? null
-                  : CSG.sha1(this.topologicalFingerprintHumanReadable);
-            System.out.println("YYYYYY this.topologicalFingerprintHumanReadable =\n"+this.topologicalFingerprintHumanReadable);
+        if (progressWriter != null) {
+            progressWriter.print("    Computing puzzle fingerprint... ");
+            progressWriter.flush();
         }
-
+        if (progressCallbacks != null && !progressCallbacks.subtaskInit("Computing fingerprint of polytope")) return false;
+        long t0millis = System.currentTimeMillis();
+        this.topologicalFingerprintHumanReadable = computeTopologicalFingerprintHumanReadable(
+          this.originalPolytope, originalPolytopeHumanReadableTopologicalFingerprint, intLengths, nStickers, this.facetInwardNormals, this.facetCutOffsets, this.stickerCentersD);
+        this.topologicalFingerprintDigest =
+            this.topologicalFingerprintHumanReadable.contains("NOT FINGERPRINTABLE")
+              ? null
+              : CSG.sha1(this.topologicalFingerprintHumanReadable);
+        long t1millis = System.currentTimeMillis();
+        if (progressCallbacks != null && !progressCallbacks.subtaskDone()) return false;  // "Computing puzzle fingerprint"
+        if (progressWriter != null) {
+            progressWriter.println(this.topologicalFingerprintDigest + " ("+millisToSecsString(t1millis-t0millis)+" seconds)");
+            progressWriter.flush();
+        }
 
         //
         // PolyFromPolytope doesn't seem to like the fact that
@@ -2875,6 +2759,141 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (verboseLevel >= 1) System.out.println("        out computeStickerAltCentersF");
             return stickerAltCentersF;
         } // computeStickerAltCentersF
+
+        // Make the topological fingerprint, consisting of the following:
+        // - fingerprint of original polytope
+        // - "number of cuts" that is, floor(intLength/2).
+        // - nStickers
+        // - for each different type of facet, a histogram of slice-to-number-of-stickers for slices parallel to a facet of that type.
+        // Note that, in particular, this correctly recognizes (even without counts):
+        //     "{5,3,3} 2" == "{5,3,3} 3"
+        //     "{4,3,3} 2" != "{4,3,3} 3"
+        // And furthermore, the face-to-slice-sticker-counts mapping allows correctly recognizing:
+        //     "{3}x{4} 3(2.75)" != "{3}x{4} 3(3.25}"
+        // Note: if ultimately not fingerprintable, this function
+        // still returns a summary of much of the structure,
+        // but it will contain the substring "NOT FINGERPRINTABLE".
+        // In this case the caller should not make the digest of it.
+        private static String computeTopologicalFingerprintHumanReadable(
+            CSG.SPolytope originalPolytope,
+            String originalPolytopeHumanReadableTopologicalFingerprint,
+            int[] intLengths,
+            int nStickers,
+            double[][] facetInwardNormals,
+            double[][] facetCutOffsets,
+            double[][] stickerCentersD)
+        {
+            StringBuilder topologicalFingerprintHumanReadableBuilder = new StringBuilder();
+            topologicalFingerprintHumanReadableBuilder.append("original polytope:\n");
+            topologicalFingerprintHumanReadableBuilder.append(indented("    ", originalPolytopeHumanReadableTopologicalFingerprint) + "\n");
+            topologicalFingerprintHumanReadableBuilder.append("floor(intLength/2) = ");
+            for (int i = 0; i < intLengths.length; ++i) {
+              if (i > 0) topologicalFingerprintHumanReadableBuilder.append(",");
+              topologicalFingerprintHumanReadableBuilder.append(intLengths[i]/2);
+            }
+            topologicalFingerprintHumanReadableBuilder.append("\n");
+            topologicalFingerprintHumanReadableBuilder.append("number of stickers: " + nStickers);
+
+            if (true) {
+              // We need more information,
+              // so that we don't mistakenly think "{3}x{4} 3(2.75)" is the same as "{3}x{4} 3(3.25)".
+              // So, make a mapping from face type to slice sticker counts.
+
+              // First of all, check whether all edges in the original polytope
+              // are the same length. If not, this method won't work, in which case
+              // we just mark the whole thing "NOT FINGERPRINTABLE".
+              // Examples of non-uniform edge lengths:
+              //    "(1.0)3(0)3(2.0) 3"  (3d)
+              //    "(1.0)3(0)3(0)3(2.0) 3"  (4d)
+              //    "frucht 3"  (3d)
+              //    "frucht*{} 3"  (4d)
+              //    "(1.2)x(1.3) 3"  (2d)
+              // Note, it's probably still possible to fool it,
+              // by making a nonuniform polytope with uniform edge lengths.
+              boolean edgeLengthsAreUniform;
+              double minEdgeLength;
+              double maxEdgeLength;
+              {
+                CSG.Polytope[] originalEdges = originalPolytope.p.getAllElements()[1];
+                double minEdgeLength2 = Double.POSITIVE_INFINITY;
+                double maxEdgeLength2 = 0.;
+                for (int iEdge = 0; iEdge < originalEdges.length; ++iEdge) {
+                  double[] v0 = originalEdges[iEdge].facets[0].p.getCoords();
+                  double[] v1 = originalEdges[iEdge].facets[1].p.getCoords();
+                  double thisEdgeLength2 = VecMath.distsqrd(v0, v1);
+                  if (thisEdgeLength2 < minEdgeLength2) minEdgeLength2 = thisEdgeLength2;
+                  if (thisEdgeLength2 > maxEdgeLength2) maxEdgeLength2 = thisEdgeLength2;
+                }
+                minEdgeLength = Math.sqrt(minEdgeLength2);
+                maxEdgeLength = Math.sqrt(maxEdgeLength2);
+                edgeLengthsAreUniform = (maxEdgeLength <= minEdgeLength * (1. + 1e-12));
+              }
+
+              if (intLengths.length > 1) {
+                topologicalFingerprintHumanReadableBuilder.append("\nface type to slice sticker counts: UNKNOWN because intLengths are not uniform: "+com.donhatchsw.util.Arrays.toStringCompact(intLengths));
+                topologicalFingerprintHumanReadableBuilder.append("\nNOT FINGERPRINTABLE!");
+              } else if (!edgeLengthsAreUniform) {
+                topologicalFingerprintHumanReadableBuilder.append("\nface type to slice sticker counts: UNKNOWN because edge lengths are nonuniform: min "+minEdgeLength+", max "+maxEdgeLength);
+                topologicalFingerprintHumanReadableBuilder.append("\nNOT FINGERPRINTABLE!");
+              } else {
+                // TreeMap rather than HashMap, so iterating comes out in sorted order
+                java.util.TreeMap<String,int[]> facetType2Counts = new java.util.TreeMap<String,int[]>();
+                {
+                  // CBB: this re-performs all the analysis done already when computing
+                  // originalPolytopeHumanReadableTopologicalFingerprint.
+                  // At least this part isn't too slow.
+                  String[][] allElementTypes = CSG.computeAllElementTopologicalishSummaries(originalPolytope.p,
+                                                                                            /*mainSeparator=*/",\n",
+                                                                                            /*isVertexFigure=*/false);
+                  String[] allFacetTypes = allElementTypes[originalPolytope.p.dim-1];
+                  for (int iFacet = 0; iFacet < allFacetTypes.length; ++iFacet) {
+                    // NOTE: this assumes our facet ordering is the same as the original polytope's internal ordering.
+                    // This seems to be the case, for now, but we may want to canonicalize it
+                    // so that we aren't at the mercy of whatever arbitrary order the CSG module produces.
+                    String facetType = allFacetTypes[iFacet];
+                    int[] oldCounts = facetType2Counts.get(facetType);
+
+                    boolean sanityCheckMode = false;  // set this to true to confirm that facets of the same type do indeed have the same counts. expensive.
+                    // E.g. for "(1)5(1)3(1)3(1) 3":
+                    //     sanityCheckMode=false: 0.038760642s
+                    //     sanityCheckMode=true: 19.608136629s
+
+                    // CBB: could do at least a half-hearted sanity check mode-- that is, take a small handful (maybe 2) of each type and make sure we get the same answer for each
+
+                    if (oldCounts == null || sanityCheckMode) {
+                       double[] thisFacetInwardNormal = facetInwardNormals[iFacet];
+                       double[] thisFacetCutOffsets = facetCutOffsets[iFacet];
+                       int[] counts = new int[thisFacetCutOffsets.length+1];  // all zeros initially
+                       for (int iSticker = 0; iSticker < nStickers; ++iSticker) {
+                         int whichSlice = whichSlice(stickerCentersD[iSticker],
+                                                     thisFacetInwardNormal,
+                                                     thisFacetCutOffsets);
+                         counts[whichSlice]++;
+                       }
+                       //System.out.println(com.donhatchsw.util.Arrays.toStringCompact(facetType)+" -> "+com.donhatchsw.util.Arrays.toStringCompact(counts));
+                       if (oldCounts == null) {
+                         facetType2Counts.put(facetType, counts);
+                       } else {
+                         CHECK(VecMath.equals(counts, oldCounts));
+                       }
+                    }
+                  }
+                }
+                topologicalFingerprintHumanReadableBuilder.append("\nface type to slice sticker counts:");
+                for (java.util.Map.Entry<String,int[]> kv : facetType2Counts.entrySet()) {
+                  topologicalFingerprintHumanReadableBuilder.append("\n    ");
+                  topologicalFingerprintHumanReadableBuilder.append(com.donhatchsw.util.Arrays.toStringCompact(kv.getKey()));
+                  topologicalFingerprintHumanReadableBuilder.append(": ");
+                  int value[] = kv.getValue();
+                  for (int i = 0; i < value.length; ++i) {
+                    if (i > 0) topologicalFingerprintHumanReadableBuilder.append(",");
+                    topologicalFingerprintHumanReadableBuilder.append(value[i]);
+                  }
+                }
+              }  // edge lengths are uniform
+            }
+            return topologicalFingerprintHumanReadableBuilder.toString();
+        }  // computeTopologicalFingerprintHumanReadable
 
         // magic crap used in a couple of methods below
         private double[][] getTwistMat(int gripIndex, int dir, boolean weWillFutt, double frac)
@@ -4067,6 +4086,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             @Override public boolean subtaskDone() {
                 long doneTimeNanos = System.nanoTime();
                 System.out.printf("  done (%.4gs).\n", (doneTimeNanos-initTimeNanos)/1e9);
+                System.out.flush();
                 return true;  // keep going (done with subtask)
             }
         };
