@@ -8309,20 +8309,6 @@ public final class CSG
             java.util.Arrays.sort(answer, 0, n);
             return answer;
           }
-          public String toString() {
-            StringBuilder sb = new StringBuilder();
-            sb.append("{");
-            String[] sortedKeys = this.sortedKeys();
-            for (int i = 0; i < sortedKeys.length; ++i) {
-              if (i > 0) sb.append(", ");
-              String key = sortedKeys[i];
-              sb.append(Arrays.toStringCompact(key));
-              sb.append(":");
-              sb.append(this.count(key));
-            }
-            sb.append("}");
-            return sb.toString();
-          }
         }  // StringHashCounter
         // This should be part of HashCounter, but can't because "new K[10]" gives "error: generic array creation".
         // Also the toString is kind of special purpose -- it assumes the ints are indices into an ArrayList of strings.
@@ -8337,22 +8323,6 @@ public final class CSG
             }
             java.util.Arrays.sort(answer, 0, n);
             return answer;
-          }
-          public String toString(java.util.ArrayList<String> index2string) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("{");
-            int[] sortedKeys = this.sortedKeys();
-            for (int i = 0; i < sortedKeys.length; ++i) {
-              if (i > 0) sb.append(", ");
-              int key = sortedKeys[i];
-              String s = index2string.get(key);
-              CHECK(s != null);
-              sb.append(Arrays.toStringCompact(s));
-              sb.append(":");
-              sb.append(this.count(key));
-            }
-            sb.append("}");
-            return sb.toString();
           }
         }  // IntHashCounter
 
@@ -8422,14 +8392,15 @@ public final class CSG
         // is treated as a chord length and printed as such; if false, auxes are ignored.
         // E.g. a vertex figure summary might look like:
         //     4 verts, 6 edges (1 10-chord, 3 4-chords, 2 6-chords), 4 polygons (1*{3 verts, 3 edges (1 10-chord, 1 4-chord, 1 6-chord)}, 1*{3 verts, 3 edges (1 10-chord, 2 4-chords)}, 1*{3 verts, 3 edges (1 4-chord, 2 6-chords)}, 1*{3 verts, 3 edges (2 4-chords, 1 6-chord)})
-        private static String experimentalTopologicalishSummary(Polytope p,
-                                                                String mainSeparator,
-                                                                boolean isVertexFigure) {
+        // Really this is the "human readable topological fingerprint, not including the vertex figures stuff"
+        public static String experimentalTopologicalishSummary(Polytope p,
+                                                               String mainSeparator,
+                                                               boolean isVertexFigure) {
           return computeAllElementTopologicalishSummaries(p, mainSeparator, isVertexFigure)[p.dim][0];
         }
-        private static String[][] computeAllElementTopologicalishSummaries(Polytope p,
-                                                                           String mainSeparator,
-                                                                           boolean isVertexFigure) {
+        public static String[][] computeAllElementTopologicalishSummaries(Polytope p,
+                                                                          String mainSeparator,
+                                                                          boolean isVertexFigure) {
           int verboseLevel = 0;
           if (verboseLevel >= 1) System.out.println("in experimentalTopologicalishSummary");
           long t0 = System.nanoTime();
@@ -8513,7 +8484,6 @@ public final class CSG
                     }
 
                     int[] sortedKeys = histogram.sortedKeys();
-
                     // Oh hell, we can't sort the string indices by string index,
                     // since that varies from call to call; we need something that gives
                     // the same fingerprint every time it's called on an equivalent thing.
@@ -8606,8 +8576,9 @@ public final class CSG
         // produces a k-1 dimensional element in the vertex figure:
         //    - each edge incident on v yields the neighbor vertex
         //    - each polygon incident on v yields the chord
-        //    - each 3-cell incident on v yields the chord-like probably-skew polygon
+        //    - each 3-cell incident on v yields the chord-like possibly-skew polygon
         //    - etc.
+        // Returns a polytope each of whose edges has its aux set to the gonality of the polygon of which it's a chord.
         // CBB: doesn't do any orientation; all signs of internal SPolytopes are 1.
         public static Polytope computeVertexFigure(Polytope p, int iVert) {
           int verboseLevel = 0;  // 1: in/out and constant. 2: print answer stats.  3: and p stats. 4: and progress details
@@ -8719,8 +8690,15 @@ public final class CSG
             sb.append("structure summary:\n    ");
             sb.append(overallStructureSummary);
             sb.append("\n");
-            sb.append("vertex figures and counts:\n    ");
-            sb.append(vertexFigureTopologicalishDescriptionString2count.toString());
+            sb.append("vertex figures and counts:");
+            for (String key : vertexFigureTopologicalishDescriptionString2count.sortedKeys()) {
+              int value = vertexFigureTopologicalishDescriptionString2count.get(key)[0];
+              sb.append("\n    ");
+              sb.append(Arrays.toStringCompact(key));
+              sb.append(": ");
+              sb.append(value);
+            }
+
             String answer = sb.toString();
             if (verboseLevel >= 1) OUT("    out CSG.topologicalFingerprint(p), returning "+Arrays.toStringCompact(answer));
             return answer;
