@@ -2473,24 +2473,35 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         return true;  // success (not cancelled)
     } // init from schlafli and length
 
-    // E.g. "(4)x(3)x(2)x(1)" -> {4,3,2,1}  (leading to actual edge lengths 8,6,4,2)
-    private static double[] extractRingedNodeLengths(String schlafliProduct)
-    {
-      int verboseLevel = 1;
-      if (verboseLevel >= 1) System.out.println("in extractRingedNodeLengths");
-      String scratch = schlafliProduct;
 
+    // Amazingly, none of the answers to
+    // https://stackoverflow.com/questions/2206378/how-to-split-a-string-but-also-keep-the-delimiters
+    // actually answers the question.
+    // Well ok, Markus's does, but it's too complicated; we don't need a frickin class for this.
+    private static String[] splitIncludingDelimiters(String regex, String text) {
+        java.util.List<String> answer = new java.util.ArrayList<String>();
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(regex).matcher(text);
+        int pos = 0;
+        while (matcher.find()) {
+          answer.add(text.substring(pos, matcher.start()));  // up to the delimiter
+          answer.add(matcher.group()); // the delimeter
+          pos = matcher.end();
+        }
+        answer.add(text.substring(pos));  // after last delimiter
+        return answer.toArray(new String[answer.size()]);
+    }
+
+    // E.g. "(4)x(3)x(2)x(1)" -> {4,3,2,1}  (leading to actual edge lengths 8,6,4,2)
+    private static double[] extractRingedNodeLengths(String schlafliProductString)
+    {
+      int verboseLevel = 0;
+      if (verboseLevel >= 1) System.out.println("in extractRingedNodeLengths");
+      String scratch = schlafliProductString;
       if (verboseLevel >= 1) System.out.println("  scratch = "+scratch);
       scratch = scratch.replaceAll("\\{\\}", "(1)");   // TODO: translate other schlafli-looking things!  e.g. {4,3} -> (1)4(0)3(0)
       if (verboseLevel >= 1) System.out.println("  scratch = "+scratch);
-      // to work around the fact that empty tokens get discarded...
-      scratch = " " + scratch.replaceAll("\\)\\(", ") (") + " ";
-
-      String delimiter = "\\([^\\)]+\\)";
-      // https://stackoverflow.com/questions/2206378/how-to-split-a-string-but-also-keep-the-delimiters#answer-2206432
-      String fudgedDelimiter = "((?<="+delimiter+")|(?="+delimiter+"))";
-      String[] tokens = scratch.split(fudgedDelimiter);
-      // {" ","(3)","3","(0)","3","(6)"," "}
+      String[] tokens = splitIncludingDelimiters("\\([^\\)]+\\)", scratch);
+      // E.g. {"","(3)","3","(0)","3","(6)",""}
       if (verboseLevel >= 1) System.out.println("  tokens = "+com.donhatchsw.util.Arrays.toStringCompact(tokens));
       CHECK(tokens.length % 2 == 1);
       double[] ringedNodeLengths = new double[(tokens.length-1)/2];
