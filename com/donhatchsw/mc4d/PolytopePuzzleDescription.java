@@ -1088,6 +1088,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             _inRadius = (float)nearestFaceDist;
         }
 
+        double[] ringedNodeLengths = intLengths.length==1 ? null : extractRingedNodeLengths(schlafliProduct);
 
         //
         // So we can easily find the opposite facet of a given facet...
@@ -1102,6 +1103,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             {
                 VecMath.vxs(oppositeNormalScratch, facetInwardNormals[iFacet], -1.);
                 CSG.Polytope opposite = table.get(oppositeNormalScratch);
+                if (intLengths.length != 1) opposite = null;  // TODO: handle this even if intLengths.length > 1!
                 facet2OppositeFacet[iFacet] = opposite==null ? -1 : (Integer)opposite.getAux();
                 //System.err.print("("+iFacet+":"+facet2OppositeFacet[iFacet]+")");
             }
@@ -1122,14 +1124,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
-                // Which length do we use?
-                // Use the one on the axis closest to the normal, for now,
-                // and repeat entries if not enough.  This gets it right for the (a)x(b)x(c)x(d), for example.
-                whichLengthToUseForFacet[iFacet] = VecMath.maxabsi(facetInwardNormals[iFacet]) % intLengths.length;
-                int intLength = intLengths[whichLengthToUseForFacet[iFacet]];
-                double doubleLength = doubleLengths[whichLengthToUseForFacet[iFacet]];
-
                 double fullThickness = 0.;
+                double edgeLengthSqrdThatLedToFullThickness = 0.;
                 {
                     // In case of nonuniformity (e.g. pseudorhombicuboctahedron or frucht),
                     // we need to do check *all* vertices on this facet, not just one.
@@ -1166,13 +1162,69 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 // happen only if the vertex figure is NOT a simplex
                                 // (e.g. it happens for the icosahedron).
                                 if (thisThickness > 1e-6
-                                 && (fullThickness == 0. || thisThickness < fullThickness))
+                                 && (fullThickness == 0. || thisThickness < fullThickness)) {
                                     fullThickness = thisThickness;
+                                    edgeLengthSqrdThatLedToFullThickness = VecMath.normsqrd(edgeVec);
+                                }
                             }
                         }
                     }
                 }
                 CHECK(fullThickness != 0.); // XXX actually this fails if puzzle dimension <= 1, maybe should disallow
+                double edgeLengthThatLedToFullThickness = Math.sqrt(edgeLengthSqrdThatLedToFullThickness);
+
+                // Which intLength do we use?
+                // If multiple intLengths were given, they should correspond
+                // to the ringed nodes in the schlafli product symbol.
+                // Try to deduce which one we're interested in
+                // from its length.
+                // CBB: Note that if multiple ringed nodes have the same value,
+                //   then we'll just find the first of them,
+                //   so if the intLengths of those are different, we're out of luck.
+                //   That's probably not an interesting case anyway.
+                // Nice examples (note intLength 0 isn't allowed, so we use 1 there as a dummy for that; it's not used)
+                //      "(4)x(3)x(2) 4,3,2"
+                //      "(4)x(3)x(2)x(1) 4,3,2,1"
+                //
+                //      "(1)3(0)3(2) 1,1,2"
+                //      "(1)3(0)3(3) 1,1,3"
+                //      "(2)3(0)3(3) 2,1,3"
+                //      "(2)3(0)3(4) 2,1,4"
+                //      "(3)3(0)3(4) 3,1,4"
+                //      "(3)3(0)3(5) 3,1,5"
+
+                //      "(1)3(0)3(2)x{} 1,1,2,1"
+                //      "(1)3(0)3(3)x{} 1,1,3,1"
+                //      "(2)3(0)3(3)x{} 2,1,3,1"
+                //      "(2)3(0)3(4)x{} 2,1,4,1"
+                //      "(3)3(0)3(4)x{} 3,1,4,1"
+                //      "(3)3(0)3(5)x{} 3,1,5,1"
+                if (ringedNodeLengths != null) {
+                  // Which of the 2*ringedNodeLength values is edgeLengthThatLedToFullThickness closest to?
+                  int whichRingedNode = -1;
+                  {
+                    double bestDist = Double.POSITIVE_INFINITY;
+                    for (int i = 0; i < ringedNodeLengths.length; ++i) {
+                      double thisDist = Math.abs(edgeLengthThatLedToFullThickness - 2*ringedNodeLengths[i]);
+                      if (thisDist < bestDist) {
+                        bestDist = thisDist;
+                        whichRingedNode = i;
+                      }
+                    }
+                  }
+                  CHECK(whichRingedNode != -1);
+
+                  CHECK(intLengths.length == ringedNodeLengths.length);  // TODO: check this in a more friendly way, earlier.  and in fact, it should equal nDims, too, I think?  
+                  CHECK(intLengths.length == nDims);
+
+                  whichLengthToUseForFacet[iFacet] = whichRingedNode % intLengths.length;
+                } else {
+                  // either there's only one intLength, or something went wrong trying to figure out ringedNodeLengths
+                  whichLengthToUseForFacet[iFacet] = 0;
+                }
+
+                int intLength = intLengths[whichLengthToUseForFacet[iFacet]];
+                double doubleLength = doubleLengths[whichLengthToUseForFacet[iFacet]];
 
                 // Interpret doubleLength==0 as infinity, i.e. sliceLength==0, because there's nothing else it could mean.
                 double sliceThickness = doubleLength==0. ? 0. : fullThickness / doubleLength;
@@ -1216,51 +1268,53 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // we'll fill in the far cuts in another pass
             } // for iFacet
 
-            // Fill in far cuts of each facet,
-            // from near cuts of the opposite facet.
-            // Note the opposite facet may have a different
-            // offset from the origin, and different slice thickness
-            // (e.g. the truncated simplex in 3 or 4 dimensions).
-            // CBB: maybe should add these *after* we slice?  Originally I did all the actual slicing from one end, but that messes up the alt shrink to points and futt, so now we do half from one end and half from the other  (or should, anyway, I think?)
-            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
-            {
-                int iOppositeFacet = facet2OppositeFacet[iFacet];
-                if (iOppositeFacet != -1) {
-                  int nNearCuts = intLengths[whichLengthToUseForFacet[iFacet]] / 2; // same as in previous pass
-                  int nFarCuts = facetCutOffsets[iFacet].length - nNearCuts;
-                  for (int iFarCut = 0; iFarCut < nFarCuts; ++iFarCut)
-                      facetCutOffsets[iFacet][nNearCuts+nFarCuts-1-iFarCut] = -facetCutOffsets[iOppositeFacet][iFarCut];
-                }
-            }
-            // Now sort and de-dup as promised.
-            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
-            {
-                SortStuff.sort(facetCutOffsets[iFacet]);
-                int nCutsRemaining = 0;
-                for (int iCut = 0; iCut < facetCutOffsets[iFacet].length; ++iCut)
-                {
-                    if (nCutsRemaining == 0
-                     || facetCutOffsets[iFacet][iCut] > facetCutOffsets[iFacet][nCutsRemaining-1] + 1e-6)
-                    {
-                        facetCutOffsets[iFacet][nCutsRemaining++] = facetCutOffsets[iFacet][iCut];
-                    }
-                }
-                facetCutOffsets[iFacet] = (double[])com.donhatchsw.util.Arrays.subarray(facetCutOffsets[iFacet], 0, nCutsRemaining);
-            }
-            // Finally, make sure opposite cut sets are *exactly* opposite.  They might not be,
-            // if de-duping made different choices.
-            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
-            {
-                int iOppositeFacet = facet2OppositeFacet[iFacet];
-                if (iOppositeFacet > iFacet)  // so we do this only once per pair, and only if there is an opposite
-                {
-                    int nCuts = facetCutOffsets[iFacet].length;
-                    CHECK(nCuts == facetCutOffsets[iOppositeFacet].length); // careful analysis of the deduping probably would show this can't fail, but check anyway
-                    for (int iCut = 0; iCut < nCuts; ++iCut) {
-                        CHECK(Math.abs(facetCutOffsets[iOppositeFacet][nCuts-1-iCut] - -facetCutOffsets[iFacet][iCut]) < 1e-3);  // rough sanity check, much coarser than the dedup tolerance that was used
-                        facetCutOffsets[iOppositeFacet][nCuts-1-iCut] = -facetCutOffsets[iFacet][iCut];
-                    }
-                }
+            if (intLengths.length == 1) {  // TODO: handle this even otherwise!
+              // Fill in far cuts of each facet,
+              // from near cuts of the opposite facet.
+              // Note the opposite facet may have a different
+              // offset from the origin, and different slice thickness
+              // (e.g. the truncated simplex in 3 or 4 dimensions).
+              // CBB: maybe should add these *after* we slice?  Originally I did all the actual slicing from one end, but that messes up the alt shrink to points and futt, so now we do half from one end and half from the other  (or should, anyway, I think?)
+              for (int iFacet = 0; iFacet < nFacets; ++iFacet)
+              {
+                  int iOppositeFacet = facet2OppositeFacet[iFacet];
+                  if (iOppositeFacet != -1) {
+                    int nNearCuts = intLengths[whichLengthToUseForFacet[iFacet]] / 2; // same as in previous pass
+                    int nFarCuts = facetCutOffsets[iFacet].length - nNearCuts;
+                    for (int iFarCut = 0; iFarCut < nFarCuts; ++iFarCut)
+                        facetCutOffsets[iFacet][nNearCuts+nFarCuts-1-iFarCut] = -facetCutOffsets[iOppositeFacet][iFarCut];
+                  }
+              }
+              // Now sort and de-dup as promised.
+              for (int iFacet = 0; iFacet < nFacets; ++iFacet)
+              {
+                  SortStuff.sort(facetCutOffsets[iFacet]);
+                  int nCutsRemaining = 0;
+                  for (int iCut = 0; iCut < facetCutOffsets[iFacet].length; ++iCut)
+                  {
+                      if (nCutsRemaining == 0
+                       || facetCutOffsets[iFacet][iCut] > facetCutOffsets[iFacet][nCutsRemaining-1] + 1e-6)
+                      {
+                          facetCutOffsets[iFacet][nCutsRemaining++] = facetCutOffsets[iFacet][iCut];
+                      }
+                  }
+                  facetCutOffsets[iFacet] = (double[])com.donhatchsw.util.Arrays.subarray(facetCutOffsets[iFacet], 0, nCutsRemaining);
+              }
+              // Finally, make sure opposite cut sets are *exactly* opposite.  They might not be,
+              // if de-duping made different choices.
+              for (int iFacet = 0; iFacet < nFacets; ++iFacet)
+              {
+                  int iOppositeFacet = facet2OppositeFacet[iFacet];
+                  if (iOppositeFacet > iFacet)  // so we do this only once per pair, and only if there is an opposite
+                  {
+                      int nCuts = facetCutOffsets[iFacet].length;
+                      CHECK(nCuts == facetCutOffsets[iOppositeFacet].length); // careful analysis of the deduping probably would show this can't fail, but check anyway
+                      for (int iCut = 0; iCut < nCuts; ++iCut) {
+                          CHECK(Math.abs(facetCutOffsets[iOppositeFacet][nCuts-1-iCut] - -facetCutOffsets[iFacet][iCut]) < 1e-3);  // rough sanity check, much coarser than the dedup tolerance that was used
+                          facetCutOffsets[iOppositeFacet][nCuts-1-iCut] = -facetCutOffsets[iFacet][iCut];
+                      }
+                  }
+              }
             }
         }
 
@@ -1305,6 +1359,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                          && theresASquare
                          && (theresADoubleLength2 || theresAFaceWithNoCut);
         }
+        if (intLengths.length != 1) doFurtherCuts = false;  // TODO: handle this even if more than one intLength!
 
         //
         // Slice!
@@ -2418,6 +2473,39 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         return true;  // success (not cancelled)
     } // init from schlafli and length
 
+    // E.g. "(4)x(3)x(2)x(1)" -> {4,3,2,1}  (leading to actual edge lengths 8,6,4,2)
+    private static double[] extractRingedNodeLengths(String schlafliProduct)
+    {
+      int verboseLevel = 1;
+      if (verboseLevel >= 1) System.out.println("in extractRingedNodeLengths");
+      String scratch = schlafliProduct;
+
+      if (verboseLevel >= 1) System.out.println("  scratch = "+scratch);
+      scratch = scratch.replaceAll("\\{\\}", "(1)");   // TODO: translate other schlafli-looking things!  e.g. {4,3} -> (1)4(0)3(0)
+      if (verboseLevel >= 1) System.out.println("  scratch = "+scratch);
+      // to work around the fact that empty tokens get discarded...
+      scratch = " " + scratch.replaceAll("\\)\\(", ") (") + " ";
+
+      String delimiter = "\\([^\\)]+\\)";
+      // https://stackoverflow.com/questions/2206378/how-to-split-a-string-but-also-keep-the-delimiters#answer-2206432
+      String fudgedDelimiter = "((?<="+delimiter+")|(?="+delimiter+"))";
+      String[] tokens = scratch.split(fudgedDelimiter);
+      // {" ","(3)","3","(0)","3","(6)"," "}
+      if (verboseLevel >= 1) System.out.println("  tokens = "+com.donhatchsw.util.Arrays.toStringCompact(tokens));
+      CHECK(tokens.length % 2 == 1);
+      double[] ringedNodeLengths = new double[(tokens.length-1)/2];
+      for (int i = 0; i < ringedNodeLengths.length; ++i) {
+        String token = tokens[2*i+1];
+        CHECK(token.startsWith("("));
+        CHECK(token.endsWith(")"));
+        token = token.substring(/*beginIndex=*/1, /*endIndex=*/token.length()-1);
+        ringedNodeLengths[i] = parseDoubleFraction(token);
+      }
+      if (verboseLevel >= 1) System.out.println("  ringedNodeLengths = "+com.donhatchsw.util.Arrays.toStringCompact(ringedNodeLengths));
+      if (verboseLevel >= 1) System.out.println("out extractRingedNodeLengths");
+      return ringedNodeLengths;
+    }  // extractRingedNodeLengths
+
     // XXX figure out a good public interface for something that shows stats
     public String toString(boolean verbose)
     {
@@ -2650,7 +2738,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     if (!(cutWeight >= -1e-9 && cutWeight <= 1.))
                         System.out.println("uh oh, cutWeight = "+cutWeight);  // fails on "(.25)4(2)3 3(1.4)" -> uh oh, cutWeight is -.75 . note that it's in 3d!
                                                                               // fails on "{5,3,3} 2(0.1458980337503153)" -> uh oh, cutWeight = 1.8090169943749477, and the following CHECK fails
-                    CHECK(cutWeight >= -1e-9 && cutWeight <= 1.); // I've seen 1e-16 on "{4,3} 7" due to floating point roundoff error
+                    CHECK(cutWeight >= -1e-9 && cutWeight <= 1.); // I've seen 1e-16 on "{4,3} 7" due to floating point roundoff error.  TODO: fix this dammit, it's going off, see above
                     if (cutWeight < 0.)
                         cutWeight = 0.;
 
@@ -2679,7 +2767,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     if (!(vertexWeight >= 0. && vertexWeight <= 1.))
                         System.out.println("uh oh, vertexWeight = "+vertexWeight);  // fails on "{5,3,3} 2(0.1458980337503153)" -> "uh oh, vertexWeight = 5.92008497187474"
                                                                                     // fails on "(.25)4(2)3 3(1.4)" -> uh oh, vertexWeight = 1.7499999999999998
-                    CHECK(vertexWeight >= 0. && vertexWeight <= 1.);
+                    CHECK(vertexWeight >= 0. && vertexWeight <= 1.);  // TODO: fix this dammit, it's going off, see above
                     totalWeight += vertexWeight;
                     // stickerAltCenterD += vertexWeight * vertexPosition
                     VecMath.vpsxv(stickerAltCenterD,
