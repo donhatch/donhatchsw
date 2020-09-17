@@ -1131,42 +1131,44 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 double fullThickness = 0.;
                 {
-                    // iVert = index of some vertex on facet iFacet
-                    int iVert = originalIncidences[nDims-1][iFacet][0][0];
-                    // iVertEdges = indices of all edges incident on vert iVert
-                    int[] iVertsEdges = originalIncidences[0][iVert][1];
-                    // Find an edge incident on vertex iVert
-                    // that is NOT incident on facet iFacet..
-                    for (int i = 0; i < iVertsEdges.length; ++i)
-                    {
-                        int iEdge = iVertsEdges[i];
-                        int[] iEdgesFacets = originalIncidences[1][iEdge][nDims-1];
-                        int j;
-                        for (j = 0; j < iEdgesFacets.length; ++j)
-                            if (iEdgesFacets[j] == iFacet)
-                                break; // iEdge is incident on iFacet-- no good
-                        if (j == iEdgesFacets.length)
+                    // In case of nonuniformity (e.g. pseudorhombicuboctahedron or frucht),
+                    // we need to do check *all* vertices on this facet, not just one.
+                    for (int iVert : originalIncidences[nDims-1][iFacet][0]) {
+                        // iVertEdges = indices of all edges incident on vert iVert
+                        int[] iVertsEdges = originalIncidences[0][iVert][1];
+                        // Find an edge incident on vertex iVert
+                        // that is NOT incident on facet iFacet..
+                        for (int i = 0; i < iVertsEdges.length; ++i)
                         {
-                            // iEdge is not incident on iFacet-- good!
-                            int jVert0 = originalIncidences[1][iEdge][0][0];
-                            int jVert1 = originalIncidences[1][iEdge][0][1];
-                            CHECK((jVert0==iVert) != (jVert1==iVert));
+                            int iEdge = iVertsEdges[i];
+                            int[] iEdgesFacets = originalIncidences[1][iEdge][nDims-1];
+                            int j;
+                            for (j = 0; j < iEdgesFacets.length; ++j)
+                                if (iEdgesFacets[j] == iFacet)
+                                    break; // iEdge is incident on iFacet-- no good
+                            if (j == iEdgesFacets.length)
+                            {
+                                // iEdge is not incident on iFacet-- good!
+                                int jVert0 = originalIncidences[1][iEdge][0][0];
+                                int jVert1 = originalIncidences[1][iEdge][0][1];
+                                CHECK((jVert0==iVert) != (jVert1==iVert));
 
-                            double[] edgeVec = VecMath.vmv(
-                                            originalVerts[jVert1].getCoords(),
-                                            originalVerts[jVert0].getCoords());
-                            double thisThickness = VecMath.dot(edgeVec, facetInwardNormals[iFacet]);
-                            if (thisThickness < 0.)
-                                thisThickness *= -1.;
+                                double[] edgeVec = VecMath.vmv(
+                                                originalVerts[jVert1].getCoords(),
+                                                originalVerts[jVert0].getCoords());
+                                double thisThickness = VecMath.dot(edgeVec, facetInwardNormals[iFacet]);
+                                if (thisThickness < 0.)
+                                    thisThickness *= -1.;
 
-                            // If there are more than one neighbor vertex
-                            // that's not on this facet, pick one that's
-                            // closest to the facet plane.  This can
-                            // happen only if the vertex figure is NOT a simplex
-                            // (e.g. it happens for the icosahedron).
-                            if (thisThickness > 1e-6
-                             && (fullThickness == 0. || thisThickness < fullThickness))
-                                fullThickness = thisThickness;
+                                // If there are more than one neighbor vertex
+                                // that's not on this facet, pick one that's
+                                // closest to the facet plane.  This can
+                                // happen only if the vertex figure is NOT a simplex
+                                // (e.g. it happens for the icosahedron).
+                                if (thisThickness > 1e-6
+                                 && (fullThickness == 0. || thisThickness < fullThickness))
+                                    fullThickness = thisThickness;
+                            }
                         }
                     }
                 }
@@ -3994,6 +3996,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // XXX we both modify state, and return a different array?  This can't be right, but callers might depend on it
             return newState;
         } // applyTwistToState
+    //
+    // END OF GENERICPUZZLEDESCRIPTION INTERFACE METHODS
+    //======================================================================
 
 
         private static int whichSlice(double point[],
@@ -4020,9 +4025,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             boolean answer = (slicemask & (1<<whichSlice)) != 0;
             return answer;
         }
-    //
-    // END OF GENERICPUZZLEDESCRIPTION INTERFACE METHODS
-    //======================================================================
 
 
     //
