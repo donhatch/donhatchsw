@@ -236,6 +236,11 @@ public class MC4DApplet
                     GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
                     glue.scrambleAction(canvas, new Label(), scramblechenfrengensen, viewGuts.viewParams.futtIfPossible.get());
                 }
+                else if (c == 'm'-'a'+1) // ctrl-m -- hide/show menu bar of current window
+                {
+                    Component menuBar = menuBarForWidth[0];  // CBB: I guess it's not really just for width any more
+                    menuBar.setVisible(!menuBar.isVisible());
+                }
                 else if (c == 'c'-'a'+1) // ctrl-c -- new control panel window
                 {
                     openOrMakeNewControlPanelWindow(viewGuts,
@@ -389,7 +394,7 @@ public class MC4DApplet
 
             final boolean isInSandbox = true; // XXX figure this out for real
 
-            Component menuBarHolder[] = new Component[1]; // so that the canvas can access the menuBar later when it needs to for getPreferredSize, even though we haven't created the menu bar yet
+            final Component[] menuBarHolder = new Component[1]; // so that the canvas can access the menuBar later when it needs to for getPreferredSize, even though we haven't created the menu bar yet
             final Canvas canvas = makeNewMC4DViewCanvas(viewGuts,
                                                         doDoubleBuffer,
                                                         menuBarHolder, // canvas wants to be square and same size as menu bar
@@ -631,6 +636,14 @@ public class MC4DApplet
                             {setEnabled(false);}
                             @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
+                            }
+                        });
+                        addSeparator();
+                        add(new MyMenuItem("Hide/Show this menu bar      Ctrl-M") {
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                Component menuBar = menuBarHolder[0];
+                                menuBar.setVisible(!menuBar.isVisible());
                             }
                         });
                     }});
