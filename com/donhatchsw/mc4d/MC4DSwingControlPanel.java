@@ -810,7 +810,9 @@ public class MC4DSwingControlPanel
     {
         this.add(new CanvasOfSize(20,10), // indent
                  new java.awt.GridBagConstraints(){{gridy = nRows;}});
-        this.add(new JRow() {{
+        this.add(new JRow() {
+                     javax.swing.ButtonGroup buttonGroup = new javax.swing.ButtonGroup();
+                 {
                      this.add(new JLabel(labelString));
                      String[] labels012 = {labelString0, labelString1, labelString2};
                      for (int i = 0; i < 3; ++i) {
@@ -818,7 +820,7 @@ public class MC4DSwingControlPanel
                          this.add(new JRadioButton(labels012[i], listenableInt.get()==i) {
                              Listenable.Listener listener;  // needed to keep a strong ref to it for as long as I'm alive
                          {
-                             // don't need a ButtonGroup-- the listeners (2 way binding) accomplish the mutual exclusion!
+                             buttonGroup.add(this);
                              addActionListener(new java.awt.event.ActionListener() {
                                  @Override public void actionPerformed(java.awt.event.ActionEvent e)
                                  {
