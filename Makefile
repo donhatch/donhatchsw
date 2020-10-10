@@ -140,13 +140,11 @@
 #JAVADOC=/usr/bin/javadoc
 
 # ubuntu, newest at the moment using default installed (11) compiler, from package openjdk-11-jdk
+JAVAROOT=/usr/lib/jvm/java-1.11.0-openjdk-amd64
 JAVACPPFLAGS=-DOVERRIDE=@Override
-JAVAC=/usr/bin/javac -source 6 -target 6 -deprecation -Xlint:all
-JAR=/usr/bin/jar
-JAVADOC=/usr/bin/javadoc
-
-
-
+JAVAC=${JAVAROOT}/bin/javac -source 6 -target 6 -deprecation -Xlint:all -Xlint:-options
+JAR=${JAVAROOT}/bin/jar
+JAVADOC=${JAVAROOT}/bin/javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling as modern as possible, whatever that means
 #JAVACPPFLAGS=-DOVERRIDE=@Override
