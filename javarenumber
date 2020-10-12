@@ -43,6 +43,9 @@ use strict;
 #
 # Author: Don Hatch (hatch@plunk.org)
 # Revision history:
+#     Mon 12 Oct 2020 05:49:52 AM PDT
+#         Update tags to support lambdas
+#         (fix "Unknown cp_info tag 16" when a lambda was used)
 #     Wed Dec  3 16:45:57 PST 2014
 #         Don't depend on pseudo-hash syntax since it appears to be gone
 #         from recent versions of perl.
@@ -371,6 +374,7 @@ sub readClassFile($)
             ["tag", $tag=u1,1
             #,print(STDERR "$_: tag=$tag, tell=".tell($CLASSFILE)."\n")
             ],
+            # https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.4
             $tag==7 ? ["Class", [["name_index", u2,2]]] :
             $tag==9 ? ["Fieldref", [["class_index", u2,2],
                                     ["name_and_type_index", u2,2]]] :
@@ -391,6 +395,7 @@ sub readClassFile($)
                                 ["bytes", bytes($count)]]] :
             $tag==15 ? ["MethodHandle", [["reference_kind", u1,1],
                                           ["reference_index", u2,2]]] :
+            $tag==16 ? ["MethodType", [["descriptor_index", u2,2]]] :
             $tag==18 ? ["InvokeDynamic", [["bootstrap_method_attr_index", u2,2],
                                           ["name_and_type_index", u2,2]]] :
             die "Unknown cp_info tag $tag\n"
