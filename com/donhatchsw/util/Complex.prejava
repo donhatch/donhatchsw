@@ -247,9 +247,9 @@ public class Complex
     public static Complex conj      (double x, double y) { return new Complex(x, y).conjEquals(); }
     public static Complex transposed(double x, double y) { return new Complex(x, y).transposedEquals(); }
     public static Complex normalized(double x, double y) { return new Complex(x, y).normalizedEquals(); }
-    public static Complex perpDot   (double x, double y) { return new Complex(y, x).perpDotEquals(); }
-    public static Complex exp       (double x, double y) { return new Complex(y, x).expEquals(); }
-    public static Complex log       (double x, double y) { return new Complex(y, x).logEquals(); }
+    public static Complex perpDot   (double x, double y) { return new Complex(x, y).perpDotEquals(); }
+    public static Complex exp       (double x, double y) { return new Complex(x, y).expEquals(); }
+    public static Complex log       (double x, double y) { return new Complex(x, y).logEquals(); }
     //---------------------------------------------------------------------------
 
     //---------------------------------------------------------------------------
