@@ -67,7 +67,6 @@ public class Complex
         this.set(that);
     }
 
-
     //---------------------------------------------------------------------------
     // Basic utilities, that take all args in x,y form
     // and put the result in an existing Complex,
@@ -182,6 +181,26 @@ public class Complex
     }
     //---------------------------------------------------------------------------
 
+    //---------------------------------------------------------------------------
+    // Versions of the basic equals* utilities that take the args in Complex
+    // form.
+    public Complex equalsPlus(Complex z0, Complex z1) { return this.equalsPlus(z0.x,z0.y, z1.x,z1.y); }
+    public Complex equalsMinus(Complex z0, Complex z1) { return this.equalsMinus(z0.x,z0.y, z1.x,z1.y); }
+    public Complex equalsFrom(Complex z0, Complex z1) { return this.equalsFrom(z0.x,z0.y, z1.x,z1.y); }
+    public Complex equalsTimes(Complex z0, Complex z1) { return this.equalsTimes(z0.x,z0.y, z1.x,z1.y); }
+    public Complex equalsOver(Complex z0, Complex z1) { return this.equalsOver(z0.x,z0.y, z1.x,z1.y); }
+    public Complex equalsUnder(Complex z0, Complex z1) { return this.equalsUnder(z0.x,z0.y, z1.x,z1.y); }
+    public Complex equalsPow(Complex z0, Complex z1) { return this.equalsPow(z0.x,z0.y, z1.x,z1.y); }
+    public Complex equalsNeg(Complex z) { return this.equalsNeg(z.x,z.y); }
+    public Complex equalsInverse(Complex z) { return this.equalsInverse(z.x,z.y); }
+    public Complex equalsConj(Complex z) { return this.equalsConj(z.x,z.y); }
+    public Complex equalsTransposed(Complex z) { return this.equalsTransposed(z.x,z.y); }
+    public Complex equalsNormalized(Complex z) { return this.equalsNormalized(z.x,z.y); }
+    public Complex equalsPerpDot(Complex z) { return this.equalsPerpDot(z.x,z.y); }
+    public Complex equalsExp(Complex z) { return this.equalsExp(z.x,z.y); }
+    public Complex equalsLog(Complex z) { return this.equalsLog(z.x,z.y); }
+    public Complex equalsExpm1(Complex z) { return this.equalsExpm1(z.x,z.y); }
+    public Complex equalsLog1p(Complex z) { return this.equalsLog1p(z.x,z.y); }
 
     //---------------------------------------------------------------------------
     // Accumulation functions with no RHS.
